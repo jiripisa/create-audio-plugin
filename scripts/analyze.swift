@@ -24,12 +24,15 @@
 // Method (rates, windows and thresholds are fixed so that numbers compare between runs):
 //   levels     dBFS = 20 log10(RMS), full scale 1.0 (a full-scale sine reads -3.0 dBFS);
 //              -200 stands for digital silence. Frames: 20 ms RMS every 5 ms.
-//   onsets     rectified complex-domain onset detection (see detectOnsets: Hann frames of about
-//              20 ms every 5 ms; a stroke breaks the predicted magnitude and phase even where it
-//              hardly raises the level). Each onset starts a stroke that ends one frame before the
-//              next onset. Times are within about 5 ms; low notes (under about 60 Hz) can read up
-//              to half a period late. strokeRate = 1 / the median interval. Rubbed or rough sounds (HNR under
-//              about 10 dB) can show bursts of the rubbing as onsets; check against the research.
+//   onsets     rectified complex-domain onset detection (see detectOnsets). Files whose lowest
+//              pitch is about 135 Hz or more: 20 ms frames, onsets within about 5 ms. Lower: 85 ms
+//              frames resolve the partials (in 20 ms ones they beat and fake onsets for hundreds
+//              of ms after a stroke), timed on 20 ms frames, within about 20 ms. Each onset
+//              starts a stroke that ends one frame before the next onset. strokeRate = 1 / the
+//              median interval. strokesSuspect (with suspectReasons, also printed as CAUTION):
+//              a quarter of the strokes or more cut while still rising, a median stroke under 4
+//              periods, or a file-level window under 4 periods with two strokes or more; then
+//              check the stroke rate against the research or measure with --window.
 //   note       the file-level note: the stroke that holds the first frame within 3 dB of the
 //              loudest frame (in a phrase, not always the loudest note; before the first onset,
 //              the start of the file); with --window, the stroke where the window starts. Window,
@@ -71,9 +74,10 @@
 //              decays there does not lift it); centroid of its spectrum (hiss is high, hum low).
 //   ref        each file minus the reference: f0 in cents, the rest in their own units.
 //
-// JSON (version 2: onsets, strokeRate, strokes, noteS and fewPeriods added). Absent values are
+// JSON (version 3: strokesSuspect and suspectReasons added; version 2 added onsets, strokeRate,
+// strokes, noteS and fewPeriods). Absent values are
 // null. Times in s (suffix S; onsets in s too), ms (Ms), frequencies in Hz.
-//   { "tool": "analyze.swift", "version": 2,
+//   { "tool": "analyze.swift", "version": 3,
 //     "files": [ <file>... ],
 //     "ref": <file> | null }
 //   <file> = {
@@ -91,6 +95,7 @@
 //     "noteTimeS" (the measured note's loudest frame), "attackMs", "decayMs", "t60S", "t60SpanDb",
 //     "tail": { "startS", "endS", "rmsDb", "floorDb", "centroidHz" },
 //     "onsets": [s], "strokeRate": strokes per s (1 / median interval; null under 2 onsets),
+//     "strokesSuspect": bool, "suspectReasons": [text],
 //     "strokes": { "count", "each": [ { "startS", "endS", "f0Hz", "peakDb" (sample peak, dBFS),
 //                  "decayMs", "decayFitted", "t60S", "centroidHz" } ],
 //                  "median": { "f0Hz", "peakDb", "decayMs", "t60S", "centroidHz" } (over the
@@ -411,21 +416,14 @@ func findPitch(_ seg: ArraySlice<Float>, spectrum s: Spectrum, rate: Double, fmi
     return Pitch(f0: rate / period, periodicity: periodicity, halved: halved)
 }
 
-// Onsets by the rectified complex-domain detection function (Bello et al. 2004, Dixon 2006):
-// Hann frames of about 20 ms every 5 ms; for each bin whose magnitude grows, the distance from
-// the value predicted by the two frames before (same magnitude, same phase advance). A new
-// stroke breaks the prediction even where it hardly raises the level (a stroke into the ring of
-// the ones before). Peaks: the highest within +-15 ms and at least 1 % of the file's highest;
-// either 4 times the function's median within +-0.25 s (silent frames after the peak left
-// out, so that a note's end does not lift the beating before it), or twice it where the level
-// rises 6 dB within +-30 ms (a note out of silence); the level must rise at least 0.25 dB (a
-// note-off or a decay does not count), to no more than 45 dB under the loudest. Of peaks closer
-// than 40 ms the first is kept. The time: the peak's frame (refined by a parabola) plus 5 ms.
-func detectOnsets(_ x: [Float], rate: Double, hop: Int, levels: [Double]) -> [Int] {
-    var size = 1, log2n: vDSP_Length = 0
-    while Double(size) < 0.02 * rate { size *= 2; log2n += 1 }
+// The rectified complex-domain onset detection function (Bello et al. 2004, Dixon 2006): Hann
+// frames of `size` samples every `hop`; for each bin whose magnitude grows, the distance from
+// the value predicted by the two frames before (same magnitude, same phase advance).
+func complexDomain(_ x: [Float], size: Int, hop: Int) -> [Double] {
+    var log2n: vDSP_Length = 0
+    while (1 << log2n) < size { log2n += 1 }
     let half = size / 2, n = x.count
-    guard n > size, let setup = vDSP_create_fftsetupD(log2n, FFTRadix(kFFTRadix2)) else { return [] }
+    guard n > 0, let setup = vDSP_create_fftsetupD(log2n, FFTRadix(kFFTRadix2)) else { return [] }
     defer { vDSP_destroy_fftsetupD(setup) }
     let w = (0..<size).map { 0.5 - 0.5 * cos(2 * Double.pi * Double($0) / Double(size - 1)) }
     var mag1 = [Double](repeating: 0, count: half), ph1 = mag1, ph2 = mag1
@@ -455,32 +453,109 @@ func detectOnsets(_ x: [Float], rate: Double, hop: Int, levels: [Double]) -> [In
         odf.append(d)
         start += hop
     }
-    guard let globalTop = odf.max(), globalTop > 0 else { return [] }
+    return odf
+}
+
+func powerOfTwo(atLeast v: Double) -> Int {
+    var s = 1
+    while Double(s) < v { s *= 2 }
+    return s
+}
+
+// The lowest pitch in the file, to size the onset frames: f0 in the steady windows after the
+// eight loudest level peaks (at least 100 ms apart). nil when none of them has a pitch.
+func lowestPitch(_ x: [Float], rate: Double, levels: [Double], hop: Int, options o: Options) -> Double? {
+    let hopS = Double(hop) / rate
+    var peaks: [Int] = []
+    for i in levels.indices.sorted(by: { levels[$0] > levels[$1] }) where levels[i] > -200 {
+        if peaks.allSatisfy({ abs($0 - i) * hop >= Int(0.1 * rate) }) { peaks.append(i) }
+        if peaks.count == 8 { break }
+    }
+    var lowest: Double?
+    for i in peaks {
+        let s0 = min(x.count, Int((Double(i) * hopS + 0.02) * rate)), s1 = min(x.count, s0 + Int(0.1 * rate))
+        guard s1 - s0 >= Int(0.05 * rate) else { continue }
+        let seg = x[s0..<s1]
+        if let p = findPitch(seg, spectrum: spectrum(seg, rate: rate), rate: rate, fmin: o.fmin, fmax: o.fmax) {
+            lowest = min(lowest ?? p.f0, p.f0)
+        }
+    }
+    return lowest
+}
+
+// Onsets from the detection function above. Two kinds of file:
+// - Frames of about 20 ms resolve the partials when the lowest pitch is about 135 Hz or more
+//   (2.7 periods fit): the timing comes from the detection frame itself (the attack lies about
+//   5 ms into a peak's frame), and the level must rise at least 0.25 dB across the peak.
+// - Below that, low partials closer than a 20 ms frame resolves beat against each other and keep
+//   the function swinging for hundreds of ms after a stroke, so detection runs on frames of
+//   about 85 ms (resolving partials down to about 25 Hz) and the timing on 20 ms frames: the
+//   highest of their peaks 30-75 % into the long frame (where a long frame's peak puts the
+//   attack; earlier peaks are the ring of the stroke before). No level rise is asked for: a
+//   soft stroke into the ring of a loud low one can even lower the level.
+// Peaks: the highest within +-15 ms, at least 1 % of the file's highest, and either 4 times
+// (5.5 times on long frames) the function's median within +-0.25 s (silent frames after the peak
+// left out: a note's end must not lift what comes before it), or twice it where the level rises
+// 6 dB across the onset (dense strokes, or a note out of silence). Times: refined by a parabola,
+// plus 5 ms (measured on the check renders).
+// Level, in 20 ms frames: within 40 dB of the loudest, and the frames 30 and 40 ms after the
+// onset not more than 10 dB under those that end before it (a note-off makes the spectrum
+// splatter, but then the level falls 12 dB or more with a 150 ms release; a stroke, even one
+// that interferes with the ring before it, stays within about 8 dB). Of onsets closer than
+// 40 ms the first is kept; on long frames a peak under a quarter of the onset before it (by the
+// median ratio) within 60 ms of it, or under a tenth within 150 ms, is that stroke still
+// settling (the level rise it shows is still that stroke's).
+func detectOnsets(_ x: [Float], rate: Double, hop: Int, levels: [Double], lowestPitch: Double?) -> [Int] {
+    let n = x.count
+    let shortSize = powerOfTwo(atLeast: 0.02 * rate)
+    let long = (lowestPitch.map { 2.7 * rate / $0 } ?? 0) > Double(shortSize)
+    let size = long ? powerOfTwo(atLeast: 0.08 * rate) : shortSize
+    guard n > shortSize else { return [] }
+    let odf = complexDomain(x, size: size, hop: hop)
+    let fine = long ? complexDomain(x, size: shortSize, hop: hop) : odf
+    guard let globalTop = odf.max(), globalTop > 0, !levels.isEmpty else { return [] }
     let top = levels.max() ?? -200
     let frames = { (s: Double) in max(1, Int((s * rate / Double(hop)).rounded())) }
-    let near = frames(0.015), mid = frames(0.25), rise = frames(0.030)
+    let near = frames(0.015), mid = frames(0.25), span = size / hop
     let last = levels.count - 1
-    var picked: [Int] = []
+    let lv = { (i: Int) in levels[max(0, min(last, i))] }
+    // The loudest 20 ms frame inside detection frame t: is it sounding at all.
+    let sounding = { (t: Int) in (levels[min(last, t)...min(last, t + span)].max() ?? -200) >= top - 40 }
+    var picked: [(onset: Int, ratio: Double)] = []
     for t in 0..<odf.count {
         let lo = max(0, t - near), hi = min(odf.count - 1, t + near)
-        guard odf[t] > 0, odf[t] == odf[lo...hi].max(), odf[t] >= 0.01 * globalTop else { continue }
-        // Against the local median: partials closer than the frame resolves beat in a steady low
-        // tone and keep the function busy there, but a stroke stands far out of it.
-        // (Silence after a note-off must not pull the median down; silence before is a real start.)
-        let around = (max(0, t - mid)...min(odf.count - 1, t + mid)).filter { $0 <= t || levels[min(last, $0)] >= top - 45 }
+        guard odf[t] > 0, odf[t] == odf[lo...hi].max(), odf[t] >= 0.01 * globalTop, sounding(t) else { continue }
+        let around = (max(0, t - mid)...min(odf.count - 1, t + mid)).filter { $0 <= t || sounding($0) }
         let ratio = odf[t] / max(1e-300, median(around.map { odf[$0] }) ?? 0)
-        let before = t >= 1 ? levels[max(0, min(last, t - rise))...min(last, t - 1)].min() ?? -200 : -200
-        let after = t + 1 <= last ? levels[(t + 1)...min(last, t + rise)].max() ?? -200 : -200
-        guard after >= top - 45, after - before >= 0.25, ratio >= 4 || (ratio >= 2 && after - before >= 6) else { continue }
-        if let first = picked.last, t - first < frames(0.040) { continue }   // one stroke: its first sign
-        picked.append(t)
+        guard ratio >= 2 else { continue }
+        var u = t
+        if long {
+            let f0 = min(fine.count - 1, t + Int(0.3 * Double(size)) / hop), f1 = min(fine.count - 1, t + Int(0.75 * Double(size)) / hop)
+            u = (f0...f1).max(by: { fine[$0] < fine[$1] }) ?? t
+        }
+        let d = u > 0 && u + 1 < fine.count ? parabola(fine[u - 1], fine[u], fine[u + 1]).offset : 0
+        let onset = min(n - 1, max(0, Int(((Double(u) + d) * Double(hop) + 0.005 * rate).rounded())))
+        // The rise: frames that end before the attack against those that hold it (on 20 ms
+        // frames: the 30 ms before the peak's frame against the 30 ms after it).
+        let at = onset / hop
+        let before = long ? (at - frames(0.05)...at - frames(0.02)).map(lv).min() ?? -200
+                          : (t - frames(0.03)...t - 1).map(lv).min() ?? -200
+        let holding = long ? (at - frames(0.01)...at + frames(0.02)).map(lv).max() ?? -200
+                           : (t + 1...t + frames(0.03)).map(lv).max() ?? -200
+        let rise = holding - before
+        let later = min(lv(at + frames(0.03)), lv(at + frames(0.04)))
+        guard holding >= top - 40, later - ((at - frames(0.03)...at - frames(0.02)).map(lv).max() ?? -200) > -10,
+              ratio >= (long ? 5.5 : 4) || rise >= 6, long || rise >= 0.25 else { continue }
+        if let prev = picked.last {
+            let gap = onset - prev.onset
+            if gap < Int(0.040 * rate) { continue }
+            if long, (gap < Int(0.060 * rate) && ratio < 0.25 * prev.ratio) || (gap < Int(0.150 * rate) && ratio < 0.1 * prev.ratio) {
+                continue
+            }
+        }
+        picked.append((onset, ratio))
     }
-    // The peak's frame refined by a parabola; the attack then lies about 5 ms into that frame
-    // (measured on the skill's check renders: a 4 ms attack, strokes into a ringing tone).
-    return picked.map { t in
-        let d = t > 0 && t + 1 < odf.count ? parabola(odf[t - 1], odf[t], odf[t + 1]).offset : 0
-        return min(n - 1, max(0, Int(((Double(t) + d) * Double(hop) + 0.005 * rate).rounded())))
-    }
+    return picked.map { $0.onset }
 }
 
 // One note or stroke: x[start..<end] (end = the next onset), measured as the file-level note is.
@@ -498,6 +573,7 @@ struct Note {
     var noteTime: Double?
     var attackMs: Double?, decayMs: Double?, t60: Double?, t60Span: Double?
     var decayFitted = false
+    var peakAtEnd = false   // its loudest frame lies in its last 25 ms: still rising when cut
 }
 
 struct Frames {
@@ -529,6 +605,9 @@ func measureNote(_ x: [Float], frames fr: Frames, start: Int, end: Int, window: 
     var fe = fs
     while fe + 1 < lv.count, (fe + 1) * fr.hop + fr.win <= end { fe += 1 }
     let localTop = lv[fs...fe].max() ?? -200
+    if let loudest = (fs...fe).max(by: { lv[$0] < lv[$1] }), fe > fs + 1 {
+        note.peakAtEnd = Double(fe - loudest) * hopS < 0.025
+    }
     let anchor: Int
     if let w = window {
         let a = max(fs, min(fe, Int(w.0 / hopS))), b = max(a, min(fe, Int(w.1 / hopS)))
@@ -631,6 +710,23 @@ struct Measurement {
     var onsets: [Int]
     var strokes: [Note]
     var tail: (start: Double, end: Double, rmsDb: Double, floorDb: Double, centroidHz: Double?)
+    // Reasons to doubt the segmentation (empty: none), with two strokes or more: a quarter or more
+    // of the strokes cut while still rising (onsets in a swell: bursts of a rubbed or bowed sound,
+    // or a strum, rather than new strokes), a median stroke shorter than 4 periods, a file-level
+    // note whose window holds fewer than 4 periods.
+    var strokesSuspect: [String] {
+        var reasons: [String] = []
+        let cut = strokes.dropLast().filter { $0.peakAtEnd }.count
+        if strokes.count >= 2, Double(cut) >= 0.25 * Double(strokes.count - 1) {
+            reasons.append("\(cut) of \(strokes.count - 1) strokes cut while still rising")
+        }
+        let periods = strokes.compactMap { s in s.pitch.map { Double(s.end - s.start) / audio.rate * $0.f0 } }
+        if strokes.count >= 2, let m = median(periods), m < 4 {
+            reasons.append(String(format: "median stroke %.1f periods long", m))
+        }
+        if strokes.count >= 2, note.fewPeriods { reasons.append("the file-level note's window holds fewer than 4 periods") }
+        return reasons
+    }
     var strokeRate: Double? {
         guard onsets.count >= 2 else { return nil }
         let gaps = zip(onsets.dropFirst(), onsets).map { Double($0 - $1) / audio.rate }
@@ -667,7 +763,8 @@ func measure(_ path: String, index: Int, options o: Options) -> Measurement {
                 floorDb: percentile(tailFrames, 0.10), centroidHz: tailMs > 0 ? centroid(tailSpectrum) : nil)
 
     // Onsets cut the file into strokes; each ends one frame before the next onset.
-    let onsets = detectOnsets(x, rate: rate, hop: hop, levels: fr.levels)
+    let onsets = detectOnsets(x, rate: rate, hop: hop, levels: fr.levels,
+                              lowestPitch: lowestPitch(x, rate: rate, levels: fr.levels, hop: hop, options: o))
     let bounds = onsets.isEmpty ? [(0, n)] : onsets.indices.map { i in
         (onsets[i], i + 1 < onsets.count ? max(onsets[i] + 1, onsets[i + 1] - hop) : n)
     }
@@ -735,6 +832,7 @@ func json(_ m: Measurement) -> [String: Any] {
         "t60S": round(n.t60, 3), "t60SpanDb": round(n.t60Span, 1),
         "onsets": m.onsets.map { round(seconds($0, rate), 4) },
         "strokeRate": round(m.strokeRate, 3),
+        "strokesSuspect": !m.strokesSuspect.isEmpty, "suspectReasons": m.strokesSuspect,
         "strokes": ["count": m.strokes.count, "each": m.strokes.map { strokeJSON($0, rate: rate) },
                     "median": ["f0Hz": round(med["f0Hz"]!, 3), "peakDb": round(med["peakDb"]!, 2),
                                "decayMs": round(med["decayMs"]!, 1), "t60S": round(med["t60S"]!, 3),
@@ -853,6 +951,10 @@ func plain(_ m: Measurement, ref: Measurement?) -> String {
         let med = strokeMedians(m.strokes)
         let fitted = m.strokes.filter { $0.decayFitted }.count
         lines.append("  strokes    \(m.strokes.count), \(fmt(m.strokeRate, 2, " per s")); medians: f0 \(fmt(med["f0Hz"]!, 1, " Hz")), peak \(fmt(med["peakDb"]!, 1, " dBFS")), decay \(fmt(med["decayMs"]!, 0, " ms")) (\(fitted) of \(m.strokes.count) extrapolated), T60 \(fmt(med["t60S"]!, 2, " s")), centroid \(fmt(med["centroidHz"]!, 0, " Hz"))")
+        let suspect = m.strokesSuspect
+        if !suspect.isEmpty {
+            lines.append("  CAUTION    the strokes may be wrong (" + suspect.joined(separator: "; ") + "): check the stroke rate against the research, or measure with --window")
+        }
         let shown = m.onsets.prefix(16).map { fmt(seconds($0, rate), 3) }.joined(separator: " ")
         lines.append("             onsets \(shown)\(m.onsets.count > 16 ? " ..." : "") s")
     }
@@ -894,7 +996,7 @@ if options.json {
         if let r = ref { o["vsRef"] = differences(m, r) }
         files.append(o)
     }
-    let top: [String: Any] = ["tool": "analyze.swift", "version": 2, "files": files, "ref": ref.map { json($0) as Any } ?? NSNull()]
+    let top: [String: Any] = ["tool": "analyze.swift", "version": 3, "files": files, "ref": ref.map { json($0) as Any } ?? NSNull()]
     print(encode(top))
 } else {
     if let r = ref { print("reference:\n" + plain(r, ref: nil) + "\n") }

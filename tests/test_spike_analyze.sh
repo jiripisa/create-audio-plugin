@@ -37,7 +37,7 @@ for f in "$WORK"/renders/*.wav; do
     cmp -s "$f" "$WORK/again/$(basename "$f")" || fail "$(basename "$f") differs between two runs"
 done
 "$WORK/spike" "$WORK/checks" 00_check > /dev/null
-[ "$(find "$WORK/checks" -name '*.wav' | wc -l | tr -d ' ')" -eq 8 ] || fail "prefix 00_check did not select 8 renders"
+[ "$(find "$WORK/checks" -name '*.wav' | wc -l | tr -d ' ')" -eq 15 ] || fail "prefix 00_check did not select 15 renders"
 ok "all $COUNT renders are the same in two runs; a name prefix selects renders"
 
 TONE="$WORK/renders/00_check_A_tone_220Hz.wav"
@@ -120,6 +120,36 @@ for f in 00_check_A_tone_220Hz 00_check_H_hum_an_octave_under 03_tilt_C_-12dB_da
     [ "$N" -eq "$WANT" ] || fail "$f: $N onsets, want $WANT (note-offs, releases and steady tones are no onsets)"
 done
 ok "no onsets from note-offs, releases or a steady tone with a hum"
+
+# Damped low notes (partials closer than a 20 ms frame resolves): one stroke keeps its decay and
+# T60 (41c1960, before segmentation, read A1 540 ms / 1.792 s and E2 555 ms / 1.792 s); grooves
+# every 300 ms give 8 onsets within 30 ms.
+for c in I_A1_stroke:540:1.792 J_E2_stroke:555:1.792; do
+    NAME=${c%%:*}; REST=${c#*:}; WD=${REST%%:*}; WT=${REST#*:}
+    S1=$("$ANALYZE" --json "$WORK/renders/00_check_$NAME.wav" | jq -c '.files[0] | [(.onsets | length), .decayMs, .t60S]')
+    [ "$(echo "$S1" | jq '.[0]')" -eq 1 ] || fail "$NAME: $(echo "$S1" | jq '.[0]') onsets, want 1"
+    within "$(echo "$S1" | jq '.[1]')" "$WD" "$(awk -v d="$WD" 'BEGIN { print d * 0.15 }')" || fail "$NAME: decay $(echo "$S1" | jq '.[1]') ms, want $WD +- 15 %"
+    within "$(echo "$S1" | jq '.[2]')" "$WT" "$(awk -v d="$WT" 'BEGIN { print d * 0.15 }')" || fail "$NAME: T60 $(echo "$S1" | jq '.[2]') s, want $WT +- 15 %"
+    ok "$NAME: 1 onset, decay $(echo "$S1" | jq '.[1]') ms, T60 $(echo "$S1" | jq '.[2]') s"
+done
+for NAME in K_A1_even L_E2_even M_A1_accents N_E2_accents O_A1_accents_single_rate; do
+    OS=$("$ANALYZE" --json "$WORK/renders/00_check_$NAME.wav" | jq -r '.files[0].onsets[]')
+    [ "$(echo "$OS" | wc -l | tr -d ' ')" -eq 8 ] || fail "$NAME: $(echo "$OS" | wc -l | tr -d ' ') onsets, want 8: $(echo $OS)"
+    echo "$OS" | awk '{ e = $1 - (0.2 + 0.3 * (NR - 1)); if (e > 0.03 || e < -0.03) exit 1 }' || fail "$NAME: an onset more than 30 ms off: $(echo $OS)"
+    ok "$NAME: 8 onsets within 30 ms"
+done
+
+# The suspect-strokes caveat: a strum (notes 40 ms apart, each cut while the chord still swells)
+# is flagged, and printed as CAUTION; grooves and single strokes are not.
+STRUM="$WORK/renders/06_chord_strum_then_block.wav"
+[ "$("$ANALYZE" --json "$STRUM" | jq -r '.files[0].strokesSuspect')" = true ] || fail "the strum's strokes are not flagged as suspect"
+"$ANALYZE" --json "$STRUM" | jq -e '.files[0].suspectReasons | any(test("cut while still rising"))' > /dev/null \
+    || fail "the strum is not flagged for strokes cut while still rising"
+"$ANALYZE" "$STRUM" | grep -q "CAUTION" || fail "no CAUTION line for the strum"
+for NAME in 00_check_F_groove 00_check_G_one_stroke 00_check_I_A1_stroke 00_check_K_A1_even 00_check_M_A1_accents 00_check_N_E2_accents 01_default 04_velocity_ramp; do
+    [ "$("$ANALYZE" --json "$WORK/renders/$NAME.wav" | jq -r '.files[0].strokesSuspect')" = false ] || fail "$NAME is flagged as suspect: $("$ANALYZE" --json "$WORK/renders/$NAME.wav" | jq -c '.files[0].suspectReasons')"
+done
+ok "strokesSuspect: the strum flagged ($("$ANALYZE" --json "$STRUM" | jq -r '.files[0].suspectReasons | join("; ")')), grooves and single strokes not"
 
 # --- harmonics stay in their bands; the octave guard ignores a hum ----------------------------
 

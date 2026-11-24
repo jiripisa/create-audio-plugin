@@ -12,7 +12,8 @@
 // Renders 48 kHz / 24-bit mono WAV files, peak-normalised to -1 dBFS:
 //   00_check_*   renders with a known answer, for checking the analysis chain (not for the ear):
 //                the score helpers' tone, noise in a tail, a weak fundamental, weak odd partials,
-//                a low short stroke, a groove and one of its strokes, a hum an octave under
+//                a low short stroke, a groove and one of its strokes, a hum an octave under,
+//                damped low notes alone and in grooves
 //   01..06       one group per question, decisive question first, each with a long tail
 //   P01_*        one render per planned program
 //
@@ -151,6 +152,11 @@ static Renders renders()
     const int A3 = 57, C4 = 60;
     auto with = [D](auto change) { Params p = D; change(p); return p; };
     const Score check = held(A3, 1.0f, 1.5).withTail(1.0);
+    auto every300 = [](int key, bool accents) {
+        Score s;
+        for (int i = 0; i < 8; ++i) s = s + stroke(kLead + 0.3 * i, key, accents ? (i % 2 ? 0.95f : 0.3f) : 0.8f);
+        return s;
+    };
     return {
         {"00_check_A_tone_220Hz", [=] { return render(check, checkTone()); }},
         {"00_check_B_noise_tail", [=] {
@@ -194,6 +200,17 @@ static Renders renders()
                  x[i] += float(dbToGain(-45) * std::sin(2 * kPi * 49.0 * double(i) / kRate));
              return x;
          }},
+
+        // Damped low notes of the default instrument, whose partials a 20 ms frame does not
+        // resolve: one stroke each, an even groove and an accented one (0.3 / 0.95) every 300 ms,
+        // and the accented A1 groove with one decay rate. 1 or 8 onsets each.
+        {"00_check_I_A1_stroke", [=] { return render(stroke(kLead, 33, 0.95f), D); }},
+        {"00_check_J_E2_stroke", [=] { return render(stroke(kLead, 40, 0.95f), D); }},
+        {"00_check_K_A1_even", [=] { return render(every300(33, false), D); }},
+        {"00_check_L_E2_even", [=] { return render(every300(40, false), D); }},
+        {"00_check_M_A1_accents", [=] { return render(every300(33, true), D); }},
+        {"00_check_N_E2_accents", [=] { return render(every300(40, true), D); }},
+        {"00_check_O_A1_accents_single_rate", [=] { return render(every300(33, true), singleRate()); }},
 
         // 01: the decisive question first - a struck bar or a synthesizer?
         {"01_default", [=] { return render(strokeThenPhrase(C4), D); }},
