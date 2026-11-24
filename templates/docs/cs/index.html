@@ -1,0 +1,138 @@
+<!doctype html>
+<html lang="cs">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{APP}} pro macOS</title>
+<meta name="description" content="{{TAGLINE_CS}}">
+<meta property="og:title" content="{{APP}}">
+<meta property="og:description" content="{{TAGLINE_CS}}">
+<meta property="og:image" content="{{PAGES_URL}}assets/{{APP_LOWER}}-window.png">
+<meta property="og:type" content="website">
+<link rel="alternate" hreflang="en" href="{{PAGES_URL}}">
+<link rel="alternate" hreflang="cs" href="{{PAGES_URL}}cs/">
+<link rel="alternate" hreflang="x-default" href="{{PAGES_URL}}">
+<link rel="icon" href="../assets/icon.png">
+<link rel="stylesheet" href="../assets/site.css">
+</head>
+<body>
+
+<header class="wrap masthead">
+  <a class="brand" href="#top"><img src="../assets/icon.png" alt="" width="32" height="32">{{APP}}</a>
+  <nav aria-label="Stránka">
+    <a href="manual.html">Manuál</a>
+    <a href="#get">Stáhnout</a>
+    <a href="{{REPO_URL}}">GitHub</a>
+    <a class="lang" href="../" hreflang="en" lang="en">English</a>
+  </nav>
+</header>
+
+<main id="top">
+  <div class="wrap hero">
+    <div class="hero-intro">
+      <img class="hero-art" src="../assets/hero-{{APP_LOWER}}.jpg" alt="" width="1920" height="819" fetchpriority="high">
+      <div class="hero-copy">
+    <h1>{{APP}}</h1>
+    <p class="lede">{{TAGLINE_CS}}</p>
+    <div class="actions">
+      <a class="button" href="{{REPO_URL}}/releases/download/v{{VERSION}}/{{APP}}-{{VERSION}}.dmg">
+        <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M10 3v10m0 0-4-4m4 4 4-4M4 16h12" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        Stáhnout pro macOS
+      </a>
+      <span class="meta">Verze {{VERSION}} pro macOS 26 a novější. <a href="manual.html">Přečtěte si manuál</a>.</span>
+    </div>
+      </div>
+    </div>
+    <figure class="shot">
+      <img src="../assets/{{APP_LOWER}}-window.png" alt="Okno aplikace {{APP}}" width="1400">
+    </figure>
+  </div>
+
+  <section id="features">
+    <div class="wrap">
+      <h2>Co umí</h2>
+      <div class="grid">
+        <div>
+          <h3>Třecí buben, na který se hraje</h3>
+          <p>Hliněný hrnec potažený blánou, kterou prochází dva svazky koňských
+          žíní, a po žíních táhnou mokré ruce: {{APP_LOWER}}, se kterým o Vánocích
+          chodí koledníci. Dvanáct vestavěných programů hraje na něj i na jeho
+          příbuzné: německý Brummtopf, španělskou zambombu, neapolské putipù,
+          brazilskou cuíku, venezuelské furruco a rumunský buhai, k tomu
+          vrzání a švihnutí.</p>
+        </div>
+        <div>
+          <h3>Syntetizovaný, ne samplovaný</h3>
+          <p>Každý tah se počítá ve chvíli, kdy zní, nepřehrává se z nahrávky,
+          a proto se může hýbat: vyjet zdola do své výšky jako houknutí cuíky,
+          posouvat se, jak ruka táhne, nebo vyskočit na vyšší mód blány. Vary
+          se postará, aby žádné dva tahy nebyly úplně stejné.</p>
+        </div>
+        <div>
+          <h3>Dvě ruce, jeden buben</h3>
+          <p>Hráč táhne střídavě oběma rukama a slabší ruka zní o něco tišeji
+          a trochu jinak. Tah na znějící buben naváže tam, kde blána právě je,
+          takže tahy do sebe přecházejí s poklesem, ne s lupnutím. Při Drum
+          One je celá klaviatura jeden buben, při Drum Many je každá nota
+          samostatný buben.</p>
+        </div>
+        <div>
+          <h3>Klávesy i pady</h3>
+          <p>V režimu klaviatury hraje každá nota zvuk ve své výšce. V režimu
+          padů hrají noty 36–51 na šestnáct padů a každý má vlastní zvuk,
+          výšku i skupinu; pady jedné skupiny jsou jeden buben, na který hraje
+          jeden pár rukou. Send to pad udělá ze zvuku nastaveného na klaviatuře
+          pad.</p>
+        </div>
+        <div>
+          <h3>Presety, sady a učení MIDI</h3>
+          <p>Zvuk si uložíte jako preset a všech šestnáct padů jako sadu;
+          aplikace i plugin je sdílejí. Dvě LFO a síla úderu hýbou knoby
+          o hodnoty, které nastavíte přímo na knobech. Každý knob a přepínač
+          sleduje MIDI ovladač a kliknutím se naučí nový.</p>
+        </div>
+        <div>
+          <h3>Aplikace i Audio Unit</h3>
+          <p>Aplikace pro Mac s klaviaturou a pady na obrazovce a nástroj
+          Audio Unit se stejným oknem pro Logic Pro, Ableton Live a další
+          hostitelské programy, který nainstalujete z aplikace. Aplikace dá
+          vědět, když vyjde nová verze, a nainstaluje ji jen s vaším
+          souhlasem.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="get">
+    <div class="wrap grid">
+      <div>
+        <h2>Stáhnout</h2>
+        <p>{{APP}} potřebuje macOS 26 nebo novější. Obraz disku je podepsaný
+        a notarizovaný Applem, takže se otevře bez bezpečnostních varování.
+        Přetáhněte {{APP}} do složky Aplikace.</p>
+        <div class="actions">
+          <a class="button" href="{{REPO_URL}}/releases/download/v{{VERSION}}/{{APP}}-{{VERSION}}.dmg">Stáhnout verzi {{VERSION}}</a>
+        </div>
+        <p><a href="{{REPO_URL}}/releases">Poznámky k verzím a starší verze</a></p>
+      </div>
+      <div>
+        <h2>Sestavení ze zdrojů</h2>
+        <p>Potřebujete Xcode kvůli nástroji, který sestavuje ikonu aplikace;
+        projekt Xcode není potřeba.</p>
+<pre><code>git clone {{REPO_URL}}.git
+cd {{APP_LOWER}}
+./run.sh</code></pre>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <div class="wrap">
+    <span>{{APP}}, autor {{AUTHOR}}. {{LICENSE_LABEL_CS}}.</span>
+    <span><a href="manual.html">Manuál</a> · <a href="{{REPO_URL}}">Zdrojový kód na GitHubu</a></span>
+  </div>
+</footer>
+
+</body>
+</html>

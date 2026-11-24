@@ -1,0 +1,137 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{APP}} for macOS</title>
+<meta name="description" content="{{TAGLINE}}">
+<meta property="og:title" content="{{APP}}">
+<meta property="og:description" content="{{TAGLINE}}">
+<meta property="og:image" content="{{PAGES_URL}}assets/{{APP_LOWER}}-window.png">
+<meta property="og:type" content="website">
+<link rel="alternate" hreflang="en" href="{{PAGES_URL}}">
+<link rel="alternate" hreflang="cs" href="{{PAGES_URL}}cs/">
+<link rel="alternate" hreflang="x-default" href="{{PAGES_URL}}">
+<link rel="icon" href="assets/icon.png">
+<link rel="stylesheet" href="assets/site.css">
+</head>
+<body>
+
+<header class="wrap masthead">
+  <a class="brand" href="#top"><img src="assets/icon.png" alt="" width="32" height="32">{{APP}}</a>
+  <nav aria-label="Page">
+    <a href="manual.html">Manual</a>
+    <a href="#get">Download</a>
+    <a href="{{REPO_URL}}">GitHub</a>
+    <a class="lang" href="cs/" hreflang="cs" lang="cs">Česky</a>
+  </nav>
+</header>
+
+<main id="top">
+  <div class="wrap hero">
+    <div class="hero-intro">
+      <img class="hero-art" src="assets/hero-{{APP_LOWER}}.jpg" alt="" width="1920" height="819" fetchpriority="high">
+      <div class="hero-copy">
+    <h1>{{APP}}</h1>
+    <p class="lede">{{TAGLINE}}</p>
+    <div class="actions">
+      <a class="button" href="{{REPO_URL}}/releases/download/v{{VERSION}}/{{APP}}-{{VERSION}}.dmg">
+        <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M10 3v10m0 0-4-4m4 4 4-4M4 16h12" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        Download for macOS
+      </a>
+      <span class="meta">Version {{VERSION}} for macOS 26 or later. <a href="manual.html">Read the manual</a>.</span>
+    </div>
+      </div>
+    </div>
+    <figure class="shot">
+      <img src="assets/{{APP_LOWER}}-window.png" alt="The {{APP}} window" width="1400">
+    </figure>
+  </div>
+
+  <section id="features">
+    <div class="wrap">
+      <h2>What it does</h2>
+      <div class="grid">
+        <div>
+          <h3>A friction drum to play</h3>
+          <p>A clay jug covered with a skin, two tufts of horsehair through it,
+          pulled by wet hands: the drum Czech carollers play at Christmas.
+          Twelve built-in programs play it and its relatives: the German
+          Brummtopf, the Spanish zambomba, the Neapolitan putipù, the Brazilian
+          cuíca, the Venezuelan furruco and the Romanian buhai, plus a creak
+          and a flick.</p>
+        </div>
+        <div>
+          <h3>Synthesized, not sampled</h3>
+          <p>Every stroke is made as it sounds, not played back from a
+          recording, so it can move: scoop up into its pitch like the cuíca's
+          whoop, drift as the hand pulls, or jump to a higher mode of the skin.
+          Vary keeps no two strokes quite alike.</p>
+        </div>
+        <div>
+          <h3>Two hands, one drum</h3>
+          <p>A player pulls with both hands in turn, and the weaker one is a
+          little quieter and a little off. A stroke on a sounding drum goes on
+          from where the skin is, so strokes run into each other with a dip,
+          not a click. With Drum One the whole keyboard is one drum; with Drum
+          Many every note is a drum of its own.</p>
+        </div>
+        <div>
+          <h3>Keys and pads</h3>
+          <p>In keyboard mode every note strikes the sound at its pitch. In pad
+          mode notes 36–51 hit sixteen pads, each with a sound, a pitch and a
+          group of its own; the pads of a group are one drum, played by one
+          pair of hands. Send to pad turns a sound made on the keyboard into a
+          pad.</p>
+        </div>
+        <div>
+          <h3>Presets, kits and MIDI learn</h3>
+          <p>Save a sound as a preset and all sixteen pads as a kit; the app
+          and the plug-in share them. Two LFOs and the velocity move the knobs
+          by amounts set on the knobs themselves. Every knob and switch follows
+          a MIDI controller and learns a new one with a click.</p>
+        </div>
+        <div>
+          <h3>App and Audio Unit</h3>
+          <p>A Mac app with an on-screen keyboard and pads, and an Audio Unit
+          instrument with the same window for Logic Pro, Ableton Live and other
+          hosts, installed from the app. The app tells you when a new version
+          is out and installs it only with your OK.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="get">
+    <div class="wrap grid">
+      <div>
+        <h2>Download</h2>
+        <p>{{APP}} needs macOS 26 or later. The disk image is signed and
+        notarized by Apple, so it opens without security warnings. Drag
+        {{APP}} to Applications.</p>
+        <div class="actions">
+          <a class="button" href="{{REPO_URL}}/releases/download/v{{VERSION}}/{{APP}}-{{VERSION}}.dmg">Download version {{VERSION}}</a>
+        </div>
+        <p><a href="{{REPO_URL}}/releases">Release notes and earlier versions</a></p>
+      </div>
+      <div>
+        <h2>Build from source</h2>
+        <p>You need Xcode, for the tool that compiles the app icon; no Xcode
+        project is involved.</p>
+<pre><code>git clone {{REPO_URL}}.git
+cd {{APP_LOWER}}
+./run.sh</code></pre>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <div class="wrap">
+    <span>{{APP}} by {{AUTHOR}}. {{LICENSE_LABEL}}.</span>
+    <span><a href="manual.html">Manual</a> · <a href="{{REPO_URL}}">Source on GitHub</a></span>
+  </div>
+</footer>
+
+</body>
+</html>

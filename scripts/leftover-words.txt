@@ -1,0 +1,13 @@
+# Words that must not survive in the template or in a rendered project (check_leftovers.sh).
+# One fixed string per line, matched case-sensitively anywhere in a line or a path.
+# Identity of the source project and of its siblings:
+fanfrnoch
+Fanfrnoch
+FANFRNOCH
+Fanf
+Brumle
+brumle
+BRUMLE
+Didgeridoo
+didgeridoo
+DIDGERIDOO
