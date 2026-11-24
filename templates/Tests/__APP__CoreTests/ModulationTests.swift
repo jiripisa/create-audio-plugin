@@ -119,23 +119,24 @@ struct ModulationTests: EngineHarness {
 
     // MARK: - Live knobs and wheels
 
-    // Tune turned up 100 cents halfway into a note: from there on the note is a semitone higher.
+    // Tune turned up 100 cents 0.15 s into a note: from there on the note is a semitone higher.
+    // Early, so that a note that dies away fast still sounds.
     @Test("A keyboard voice follows the knobs while it sounds")
     func liveKnobs() {
         func play(turnAtHalf: Bool) -> [Float] {
             let engine = makeEngine()
             defer { {{APP_C}}_destroy(engine) }
             {{APP_C}}_midi(engine, 0x90, 47, 110, 0)
-            var out = render(engine, seconds: 0.5)
+            var out = render(engine, seconds: 0.15)
             if turnAtHalf { {{APP_C}}_set_plain(engine, Self.keyboard, Self.index("tune"), 100) }
-            out += render(engine, seconds: 0.5)
+            out += render(engine, seconds: 0.15)
             return out
         }
-        let half = Self.frames(0.5)
+        let half = Self.frames(0.15)
         let still = play(turnAtHalf: false), turned = play(turnAtHalf: true)
         #expect(still[..<half] == turned[..<half])
         let expected = 440 * pow(2, (48 - 69) / 12.0)
-        let hz = fundamental(Array(turned[Self.frames(0.6)...]), rate: Self.rate, expected: expected)
+        let hz = fundamental(Array(turned[Self.frames(0.16)...]), rate: Self.rate, expected: expected)
         #expect(abs(hz / expected - 1) < 0.001, "\(hz) Hz, expected \(expected) Hz")
     }
 

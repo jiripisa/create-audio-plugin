@@ -69,6 +69,14 @@ extension EngineHarness {
         return (left, right)
     }
 
+    /// What the engine's probe shows now (`{{APP_C}}_voice_probe`): what the platform asked of the
+    /// voices, which a test reads instead of listening for the instrument.
+    func voiceProbe(_ engine: OpaquePointer) -> {{APP}}VoiceProbe {
+        var probe = {{APP}}VoiceProbe()
+        {{APP_C}}_voice_probe(engine, &probe)
+        return probe
+    }
+
     func rms<C: Collection>(_ x: C) -> Double where C.Element == Float {
         (x.reduce(0.0) { $0 + Double($1) * Double($1) } / Double(max(x.count, 1))).squareRoot()
     }

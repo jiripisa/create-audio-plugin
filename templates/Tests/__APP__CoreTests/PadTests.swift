@@ -134,9 +134,9 @@ struct PadTests: EngineHarness {
             defer { {{APP_C}}_destroy(engine) }
             if grouped { group1(engine) }
             hitPad(engine, 0)
-            _ = render(engine, seconds: 0.5)
+            _ = render(engine, seconds: 0.05)
             hitPad(engine, 1)
-            _ = render(engine, seconds: 0.1)
+            _ = render(engine, frames: 128)
             #expect({{APP_C}}_sounding_voices(engine) == voices, "grouped: \(grouped)")
         }
     }
@@ -193,19 +193,18 @@ struct PadTests: EngineHarness {
 
     @Test("A velocity-0 note-on is a note-off")
     func velocityZeroIsNoteOff() {
-        func release(_ status: Int32?) -> [Float] {
+        func release(_ status: Int32?) -> (out: [Float], releases: Int32) {
             let engine = makePads()
             defer { {{APP_C}}_destroy(engine) }
             hitPad(engine, 0)
-            _ = render(engine, seconds: 0.5)
+            var out = render(engine, seconds: 0.05)
             if let status { {{APP_C}}_midi(engine, status, 36, 0, 0) }
-            _ = render(engine, seconds: 0.4)
-            return render(engine, seconds: 0.2)
+            out += render(engine, seconds: 0.6)
+            return (out, voiceProbe(engine).releases)
         }
         let noteOn0 = release(0x90), noteOff = release(0x80), held = release(nil)
-        #expect(noteOn0 == noteOff)
-        #expect(rms(held) > 0.001)
-        #expect(noteOn0 != held)
+        #expect(noteOn0.out == noteOff.out)
+        #expect(noteOn0.releases == 1 && noteOff.releases == 1 && held.releases == 0)
     }
 
     // The keyboard's VEL amount on the first continuous instrument knob that has one is 0, pad
@@ -306,20 +305,22 @@ struct PadTests: EngineHarness {
 
     @Test("Mode switch leaves sounding voices alone")
     func modeSwitch() {
-        func play(from: Int32, switching: Bool) -> [Float] {
+        func play(from: Int32, switching: Bool) -> (out: [Float], sounding: Int32) {
             let engine = makePads()
             defer { {{APP_C}}_destroy(engine) }
             {{APP_C}}_set_mode(engine, from)
             {{APP_C}}_midi(engine, 0x90, 37, 110, 0)
-            var out = render(engine, seconds: 0.5)
+            var out = render(engine, seconds: 0.05)
             if switching { {{APP_C}}_set_mode(engine, 1 - from) }
+            out += render(engine, frames: 128)
+            let sounding = {{APP_C}}_sounding_voices(engine)
             out += render(engine, seconds: 1.0)
-            return out
+            return (out, sounding)
         }
         for mode in [Int32({{APP_UPPER}}_MODE_KEYBOARD), Self.pads] {
             let switched = play(from: mode, switching: true)
-            #expect(rms(switched[Self.frames(0.5)...]) > 0.001, "from mode \(mode)")
-            #expect(switched == play(from: mode, switching: false), "from mode \(mode)")
+            #expect(switched.sounding == 1, "from mode \(mode)")
+            #expect(switched.out == play(from: mode, switching: false).out, "from mode \(mode)")
         }
     }
 

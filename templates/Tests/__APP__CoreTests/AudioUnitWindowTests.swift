@@ -359,7 +359,8 @@ struct AudioUnitWindowTests {
         let instrument = try Instrument()
         let engine = try instrument.engine()
         let model = try model(of: instrument)
-        // A released key's voice dies away within the default Release; the two keys are two voices.
+        // The two keys are two voices; letting go of them releases both (the engine's probe).
+        var probe = {{APP}}VoiceProbe()
 
         model.keyDown(50, velocity: 100)
         model.keyDown(57, velocity: 100)
@@ -367,8 +368,9 @@ struct AudioUnitWindowTests {
         #expect({{APP_C}}_sounding_voices(engine) == 2)
 
         model.releaseHeld()                                   // the window goes away mid-press
-        _ = try instrument.render(seconds: 1.2)
-        #expect({{APP_C}}_sounding_voices(engine) == 0)
+        _ = try instrument.render()
+        {{APP_C}}_voice_probe(engine, &probe)
+        #expect(probe.keysUnreleased == 0 && probe.releases == 2)
     }
 
     // MARK: A unit that is gone

@@ -145,6 +145,7 @@ struct Slot
     int key = 0;                    // what it belongs to (VoiceKey)
     int note = 0;                   // the MIDI note whose note-off releases it
     bool sustained = false;         // its key is up, the sustain pedal holds it
+    bool released = false;          // the voice has been released (Voice::release)
     float velocity = 1.0f;
     float glide = 0.0f;             // semitones the pitch still is from the note (Knobs::glide)
     float glideStep = 0.0f;         // what a control tick takes off it
@@ -317,6 +318,7 @@ struct {{APP}}Engine
         numHeld_ = 0;
         sustain_ = false;
         sounding_.store(0, std::memory_order_relaxed);
+        publishProbe();
     }
 
     void process(float* left, float* right, int frames)
@@ -347,9 +349,42 @@ struct {{APP}}Engine
         int sounding = 0;
         for (const Slot& s : slots_) if (s.active && !s.choking) ++sounding;
         sounding_.store(sounding, std::memory_order_relaxed);
+        publishProbe();
+    }
+
+    // ----- the probe (any thread) -----------------------------------------------------------
+    void probe({{APP}}VoiceProbe& out) const
+    {
+        out.freshStarts = freshStarts_.load(std::memory_order_relaxed);
+        out.continuingStarts = continuingStarts_.load(std::memory_order_relaxed);
+        out.releases = releases_.load(std::memory_order_relaxed);
+        out.keysUnreleased = keysUnreleased_.load(std::memory_order_relaxed);
+        out.keysSustained = keysSustained_.load(std::memory_order_relaxed);
+        out.keysHeld = keysHeld_.load(std::memory_order_relaxed);
+        out.monoNote = monoNote_.load(std::memory_order_relaxed);
+        out.monoGlide = monoGlide_.load(std::memory_order_relaxed);
     }
 
 private:
+    // What the probe shows of the voices as they stand now.
+    void publishProbe()
+    {
+        int unreleased = 0, sustained = 0, monoNote = -1;
+        float monoGlide = 0.0f;
+        for (const Slot& s : slots_)
+        {
+            if (!s.active || s.choking) continue;
+            if (s.fromKey && !s.released) ++unreleased;
+            if (s.fromKey && s.sustained) ++sustained;
+            if (s.key == kKeyMono) { monoNote = s.note; monoGlide = s.glide; }
+        }
+        keysUnreleased_.store(unreleased, std::memory_order_relaxed);
+        keysSustained_.store(sustained, std::memory_order_relaxed);
+        keysHeld_.store(numHeld_, std::memory_order_relaxed);
+        monoNote_.store(monoNote, std::memory_order_relaxed);
+        monoGlide_.store(monoGlide, std::memory_order_relaxed);
+    }
+
     // At most {{APP_UPPER}}_MAX_VOICES sound; the other slots let the voices being choked fade out. 40
     // leave room for 16 voices choked at once while 16 new ones start (all pads hit together),
     // so that a choked voice is cut only when even that is not enough.
@@ -585,12 +620,27 @@ private:
     void start(Slot& s, bool continuing, int note, int pitch, float velocity, const float* plain)
     {
         s.note = note;
-        s.sustained = false;
         s.velocity = velocity;
         startLfos(s, (int)std::lround(plain[kLfoStart]));
         viewFor(s);
         s.ctl = 0;
-        s.voice.start(s.knobs, pitch, velocity, continuing);
+        startVoice(s, pitch, continuing);
+    }
+
+    // The instrument's start and release, counted for the probe.
+    void startVoice(Slot& s, int pitch, bool continuing)
+    {
+        s.sustained = s.released = false;
+        s.voice.start(s.knobs, pitch, s.velocity, continuing);
+        (continuing ? continuingStarts_ : freshStarts_).fetch_add(1, std::memory_order_relaxed);
+    }
+
+    void releaseVoice(Slot& s)
+    {
+        s.sustained = false;
+        s.released = true;
+        s.voice.release();
+        releases_.fetch_add(1, std::memory_order_relaxed);
     }
 
     int voiceMode() const { return std::clamp((int)std::lround(keyPlain_[kVoiceMode]), 0, (int)kNumVoiceModes - 1); }
@@ -639,10 +689,9 @@ private:
     {
         glideFrom(s, (float)s.note + s.glide, note);
         s.note = note;
-        s.sustained = false;
         viewFor(s);
         s.ctl = 0;
-        s.voice.start(s.knobs, note, s.velocity, true);
+        startVoice(s, note, true);
     }
 
     // The pitch of `s` starts at `from` (a fractional note) and reaches `note` in Glide ms, at an
@@ -682,8 +731,8 @@ private:
         for (Slot& s : slots_)
             if (s.active && s.sustained)
             {
-                s.sustained = false;
-                if (!s.choking) s.voice.release();
+                if (s.choking) s.sustained = false;
+                else releaseVoice(s);
             }
     }
 
@@ -720,10 +769,10 @@ private:
         const bool mono = voiceMode() != kVoicePoly;
         for (Slot& s : slots_)
         {
-            if (!s.active || s.choking || s.note != note) continue;
+            if (!s.active || s.choking || s.released || s.note != note) continue;
             if (s.key == kKeyMono && mono && numHeld_ > 0) moveTo(s, held_[numHeld_ - 1]);
             else if (s.fromKey && sustain_) s.sustained = true;
-            else s.voice.release();
+            else releaseVoice(s);
         }
     }
 
@@ -828,6 +877,9 @@ private:
     std::atomic<int>   padHits_[{{APP_UPPER}}_NUM_PADS] = {};     // pad hits since creation; reset leaves them
     std::atomic<int>   lastNote_{-1};
     std::atomic<int>   sounding_{0};
+    std::atomic<int>   freshStarts_{0}, continuingStarts_{0}, releases_{0};   // since creation; reset leaves them
+    std::atomic<int>   keysUnreleased_{0}, keysSustained_{0}, keysHeld_{0}, monoNote_{-1};
+    std::atomic<float> monoGlide_{0.0f};
     std::atomic<int>   latency_{0};
     std::atomic<bool>  resetPending_{false};
     std::atomic<int8_t>   controller_[kNumKnobs];        // the controller each knob listens to, kNoController for none
@@ -973,6 +1025,14 @@ int  {{APP_C}}_last_note(const {{APP}}Engine* e) { return e ? e->lastNote() : -1
 void {{APP_C}}_send_to_pad({{APP}}Engine* e, int pad) { if (e && validPad(pad)) e->sendToPad(pad); }
 void {{APP_C}}_load_default_kit({{APP}}Engine* e) { if (e) e->loadDefaultKit(); }
 int  {{APP_C}}_sounding_voices(const {{APP}}Engine* e) { return e ? e->soundingVoices() : 0; }
+
+void {{APP_C}}_voice_probe(const {{APP}}Engine* e, {{APP}}VoiceProbe* out)
+{
+    if (!out) return;
+    *out = {{APP}}VoiceProbe{};
+    out->monoNote = -1;
+    if (e) e->probe(*out);
+}
 
 static bool validKnob(int param) { return param >= 0 && param < kNumKnobs; }
 

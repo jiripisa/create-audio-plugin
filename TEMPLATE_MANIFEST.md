@@ -307,6 +307,12 @@ keyboard set's Voice Mode:
   (releasing what it held) and empty the stack; reset does too.
 - Pads ignore the voice mode and Glide (a pad is a frozen key press; groups keep their own voice).
   Pitch bend works in every mode.
+- A note-off finds only voices not yet released; one for a key the stack does not hold changes
+  nothing.
+- The probe (`{{APP_C}}_voice_probe`, `{{APP}}VoiceProbe`): fresh and continuing starts and releases
+  since creation, the keys' voices not released and those the pedal holds, the stack's size, the
+  mono voice's note and glide, as of the last block. Relaxed atomics, published at the end of
+  `process`; for tests and diagnostics, so that the platform tests need no ear for the instrument.
 
 **Also the instrument's**: `SectionLayout.plans` and `PanelLayout.plannedRows`
 (`Sources/__APP__Core/SectionLayout.swift`), `Artwork.swift`, `Resources/AppIcon.png`,
@@ -346,7 +352,7 @@ keyboard set's Voice Mode:
 
 | File | Kind | What it is / what a run puts there |
 |---|---|---|
-| `Sources/__APP__DSP/include/__APP__DSP.h` | platform | C interface to the engine |
+| `Sources/__APP__DSP/include/__APP__DSP.h` | platform | C interface to the engine (and its probe for tests, `{{APP_C}}_voice_probe`) |
 | `Sources/__APP__DSP/__APP__Engine.cpp` | platform | voice pool, voice modes, glide, sustain, pads, sets, LFOs, VEL, wheels, MIDI, oversampling, limiter; names no instrument knob |
 | `Sources/__APP__DSP/PlatformParams.h` | platform | `Param`, the platform block, the shapes of the instrument's tables |
 | `Sources/__APP__DSP/ParamTable.h`, `ParamTable.cpp` | platform | the whole table put together, `Knobs`, the seam's `static_assert`s |
@@ -407,7 +413,7 @@ keyboard set's Voice Mode:
 | `Tests/__APP__CoreTests/EngineTests.swift` | platform | engine promises for every instrument |
 | `Tests/__APP__CoreTests/ParameterTableTests.swift` | platform | table invariants: the platform block, order, amounts, sections |
 | `Tests/__APP__CoreTests/ModulationTests.swift`, `ControllerTests.swift`, `PadTests.swift` | platform | LFO/VEL, controllers, pads (the pad VEL test included) |
-| `Tests/__APP__CoreTests/VoiceModeTests.swift` | platform | Poly, Mono, Legato, Glide, the sustain pedal, the resets, pads unaffected, the AU state keeping Voice Mode and Glide |
+| `Tests/__APP__CoreTests/VoiceModeTests.swift` | platform | Poly, Mono, Legato, Glide, the sustain pedal, the resets, the stack's edges (16 keys, a key twice, a key not held), mode changes with keys and pedal down, pads unaffected, the AU state keeping Voice Mode and Glide; on the engine's probe |
 | `Tests/__APP__CoreTests/AudioUnitTests.swift`, `AudioUnitWindowTests.swift` | platform | the AU in-process, its window model |
 | `Tests/__APP__CoreTests/SectionLayoutTests.swift` | platform | placement with made-up plans over the platform block (through the internal `SectionLayout.of(_:plans:)`, `PanelLayout.of(_:plannedRows:)`, `PanelLayout.widths(…plans:)`) and without plans |
 | `Tests/__APP__CoreTests/ThreadTests.swift` | platform | audio-thread rules |
@@ -421,11 +427,16 @@ at the note's pitch (`Knobs::hz`) and is released by its note-off; a first conti
 knob with a VEL amount (`TestKnobs.firstVelTarget`) that, moved over its whole travel by VEL,
 changes a note's level over its first 0.3 s by more than 6 dB (the pad VEL test; Tone's Attack
 does); no velocity in the voice's level besides Vel Sens
-and VEL>Volume (the VEL>Volume and Vel Sens tests); with the default knobs, a note held for 1 s
-that has died away enough for a new attack to rise more than 6 dB above it, while a continuing
-start rises less than 1 dB, a held note still sounding 0.55 s after its note-on (the pedal
-test), and a released voice more than 20 dB below the same voice held 0.2 … 0.3 s after its
-note-off (`VoiceModeTests`; Tone's Decay and Release do).
+and VEL>Volume (the VEL>Volume and Vel Sens tests); a voice over within `kTailSeconds` of its
+note-off. Beyond that the platform tests are independent of the instrument: what the platform
+decides (a fresh or a continuing start, a release, what the pedal holds, the note the voice of
+Mono and Legato plays and how far its glide has to go) is read from the engine's probe
+(`{{APP_C}}_voice_probe`, a test and diagnostic call), a sound is compared with the same notes
+played another way, and a pitch is measured within 0.2 s of the event that sets it. Checked by
+running the whole suite with three stand-ins for Tone: an organ-like voice (no decay while
+held), Release 1.2 s, and a pluck (Decay 0.3 s): only the instrument tests
+(`PrototypeEquivalenceTests`, `SoundRegressionTests`, `InstrumentTableTests`, `ReferenceTests`)
+fail there.
 
 ### Website (`docs/`)
 

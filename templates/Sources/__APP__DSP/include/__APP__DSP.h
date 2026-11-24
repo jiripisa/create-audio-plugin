@@ -88,8 +88,7 @@ void          {{APP_C}}_destroy({{APP}}Engine*);
 // positive and finite is ignored, and nothing is reset.
 void          {{APP_C}}_prepare({{APP}}Engine*, double sampleRate);
 // Silences every voice, puts the wheels at rest and the sustain pedal up, and forgets the keys
-// held and the last note. The knob sets, the
-// pads (notes, groups) and the mode stay as they are.
+// held and the last note. The knob sets, the pads (notes, groups) and the mode stay as they are.
 void          {{APP_C}}_reset({{APP}}Engine*);
 // The same reset, done by the audio thread at the start of its next {{APP_C}}_process() call.
 void          {{APP_C}}_request_reset({{APP}}Engine*);
@@ -146,6 +145,29 @@ void  {{APP_C}}_send_to_pad({{APP}}Engine*, int pad);
 void  {{APP_C}}_load_default_kit({{APP}}Engine*);
 int   {{APP_C}}_sounding_voices(const {{APP}}Engine*);    // voices playing and not being faded out
 
+// A probe, for tests and diagnostics: what the engine has asked of the instrument's voices and
+// where the keys stand, in the platform's terms, so that a test of the platform needs no ear for
+// the instrument. The counts run from the engine's creation (a reset leaves them, as it leaves
+// the pad hits); the rest is as the audio thread left it at the end of its last
+// {{APP_C}}_process() call, or at the last reset. Each field is read on its own, so they agree with
+// each other only between process calls. Probing changes nothing; any thread, no lock.
+typedef struct {{APP}}VoiceProbe
+{
+    int   freshStarts;        // voices started anew: Voice::start(..., continuing = false)
+    int   continuingStarts;   // voices taken over: start(..., continuing = true), for a re-hit the
+                              //   instrument continues, a legato note, a return to a key still held
+    int   releases;           // Voice::release calls: a note-off, or the pedal coming up
+    int   keysUnreleased;     // keys' voices sounding and not released: held by a key or by the pedal
+    int   keysSustained;      // of those, the ones the pedal holds
+    int   keysHeld;           // keys down as the engine counts them (Mono and Legato's stack, kept in
+                              //   every voice mode), 0 ... 16
+    int   monoNote;           // the note the voice of Mono and Legato plays, -1 when there is none
+    float monoGlide;          // semitones that voice's pitch still is from monoNote while it glides
+} {{APP}}VoiceProbe;
+
+// Fills `out`; a null engine gives zeros and monoNote -1.
+void  {{APP_C}}_voice_probe(const {{APP}}Engine*, {{APP}}VoiceProbe* out);
+
 // MIDI from any thread; played in the next {{APP_C}}_process() call, sampleOffset frames into it
 // (0 = at its start).
 void  {{APP_C}}_post_midi({{APP}}Engine*, int status, int data1, int data2, int sampleOffset);
@@ -166,7 +188,8 @@ void  {{APP_C}}_midi({{APP}}Engine*, int status, int data1, int data2, int sampl
 // (the sustain pedal: from 64 up it holds the keys' voices their note-offs release, in every voice
 // mode, until it comes up; it holds no pad), 120 and 123 (every voice fades out, the pedal goes
 // up, the keys held are forgotten) and 121 (the wheels at rest, the pedal up, which releases
-// what it held, the keys held forgotten) keep their meanings. All of these may be called from any thread while audio runs.
+// what it held, the keys held forgotten) keep their meanings. All of these may be called from
+// any thread while audio runs.
 int  {{APP_C}}_standard_controller(int param);               // what a knob comes with; -1 for none
 int  {{APP_C}}_controller_reserved(int cc);                  // 1 for one MIDI or the engine keeps for itself
 int  {{APP_C}}_get_controller(const {{APP}}Engine*, int param);          // -1 for none

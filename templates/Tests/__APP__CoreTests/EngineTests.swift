@@ -39,20 +39,29 @@ struct EngineTests: EngineHarness {
         #expect({{APP_C}}_sounding_voices(engine) == 3)
     }
 
-    @Test("A note-off releases its key's voice; a held key sounds on")
+    // Whether a voice is released is the platform's (the probe); how long it then sounds is the
+    // instrument's, no longer than its tail time.
+    @Test("A note-off releases its key's voice, which is over within the tail time; a held key's is not released")
     func noteOffReleases() {
-        func afterRelease(_ release: Bool) -> Double {
-            let engine = makeEngine()
-            defer { {{APP_C}}_destroy(engine) }
-            {{APP_C}}_midi(engine, 0x90, Self.B2, 110, 0)
-            _ = render(engine, seconds: 0.3)
-            if release { {{APP_C}}_midi(engine, 0x80, Self.B2, 0, 0) }
-            _ = render(engine, seconds: 0.6)
-            return rms(render(engine, seconds: 0.1))
-        }
-        let held = afterRelease(false), released = afterRelease(true)
-        #expect(held > 0.01)
-        #expect(released == 0 || 20 * log10(released / held) < -50, "released \(released), held \(held)")
+        let engine = makeEngine()
+        defer { {{APP_C}}_destroy(engine) }
+        {{APP_C}}_midi(engine, 0x90, Self.B2, 110, 0)
+        {{APP_C}}_midi(engine, 0x90, Self.B2 + 7, 110, 0)
+        _ = render(engine, seconds: 0.3)
+        var probe = voiceProbe(engine)
+        #expect(probe.keysUnreleased == 2 && probe.releases == 0)
+        {{APP_C}}_midi(engine, 0x80, Self.B2, 0, 0)
+        _ = render(engine, frames: 128)
+        probe = voiceProbe(engine)
+        #expect(probe.keysUnreleased == 1 && probe.releases == 1)
+
+        let released = makeEngine()
+        defer { {{APP_C}}_destroy(released) }
+        {{APP_C}}_midi(released, 0x90, Self.B2, 110, 0)
+        _ = render(released, seconds: 0.3)
+        {{APP_C}}_midi(released, 0x80, Self.B2, 0, 0)
+        _ = render(released, seconds: {{APP_C}}_tail_time() + 0.1)
+        #expect({{APP_C}}_sounding_voices(released) == 0)
     }
 
     @Test("Only the note-off of a voice's own key releases it")
@@ -64,8 +73,9 @@ struct EngineTests: EngineHarness {
         _ = render(engine, seconds: 0.2)
         {{APP_C}}_midi(engine, 0x80, Self.B2, 0, 0)
         {{APP_C}}_midi(engine, 0x80, Self.B2 + 1, 0, 0)       // a key that is not down
-        _ = render(engine, seconds: 1.0)
-        #expect({{APP_C}}_sounding_voices(engine) == 1)
+        _ = render(engine, frames: 128)
+        let probe = voiceProbe(engine)
+        #expect(probe.keysUnreleased == 1 && probe.releases == 1)
     }
 
     @Test("All Sound Off and All Notes Off fade every voice out")
@@ -119,13 +129,16 @@ struct EngineTests: EngineHarness {
         }
     }
 
-    @Test("Silence is exact 20 s after the last note")
+    @Test("Silence is exact once the last note is let go and the tail time has passed")
     func silenceIsExact() {
         let engine = makeEngine()
         defer { {{APP_C}}_destroy(engine) }
         {{APP_C}}_midi(engine, 0x90, 47, 127, 0)
         {{APP_C}}_midi(engine, 0x90, 54, 90, 64)
-        _ = render(engine, seconds: 20)
+        _ = render(engine, seconds: 0.5)
+        {{APP_C}}_midi(engine, 0x80, 47, 0, 0)
+        {{APP_C}}_midi(engine, 0x80, 54, 0, 0)
+        _ = render(engine, seconds: {{APP_C}}_tail_time() + 0.1)
         #expect({{APP_C}}_sounding_voices(engine) == 0)
         let tail = render(engine, seconds: 1)
         #expect(tail.allSatisfy { $0 == 0 && $0.sign == .plus })
@@ -441,10 +454,11 @@ struct EngineTests: EngineHarness {
 
     // MARK: - The voice pool
 
-    /// Plays `hits` (note, velocity) at every 32nd note at 120 BPM for 4 s, in `mode`, with the
-    /// first program in every set and every pad on C2 with its group Off, and checks the pool
-    /// after every block.
-    private func flood(rate: Double, mode: Int32, hits: (Int) -> [(note: Int32, velocity: Int32)]) {
+    /// Plays `hits` (note, velocity) every `step` seconds (a 32nd note at 120 BPM unless told) for
+    /// 4 s, in `mode`, with the first program in every set and every pad on C2 with its group Off,
+    /// and checks the pool after every block.
+    private func flood(rate: Double, mode: Int32, step: Double = 60.0 / 120 / 8,
+                       hits: (Int) -> [(note: Int32, velocity: Int32)]) {
         let engine = makeEngine(rate: rate)
         defer { {{APP_C}}_destroy(engine) }
         {{APP_C}}_set_mode(engine, mode)
@@ -452,7 +466,7 @@ struct EngineTests: EngineHarness {
             {{APP_C}}_set_program(engine, set, 0)
         }
         for pad: Int32 in 0..<Int32({{APP_UPPER}}_NUM_PADS) { {{APP_C}}_set_pad_group(engine, pad, 0); {{APP_C}}_set_pad_note(engine, pad, 36) }
-        let step = 60.0 / 120 / 8, total = Self.frames(4, at: rate)
+        let total = Self.frames(4, at: rate)
         var out = [Float](repeating: 0, count: total)
         var nextStep = 0, start = 0, mostSounding: Int32 = 0
         out.withUnsafeMutableBufferPointer { buffer in
@@ -481,13 +495,14 @@ struct EngineTests: EngineHarness {
 
     // All 16 pads, each a voice of its own (Group Off), on every 32nd note, each a little softer
     // than the one before it in turn: sixteen pads keep their sixteen voices. And the keyboard
-    // running up 24 keys, a key per 32nd note: 24 voices would sound.
+    // running up 24 keys, a key per 128th note, 24 keys in 0.375 s: 24 voices would sound, even
+    // of an instrument whose notes die away fast.
     @Test("A flood of notes stays within 16 voices", arguments: [44_100.0, 96_000])
     func stealingStaysBounded(rate: Double) {
         flood(rate: rate, mode: Int32({{APP_UPPER}}_MODE_PADS)) { step in
             (0..<Int32({{APP_UPPER}}_NUM_PADS)).map { (Int32({{APP_UPPER}}_FIRST_PAD_NOTE) + $0, Int32(127 - 3 * ((Int($0) + step) % 16))) }
         }
-        flood(rate: rate, mode: Int32({{APP_UPPER}}_MODE_KEYBOARD)) { step in [(Int32(36 + step % 24), Int32(127))] }
+        flood(rate: rate, mode: Int32({{APP_UPPER}}_MODE_KEYBOARD), step: 60.0 / 120 / 32) { step in [(Int32(36 + step % 24), Int32(127))] }
     }
 
     // Twelve keys sound for 5 s while the pads are flooded: the pool of 16 is shared by both
@@ -586,10 +601,11 @@ struct EngineTests: EngineHarness {
             {{APP_C}}_set_pad_group(engine, pad, 0)
             {{APP_C}}_midi(engine, 0x90, Int32({{APP_UPPER}}_FIRST_PAD_NOTE) + pad, 100, 0)
         }
+        _ = render(engine, frames: 128)
+        #expect({{APP_C}}_sounding_voices(engine) == 16)
         let seconds = 2.0
         let clock = ContinuousClock()
         let elapsed = clock.measure { _ = render(engine, seconds: seconds, at: rate) }
-        #expect({{APP_C}}_sounding_voices(engine) == 16)
         let share = Double(elapsed.components.attoseconds) / 1e18 + Double(elapsed.components.seconds)
         print(String(format: "CPU: 16 voices for %.0f s at 48 kHz took %.3f s: %.2f %% of one core per voice",
                      seconds, share, 100 * share / seconds / 16))
