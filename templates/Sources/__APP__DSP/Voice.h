@@ -8,8 +8,11 @@
 //     sounds and is updated before every render() (ParamTable.h, Knobs). `note` is the MIDI
 //     note, before Octave, Tune and the bend (Knobs::hz adds them); `velocity` 0...1 (the engine
 //     applies Vel Sens to the level; the voice may use it for more). `continuing` is true when
-//     the note-on takes over this voice while it sounds (kRehitContinues): go on from where it
-//     is, with no new attack. A fresh voice (default-constructed) gets false.
+//     the note-on takes over this voice while it sounds (kRehitContinues; in Legato a note
+//     played while another key is held; in Mono and Legato the return to a key still held):
+//     go on from where it is, at the new note, with no new attack. A fresh voice
+//     (default-constructed) gets false. While the pitch glides, Knobs::glide holds how far it
+//     still is from the note; Knobs::hz adds it.
 //   * release(): the note-off of its key (or pad).
 //   * render(out, frames): writes the next `frames` mono samples (1 ... 16) at Knobs::rate.
 //   * finished(): true once the voice is silent for good; the engine then frees it.

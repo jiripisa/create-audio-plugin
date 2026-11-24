@@ -526,6 +526,15 @@ public:
     }
 
     // ----- parameters -----------------------------------------------------------------------
+    // The base class keeps the parameters in a map and, before Initialize, would add one for any
+    // global ID a host sets: an ID the table does not have is refused instead.
+    OSStatus SetParameter(AudioUnitParameterID id, AudioUnitScope scope, AudioUnitElement element, AudioUnitParameterValue value,
+                          UInt32 bufferOffset) AUSDK_RTSAFE override
+    {
+        if (scope == kAudioUnitScope_Global && indexOf(id) < 0) return kAudioUnitErr_InvalidParameter;
+        return Base::SetParameter(id, scope, element, value, bufferOffset);
+    }
+
     OSStatus GetParameterInfo(AudioUnitScope scope, AudioUnitParameterID id, AudioUnitParameterInfo& out) override
     {
         if (scope != kAudioUnitScope_Global) return kAudioUnitErr_InvalidScope;

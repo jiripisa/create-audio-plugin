@@ -173,7 +173,9 @@ fewer than 1000 knobs and at most two LFOs; every stable ID round-trips), and at
 `ParameterTableTests` (the platform block's identifiers, order, ranges, defaults, choices and
 units; knobs, then LFO 1's, LFO 2's and the VEL amounts; amounts at -100 … 100 %, 0; Master last
 with the platform block; every continuous instrument knob a VEL target; at least two programs,
-none setting Octave) and `AudioUnitTests.stableParameterIDs` (the IDs below).
+none setting Octave), `AudioUnitTests.stableParameterIDs` (the IDs below) and
+`.unknownParameterRefused` (the unit refuses a global ID the table does not have, also before
+Initialize, where the SDK's parameter map would otherwise add it: `__APP__AU::SetParameter`).
 
 **The parameter table** (the engine's index; the Audio Unit's IDs and saved state do not depend
 on it, see "Stable IDs" below):
@@ -188,8 +190,8 @@ on it, see "Stable IDs" below):
    | 3 | `octave` | Octave | -2 … 2, 0 (programs leave it alone) | 103 |
    | 4 | `bendup` | Bend Up | 0 … 24 st, 2 | 104 |
    | 5 | `benddown` | Bend Down | 0 … 24 st, 2 | 105 |
-   | 6 | `voicemode` | Voice Mode | Poly, Mono, Legato; Poly (declared, behaviour in Task 6) | 106 |
-   | 7 | `glide` | Glide | 0 … 2000 ms, log (`log(1 + x / 2 ms)`), 0 (declared, behaviour in Task 6) | 5 |
+   | 6 | `voicemode` | Voice Mode | Poly, Mono, Legato; Poly | 106 |
+   | 7 | `glide` | Glide | 0 … 2000 ms, log (`log(1 + x / 2 ms)`), 0 | 5 |
    | 8 | `lfostart` | LFO Start | Hit, Free; Hit | 107 |
    | 9 | `lfo1rate` | LFO 1 Rate | 0.02 … 20 Hz, log, 6 | 108 |
    | 10 | `lfo1shape` | LFO 1 Shape | Sine … Wander (7); Sine | 109 |
@@ -257,17 +259,54 @@ calls the engine makes (no allocation, lock or I/O in any):
   the voice's rate (twice the host's below 88.2 kHz). `knobs.hz(note)` is the note's frequency
   with Octave, Tune and the bend. `velocity` is 0…1; the engine already applies Vel Sens and
   VEL>Volume to the level. `continuing` is true only when the note-on takes over this voice
-  while it sounds (`kRehitContinues`, and Legato in Task 6): go on without a new attack.
+  while it sounds (`kRehitContinues`; in Legato a note played while another key is held; in Mono
+  and Legato the return to a key still held): go on at the new `note` without a new attack. What
+  continuing sounds like is the instrument's; when it is asked for is the platform's.
+  `knobs.glide` is how far, in semitones, the pitch still is from `note` while it glides;
+  `knobs.hz` adds it as it adds the bend, so a voice that takes its pitch from `hz` glides.
 - `void release()`: the note-off of its key or pad.
 - `void render(float* out, int frames)`: the next 1 … 16 mono samples, written (not added).
 - `bool finished() const`: true once the voice is silent for good; the engine frees it.
 
 The platform does around the voice: the voice pool (16 sounding, steal the quietest by a peak
-follower, 3 ms fade), keys, pads and groups (one voice a group), Volume, Pan, Vel Sens,
+follower, 3 ms fade), keys, pads and groups (one voice a group), the voice modes, Glide and the
+sustain pedal (below), Volume, Pan, Vel Sens,
 VEL>Volume, the LFOs and VEL amounts on every target, the wheels by the instrument's tables,
 pitch bend by Bend Up/Down, the half-band 2x stage, `kOutputLevel`, the limiter, sample-accurate
 MIDI, MIDI learn, the Audio Unit and its state. Code stays under `#pragma clang fp contract(off)`
 and uses `std::exp2` for powers of two, so that debug and release builds render the same samples.
+
+**Melodic playing** (`__APP__Engine.cpp`, platform; `VoiceModeTests`). In keyboard mode, by the
+keyboard set's Voice Mode:
+
+- *Poly*: a voice per key, as before (a re-hit as `kRehitContinues` says).
+- *Mono*: one voice, last-note priority. Every new note attacks anew (`continuing = false`, a
+  fresh voice; the one it replaces fades out in 3 ms), whatever `kRehitContinues` says. Letting
+  the newest key go returns the voice to the newest key still held with `continuing = true`, so
+  the return is heard as the same note moving, not a new one (and it glides); letting the last
+  key go releases the voice.
+- *Legato*: as Mono, but a note played while another key is held takes the voice over with
+  `continuing = true`; a note played with no key held (a sustained or releasing voice is not a
+  key) attacks as in Mono.
+- A legato note and a return keep the voice's velocity and LFOs (they are not new hits).
+- *Glide* moves the pitch from where the voice was (its note plus what is left of a glide) to the
+  new note in exactly Glide ms, at an even number of semitones per second, i.e. exponentially in
+  Hz, a control tick (16 internal samples) at a time, through `knobs.glide`. Mono glides at every
+  note while its voice still sounds (held, sustained or releasing), Legato only between notes that
+  overlap, both on a return. Glide 0, Poly and the pads never glide.
+- The keys held are a stack of 16 per engine (a fixed array, no allocation; a key pressed again
+  moves to the top, the oldest falls out of a full stack), kept in every voice mode, so a mode
+  changed while keys are down finds them. Voices sounding when the voice mode changes keep to
+  their note-offs, so none hangs.
+- The *sustain pedal* (CC 64, down from 64 up, reserved: no knob or learn takes it) holds a key's
+  voice that its note-off would release, in every voice mode; the pedal coming up releases those
+  whose keys are up, exactly as their note-offs would have then. In Mono the stack decides the
+  pitch: a key let go while others are held still returns, the pedal only holds the last note.
+  The pedal holds no pad (a pad is a key press, released by its own note-off).
+- All Notes Off (123), All Sound Off (120) and Reset All Controllers (121) put the pedal up
+  (releasing what it held) and empty the stack; reset does too.
+- Pads ignore the voice mode and Glide (a pad is a frozen key press; groups keep their own voice).
+  Pitch bend works in every mode.
 
 **Also the instrument's**: `SectionLayout.plans` and `PanelLayout.plannedRows`
 (`Sources/__APP__Core/SectionLayout.swift`), `Artwork.swift`, `Resources/AppIcon.png`,
@@ -308,7 +347,7 @@ and uses `std::exp2` for powers of two, so that debug and release builds render 
 | File | Kind | What it is / what a run puts there |
 |---|---|---|
 | `Sources/__APP__DSP/include/__APP__DSP.h` | platform | C interface to the engine |
-| `Sources/__APP__DSP/__APP__Engine.cpp` | platform | voice pool, pads, sets, LFOs, VEL, wheels, MIDI, oversampling, limiter; names no instrument knob |
+| `Sources/__APP__DSP/__APP__Engine.cpp` | platform | voice pool, voice modes, glide, sustain, pads, sets, LFOs, VEL, wheels, MIDI, oversampling, limiter; names no instrument knob |
 | `Sources/__APP__DSP/PlatformParams.h` | platform | `Param`, the platform block, the shapes of the instrument's tables |
 | `Sources/__APP__DSP/ParamTable.h`, `ParamTable.cpp` | platform | the whole table put together, `Knobs`, the seam's `static_assert`s |
 | `Sources/__APP__DSP/Params.h` | instrument | the instrument's knobs and tables (§"The instrument seam") |
@@ -368,6 +407,7 @@ and uses `std::exp2` for powers of two, so that debug and release builds render 
 | `Tests/__APP__CoreTests/EngineTests.swift` | platform | engine promises for every instrument |
 | `Tests/__APP__CoreTests/ParameterTableTests.swift` | platform | table invariants: the platform block, order, amounts, sections |
 | `Tests/__APP__CoreTests/ModulationTests.swift`, `ControllerTests.swift`, `PadTests.swift` | platform | LFO/VEL, controllers, pads (the pad VEL test included) |
+| `Tests/__APP__CoreTests/VoiceModeTests.swift` | platform | Poly, Mono, Legato, Glide, the sustain pedal, the resets, pads unaffected, the AU state keeping Voice Mode and Glide |
 | `Tests/__APP__CoreTests/AudioUnitTests.swift`, `AudioUnitWindowTests.swift` | platform | the AU in-process, its window model |
 | `Tests/__APP__CoreTests/SectionLayoutTests.swift` | platform | placement with made-up plans over the platform block (through the internal `SectionLayout.of(_:plans:)`, `PanelLayout.of(_:plannedRows:)`, `PanelLayout.widths(…plans:)`) and without plans |
 | `Tests/__APP__CoreTests/ThreadTests.swift` | platform | audio-thread rules |
@@ -381,7 +421,11 @@ at the note's pitch (`Knobs::hz`) and is released by its note-off; a first conti
 knob with a VEL amount (`TestKnobs.firstVelTarget`) that, moved over its whole travel by VEL,
 changes a note's level over its first 0.3 s by more than 6 dB (the pad VEL test; Tone's Attack
 does); no velocity in the voice's level besides Vel Sens
-and VEL>Volume (the VEL>Volume and Vel Sens tests).
+and VEL>Volume (the VEL>Volume and Vel Sens tests); with the default knobs, a note held for 1 s
+that has died away enough for a new attack to rise more than 6 dB above it, while a continuing
+start rises less than 1 dB, a held note still sounding 0.55 s after its note-on (the pedal
+test), and a released voice more than 20 dB below the same voice held 0.2 … 0.3 s after its
+note-off (`VoiceModeTests`; Tone's Decay and Release do).
 
 ### Website (`docs/`)
 

@@ -5,8 +5,8 @@
 // The seam: the platform (this file, PlatformParams.h, {{APP}}Engine.cpp) knows no knob of the
 // instrument by name. The instrument is Params.h (its knobs and tables) and Voice.h (its voice);
 // the static_asserts below hold it to what the platform relies on:
-//   * its knobs follow the platform block, each with a lowercase ASCII identifier and a MIDI
-//     controller of its own that MIDI does not reserve;
+//   * its knobs follow the platform block, each with a lowercase ASCII identifier of its own and
+//     a MIDI controller of its own that MIDI does not reserve;
 //   * the LFOs move Volume, Pan and Tune and the velocity Volume, Pan, Tune and both LFO rates,
 //     among the continuous knobs the instrument adds; Vel Sens moves no further;
 //   * each wheel target is a continuous knob with a depth in (0, 1];
@@ -135,6 +135,13 @@ constexpr bool controllersAreSound()
     return true;
 }
 
+constexpr bool sameText(const char* a, const char* b)
+{
+    while (*a && *a == *b) { ++a; ++b; }
+    return *a == *b;
+}
+
+// Each identifier lowercase ASCII letters and digits, and no two the same.
 constexpr bool identifiersAreSound()
 {
     for (int i = 0; i < kNumKnobs; ++i)
@@ -142,6 +149,7 @@ constexpr bool identifiersAreSound()
         const char* id = knob(i).id;
         if (!id || !*id) return false;
         for (const char* c = id; *c; ++c) if (!((*c >= 'a' && *c <= 'z') || (*c >= '0' && *c <= '9'))) return false;
+        for (int j = 0; j < i; ++j) if (sameText(knob(j).id, id)) return false;
     }
     return true;
 }
@@ -191,7 +199,7 @@ constexpr bool programsAndKitAreSound()
 
 static_assert(sizeof(kInstrumentKnobs) / sizeof(kInstrumentKnobs[0]) == (size_t)kNumInstrumentKnobs,
               "kInstrumentKnobs holds every instrument knob of the enum");
-static_assert(check::identifiersAreSound(), "a knob's identifier is empty or not lowercase ASCII letters and digits");
+static_assert(check::identifiersAreSound(), "a knob's identifier is empty, not lowercase ASCII letters and digits, or another knob's");
 static_assert(check::continuousKnobsOnce(kLfoTargets, kNumLfoTargets), "an LFO target is no continuous knob, or twice");
 static_assert(check::continuousKnobsOnce(kVelTargets, kNumVelTargets), "a VEL target is no continuous knob, or twice");
 static_assert(check::listed(kLfoTargets, kNumLfoTargets, kVolume) && check::listed(kLfoTargets, kNumLfoTargets, kPan)
@@ -228,19 +236,21 @@ bool programSets(int param);     // false for Octave, which belongs to the playe
 // The engine hands a voice its Knobs at the start (Voice::start). The reference stays valid for
 // as long as the voice sounds, and the engine updates it before each Voice::render call: the
 // knob set (the keyboard's as it is now, or a pad's as it was at the hit), moved by the voice's
-// LFOs, the hit's velocity and, on a keyboard voice, the wheels.
+// LFOs, the hit's velocity and, on a keyboard voice, the wheels and the glide.
 struct Knobs
 {
     float v[kNumParams] = {};       // plain values, in table order
     float bend = 0.0f;              // the pitch bend, in semitones
+    float glide = 0.0f;             // how far the pitch still is from the note while it glides (Mono, Legato), in semitones
     double rate = 48000.0;          // the voice's sample rate: the host's, or twice it below 88.2 kHz
 
     float operator[](int i) const { return v[i]; }
 
-    // A note's frequency with the set's Octave and Tune and the bend. Fractional notes are fine.
+    // A note's frequency with the set's Octave and Tune, the bend and the glide. Fractional notes
+    // are fine.
     double hz(double note) const
     {
-        return 440.0 * std::exp2((note + 12.0 * (double)v[kOctave] + (double)v[kTune] / 100.0 + (double)bend - 69.0) / 12.0);
+        return 440.0 * std::exp2((note + 12.0 * (double)v[kOctave] + (double)v[kTune] / 100.0 + (double)bend + (double)glide - 69.0) / 12.0);
     }
 };
 

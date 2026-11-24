@@ -4,8 +4,23 @@
 // One engine is a pool of voices and seventeen knob sets: the keyboard's and one per pad. At
 // most 16 voices sound at once: a note that would be the 17th steals the quietest, which fades
 // out in 3 ms.
-//   * In keyboard mode every note plays the keyboard set at its own pitch, a voice of its own.
-//     The voice follows the keyboard set while it sounds.
+//   * In keyboard mode every note plays the keyboard set at its own pitch, as Voice Mode says,
+//     and the voice follows the keyboard set while it sounds:
+//       Poly    a voice of its own for every note;
+//       Mono    one voice, the last key held: a new note attacks anew (a fresh voice, the one it
+//               replaces fades out in 3 ms), letting the newest key go returns the voice to the
+//               newest key still held, without a new attack (continuing), and letting the last
+//               key go releases it;
+//       Legato  as Mono, but a note played while another key is held takes the voice over
+//               without a new attack (continuing); a note played with no key held attacks.
+//     Glide moves the pitch from where the voice was to the new note in Glide ms, at an even
+//     number of semitones per second (Knobs::glide): in Mono at every note while the voice still
+//     sounds, in Legato between notes that overlap, and on the return to a key still held. A
+//     legato note and a return keep the voice's velocity and LFOs. The keys held are a stack of
+//     16 (the oldest falls out), kept in every voice mode, so that a mode changed while keys are
+//     down finds them. A voice mode changed while voices sound leaves them to their note-offs.
+//   * The sustain pedal (CC 64, down from 64 up) holds a key's voice its note-off would release,
+//     in every voice mode, until the pedal comes up. It holds no pad's voice.
 //   * In pad mode notes 36-51 hit pads 1-16. A pad hit is a key press frozen: its voice takes the
 //     pad's set at the hit and sounds at the pad's note. The pads of one group share one voice; a
 //     pad whose group is Off has one of its own.
@@ -103,7 +118,11 @@ enum VoiceKey
     kKeyFirstNote = 0,                                          // + note
     kKeyFirstGroup = kKeyFirstNote + 128,                       // + group - 1
     kKeyFirstPad = kKeyFirstGroup + {{APP_UPPER}}_NUM_GROUPS,   // + pad
+    kKeyMono = kKeyFirstPad + {{APP_UPPER}}_NUM_PADS,           // the one voice of Mono and Legato
 };
+
+// The keys held down that Mono and Legato remember, newest last.
+constexpr int kMaxHeld = 16;
 
 inline float dbToGain(float db) { return std::pow(10.0f, db / 20.0f); }
 
@@ -125,7 +144,10 @@ struct Slot
     bool fromKey = true;            // a key's voice plays the keyboard set as it is now, whatever the mode
     int key = 0;                    // what it belongs to (VoiceKey)
     int note = 0;                   // the MIDI note whose note-off releases it
+    bool sustained = false;         // its key is up, the sustain pedal holds it
     float velocity = 1.0f;
+    float glide = 0.0f;             // semitones the pitch still is from the note (Knobs::glide)
+    float glideStep = 0.0f;         // what a control tick takes off it
     Knobs knobs;
     // A pad's knob set as it stood at the hit, normalised and as plain values: what its Knobs are
     // worked out from. A key's voice reads the keyboard set instead.
@@ -292,6 +314,8 @@ struct {{APP}}Engine
         for (int k = 0; k < kNumLfos; ++k) freeLfo_[k].restart(kFreeSeed + (uint32_t)k);
         freeTick_ = 0;
         bend_ = modWheel_ = pressure_ = 0.0f;
+        numHeld_ = 0;
+        sustain_ = false;
         sounding_.store(0, std::memory_order_relaxed);
     }
 
@@ -395,16 +419,22 @@ private:
 
         s.velocityGain = std::max(0.0f, 1.0f - out.v[velAmountOf(kVolume)] / 100.0f * soft);
         out.bend = keyboard ? bend_ * (bend_ >= 0.0f ? out.v[kBendUp] : out.v[kBendDown]) : 0.0f;
+        out.glide = s.glide;
         out.rate = internalRate_;
     }
 
-    // A control tick of `s`: its Knobs as they stand now, its LFOs a tick on, and its gains:
-    // Volume, VEL>Volume, Vel Sens and Pan.
+    // A control tick of `s`: its Knobs as they stand now, its LFOs and its glide a tick on, and
+    // its gains: Volume, VEL>Volume, Vel Sens and Pan.
     void control(Slot& s) const
     {
         viewFor(s);
         for (int k = 0; k < kNumLfos; ++k)
             s.lfo[k].advance(s.knobs[kLfo1Rate + 2 * k] * (float)kControlFrames / (float)internalRate_);
+        if (s.glide != 0.0f)
+        {
+            const float next = s.glide - s.glideStep;
+            s.glide = (next > 0.0f) == (s.glide > 0.0f) ? next : 0.0f;     // there once it would pass the note
+        }
         const float sensitivity = 1.0f - s.knobs[kVelSens] / 100.0f * (1.0f - s.velocity);
         s.outGain = dbToGain(s.knobs[kVolume]) * s.velocityGain * sensitivity;
         const float pan = s.knobs[kPan] / 100.0f;
@@ -434,12 +464,29 @@ private:
         if (ev.isNoteOn())
         {
             const float velocity = ev.data2 / 127.0f;
-            if (mode() == {{APP_UPPER}}_MODE_KEYBOARD) noteOn(ev.data1, velocity);
-            else if (validPad(ev.data1 - {{APP_UPPER}}_FIRST_PAD_NOTE)) padHit(ev.data1 - {{APP_UPPER}}_FIRST_PAD_NOTE, ev.data1, velocity);
+            if (mode() != {{APP_UPPER}}_MODE_KEYBOARD)
+            {
+                if (validPad(ev.data1 - {{APP_UPPER}}_FIRST_PAD_NOTE)) padHit(ev.data1 - {{APP_UPPER}}_FIRST_PAD_NOTE, ev.data1, velocity);
+            }
+            else if (voiceMode() == kVoicePoly) noteOn(ev.data1, velocity);
+            else monoNoteOn(ev.data1, velocity, voiceMode() == kVoiceLegato);
         }
         else if (ev.isNoteOff()) noteOff(ev.data1);
-        else if (ev.isAllNotesOff()) { for (Slot& s : slots_) if (s.active) s.choke(kAllOffMs, internalRate_); }
-        else if (ev.isController() && ev.data1 == 121) bend_ = modWheel_ = pressure_ = 0.0f;   // Reset All Controllers
+        else if (ev.isAllNotesOff())
+        {
+            for (Slot& s : slots_) if (s.active) s.choke(kAllOffMs, internalRate_);
+            forgetKeys();
+        }
+        else if (ev.isController() && ev.data1 == 121)      // Reset All Controllers
+        {
+            bend_ = modWheel_ = pressure_ = 0.0f;
+            forgetKeys();
+        }
+        else if (ev.isController() && ev.data1 == 64)       // the sustain pedal
+        {
+            if (ev.data2 >= 64) sustain_ = true;
+            else pedalUp();
+        }
         else if (ev.isController() && ev.data1 == 1) modWheel_ = ev.data2 / 127.0f;
         else if (ev.isController() && !controllerReserved(ev.data1)) controllerMoved(ev.data1, ev.data2);
         else if (ev.isAftertouch()) pressure_ = ev.data1 / 127.0f;
@@ -520,6 +567,12 @@ private:
                 s.choke(kStealMs, internalRate_);
                 break;
             }
+        return freshSlot(key);
+    }
+
+    // A slot for a fresh voice that belongs to `key`.
+    Slot& freshSlot(int key)
+    {
         makeRoom();
         Slot& slot = freeSlot();
         slot = Slot();
@@ -532,6 +585,7 @@ private:
     void start(Slot& s, bool continuing, int note, int pitch, float velocity, const float* plain)
     {
         s.note = note;
+        s.sustained = false;
         s.velocity = velocity;
         startLfos(s, (int)std::lround(plain[kLfoStart]));
         viewFor(s);
@@ -539,14 +593,105 @@ private:
         s.voice.start(s.knobs, pitch, velocity, continuing);
     }
 
-    // A key plays the keyboard set at its own pitch.
+    int voiceMode() const { return std::clamp((int)std::lround(keyPlain_[kVoiceMode]), 0, (int)kNumVoiceModes - 1); }
+
+    // Poly: a key plays the keyboard set at its own pitch.
     void noteOn(int note, float velocity)
     {
+        hold(note);
         bool continuing = false;
         Slot& s = slotFor(kKeyFirstNote + note, continuing);
         s.fromKey = true;
         start(s, continuing, note, note, velocity, keyPlain_);
         lastNote_.store(note, std::memory_order_relaxed);
+    }
+
+    // Mono and Legato: the one voice plays the newest key. Legato takes the voice over while
+    // another key is held; otherwise a fresh voice attacks, gliding (Mono) from where the voice
+    // it replaces was.
+    void monoNoteOn(int note, float velocity, bool legato)
+    {
+        hold(note);
+        Slot* current = monoSlot();
+        if (legato && current && numHeld_ > 1) moveTo(*current, note);
+        else
+        {
+            const float from = current ? (float)current->note + current->glide : 0.0f;
+            if (current) current->choke(kStealMs, internalRate_);
+            Slot& s = freshSlot(kKeyMono);
+            s.fromKey = true;
+            if (current && !legato) glideFrom(s, from, note);
+            start(s, false, note, note, velocity, keyPlain_);
+        }
+        lastNote_.store(note, std::memory_order_relaxed);
+    }
+
+    // The voice of Mono and Legato, if it sounds.
+    Slot* monoSlot()
+    {
+        for (Slot& s : slots_) if (s.active && !s.choking && s.key == kKeyMono) return &s;
+        return nullptr;
+    }
+
+    // The voice goes on at `note` without a new attack, gliding there from where it is, with the
+    // velocity and LFOs it has.
+    void moveTo(Slot& s, int note)
+    {
+        glideFrom(s, (float)s.note + s.glide, note);
+        s.note = note;
+        s.sustained = false;
+        viewFor(s);
+        s.ctl = 0;
+        s.voice.start(s.knobs, note, s.velocity, true);
+    }
+
+    // The pitch of `s` starts at `from` (a fractional note) and reaches `note` in Glide ms, at an
+    // even number of semitones per second, a control tick at a time.
+    void glideFrom(Slot& s, float from, int note) const
+    {
+        const float distance = from - (float)note;
+        const double ticks = (double)keyPlain_[kGlide] / 1000.0 * internalRate_ / (double)kControlFrames;
+        if (distance == 0.0f || ticks < 1.0) { s.glide = s.glideStep = 0.0f; return; }
+        s.glide = distance;
+        s.glideStep = (float)((double)distance / ticks);
+    }
+
+    // The stack of keys held, newest last: a key pressed again moves to the top; with 16 held
+    // the oldest falls out.
+    void hold(int note)
+    {
+        unhold(note);
+        if (numHeld_ == kMaxHeld)
+        {
+            std::copy(held_ + 1, held_ + kMaxHeld, held_);
+            --numHeld_;
+        }
+        held_[numHeld_++] = note;
+    }
+
+    void unhold(int note)
+    {
+        int* end = std::remove(held_, held_ + numHeld_, note);
+        numHeld_ = (int)(end - held_);
+    }
+
+    // The pedal up: the voices it held are released.
+    void pedalUp()
+    {
+        sustain_ = false;
+        for (Slot& s : slots_)
+            if (s.active && s.sustained)
+            {
+                s.sustained = false;
+                if (!s.choking) s.voice.release();
+            }
+    }
+
+    // All Notes Off, All Sound Off, Reset All Controllers: no key is held, the pedal is up.
+    void forgetKeys()
+    {
+        numHeld_ = 0;
+        pedalUp();
     }
 
     // A pad hit plays its group's voice, or the pad's own with Group Off, with the pad's set
@@ -567,11 +712,19 @@ private:
         start(s, continuing, note, padNote(pad), velocity, s.plainAtHit);
     }
 
-    // A released key releases the voices it started, a key's or a pad's.
+    // A released key releases the voices it started, a key's or a pad's; the pedal holds a key's.
+    // In Mono and Legato the voice of the newest key goes back to the newest key still held.
     void noteOff(int note)
     {
+        unhold(note);
+        const bool mono = voiceMode() != kVoicePoly;
         for (Slot& s : slots_)
-            if (s.active && !s.choking && s.note == note) s.voice.release();
+        {
+            if (!s.active || s.choking || s.note != note) continue;
+            if (s.key == kKeyMono && mono && numHeld_ > 0) moveTo(s, held_[numHeld_ - 1]);
+            else if (s.fromKey && sustain_) s.sustained = true;
+            else s.voice.release();
+        }
     }
 
     // The peaks are left alone up to 0.6 and bent towards 1 above it.
@@ -694,6 +847,9 @@ private:
     Lfo    freeLfo_[kNumLfos];
     int    freeTick_ = 0;
     float  bend_ = 0.0f, modWheel_ = 0.0f, pressure_ = 0.0f;   // -1..1, 0..1, 0..1
+    int    held_[kMaxHeld] = {};                              // the keys held, newest last
+    int    numHeld_ = 0;
+    bool   sustain_ = false;                                  // the sustain pedal is down
     Slot   slots_[kNumSlots];
     HalfBand decimL_, decimR_;
 };

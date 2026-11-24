@@ -771,7 +771,8 @@ struct EngineTests: EngineHarness {
             let at = Self.frames(0.1 + Double(i) * 0.12), note = Int32(48 + (i * 5) % 24)
             return [(at, note, Int32(60 + (i * 13) % 60)), (at + Self.frames(0.2), note, 0)]
         }.sorted { $0.frame < $1.frame }
-        let unheard = Array(Self.free.prefix(4)) + [0, 6, 64, 127]
+        // Reserved ones with no meaning to the engine (64, the sustain pedal, has one: VoiceModeTests).
+        let unheard = Array(Self.free.prefix(4)) + [0, 6, 38, 127]
         func play(_ engine: OpaquePointer, noise: Bool) -> [Float] {
             var out: [Float] = []
             var next = 0

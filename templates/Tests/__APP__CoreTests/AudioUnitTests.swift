@@ -292,6 +292,31 @@ struct AudioUnitTests {
         #expect({{APP_C}}_param_id(-1) == -1 && {{APP_C}}_param_id({{APP_C}}_num_params()) == -1)
     }
 
+    // The base class keeps the parameters in a map and, before Initialize, would add one for any
+    // ID a host sets.
+    @Test("A global parameter ID the unit does not have is refused, before and after Initialize, and adds none")
+    func unknownParameterRefused() throws {
+        for initialised in [false, true] {
+            let instrument = try Instrument(initialised: initialised)
+            func listSize() throws -> UInt32 {
+                var size: UInt32 = 0
+                var writable: DarwinBoolean = false
+                try #require(AudioUnitGetPropertyInfo(instrument.unit, kAudioUnitProperty_ParameterList, kAudioUnitScope_Global, 0,
+                                                      &size, &writable) == noErr)
+                return size
+            }
+            let before = try listSize()
+            for id: AudioUnitParameterID in [999, 1_999, 3_999, 4_000] {
+                #expect({{APP_C}}_param_index(Int32(id)) == -1)
+                #expect(AudioUnitSetParameter(instrument.unit, id, kAudioUnitScope_Global, 0, 0.5, 0) == kAudioUnitErr_InvalidParameter,
+                        "\(id), initialised: \(initialised)")
+            }
+            #expect(try listSize() == before)
+            let volume = try #require(Parameters.named("volume"))
+            #expect(AudioUnitSetParameter(instrument.unit, volume.unitID, kAudioUnitScope_Global, 0, -6, 0) == noErr)
+        }
+    }
+
     @Test("A note sent by the host sounds in both channels within 100 ms at 48 kHz")
     func noteRenders() throws {
         let instrument = try Instrument(rate: 48_000)

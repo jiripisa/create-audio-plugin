@@ -87,7 +87,8 @@ void          {{APP_C}}_destroy({{APP}}Engine*);
 // Sets the host sample rate and then resets the engine as {{APP_C}}_reset() does. A rate that is not
 // positive and finite is ignored, and nothing is reset.
 void          {{APP_C}}_prepare({{APP}}Engine*, double sampleRate);
-// Silences every voice, puts the wheels at rest and forgets the last note. The knob sets, the
+// Silences every voice, puts the wheels at rest and the sustain pedal up, and forgets the keys
+// held and the last note. The knob sets, the
 // pads (notes, groups) and the mode stay as they are.
 void          {{APP_C}}_reset({{APP}}Engine*);
 // The same reset, done by the audio thread at the start of its next {{APP_C}}_process() call.
@@ -111,9 +112,13 @@ int   {{APP_C}}_get_program(const {{APP}}Engine*, int set);
 // state whose knob values come from elsewhere. A bad set or program is ignored.
 void  {{APP_C}}_set_program_index({{APP}}Engine*, int set, int program);
 
-// The mode: the keyboard plays the keyboard set at the pitch of each key, a voice per key; the
-// pads play their own sets at the pitch of each pad, hit by notes 36-51 (other notes are
-// ignored). A voice already sounding when the mode changes sounds on as it was.
+// The mode: the keyboard plays the keyboard set at the pitch of each key, as the set's Voice Mode
+// says (Poly: a voice per key; Mono: one voice, the last key held, each new note attacked anew,
+// letting it go returns to the newest key still held; Legato: as Mono, but a note played while
+// another key is held goes on without a new attack), gliding from note to note in Mono and
+// Legato over the set's Glide; the pads play their own sets at the pitch of each pad, hit by
+// notes 36-51 (other notes are ignored), whatever the voice mode. A voice already sounding when
+// the mode or the voice mode changes sounds on as it was, until its note-off.
 void  {{APP_C}}_set_mode({{APP}}Engine*, int mode);
 int   {{APP_C}}_get_mode(const {{APP}}Engine*);
 
@@ -157,9 +162,11 @@ void  {{APP_C}}_midi({{APP}}Engine*, int status, int data1, int data2, int sampl
 // middle of a knob that has one (-100 ... 100 %). A choice takes the choice nearest to the value.
 // The pads' sets are never moved, not in pad mode either. A controller serves one knob, and the
 // amounts have none. The control change is applied at its sample offset, in the order of the
-// block's MIDI. Controllers 1 (the mod wheel, which moves what the instrument maps it to), 120,
-// 121 and 123 keep their meanings. All of these
-// may be called from any thread while audio runs.
+// block's MIDI. Controllers 1 (the mod wheel, which moves what the instrument maps it to), 64
+// (the sustain pedal: from 64 up it holds the keys' voices their note-offs release, in every voice
+// mode, until it comes up; it holds no pad), 120 and 123 (every voice fades out, the pedal goes
+// up, the keys held are forgotten) and 121 (the wheels at rest, the pedal up, which releases
+// what it held, the keys held forgotten) keep their meanings. All of these may be called from any thread while audio runs.
 int  {{APP_C}}_standard_controller(int param);               // what a knob comes with; -1 for none
 int  {{APP_C}}_controller_reserved(int cc);                  // 1 for one MIDI or the engine keeps for itself
 int  {{APP_C}}_get_controller(const {{APP}}Engine*, int param);          // -1 for none
