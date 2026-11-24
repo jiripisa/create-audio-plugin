@@ -9,8 +9,13 @@ struct ControllerTests {
 
     private func knob(_ identifier: String) throws -> Parameter { try #require(Parameters.named(identifier)) }
 
-    /// The 45 knobs, in table order.
+    /// The knobs, in table order.
     private static let knobs = ParameterSection.all.flatMap(\.parameters).sorted { $0.index < $1.index }
+
+    /// The first instrument knob and its controller; controllers no knob comes with.
+    private static let first = TestKnobs.first
+    private static let firstCC = Controllers.standard(for: TestKnobs.first)!
+    private static let free = TestKnobs.freeControllers
 
     /// Lets the engine take in what was posted: MIDI is read at the start of a block.
     private func run(_ synth: Synth) {
@@ -27,28 +32,23 @@ struct ControllerTests {
 
     @Test("Every knob comes with a controller of its own, and none that MIDI reserves")
     func standardControllers() {
-        #expect(Self.knobs.count == 45)
+        #expect(Self.knobs.map(\.index) == TestKnobs.all.map(\.index))
         let controllers = Self.knobs.compactMap { Controllers.standard(for: $0) }
         #expect(controllers.count == Self.knobs.count)
         #expect(Set(controllers).count == controllers.count)
         #expect(controllers.allSatisfy { (0...127).contains($0) && !Controllers.isReserved($0) })
     }
 
-    @Test("Where MIDI names a controller for the thing, the knob has it")
-    func generalMidi() throws {
-        let expected = ["volume": 7, "pan": 10, "stick": 74, "potq": 71, "release": 72, "rub": 2, "attack": 73]
+    @Test("The platform block comes with its controllers: Volume 7, Pan 10, Glide 5 (Portamento Time), the others 102-112")
+    func platformControllers() throws {
+        let expected = ["volume": 7, "pan": 10, "tune": 102, "octave": 103, "bendup": 104, "benddown": 105, "voicemode": 106,
+                        "glide": 5, "lfostart": 107, "lfo1rate": 108, "lfo1shape": 109, "lfo2rate": 110, "lfo2shape": 111,
+                        "velsens": 112]
+        #expect(expected.count == TestKnobs.platform.count)
         for (identifier, controller) in expected {
             #expect(Controllers.standard(for: try knob(identifier)) == controller, "\(identifier)")
             #expect(Synth().controller(of: try knob(identifier)) == controller, "\(identifier) on a new synth")
         }
-    }
-
-    @Test("The other knobs take MIDI's undefined controllers, in table order")
-    func undefinedInTableOrder() {
-        let named: Set<String> = ["volume", "pan", "stick", "potq", "release", "rub", "attack"]
-        let undefined = Array(14...31) + Array(85...90) + Array(102...119)
-        let others = Self.knobs.filter { !named.contains($0.identifier) }
-        #expect(others.map { Controllers.standard(for: $0) } == undefined.prefix(others.count).map { Optional($0) })
     }
 
     @Test("MIDI's own controllers and the mod wheel are reserved; an amount has no controller")
@@ -70,15 +70,15 @@ struct ControllerTests {
     @Test("A controller puts its knob where its value says, on any channel")
     func controllerMovesItsKnob() throws {
         let synth = Synth()
-        let stick = try knob("stick"), release = try knob("release")
-        let ringBefore = synth.value(of: release)
-        send(synth, controller: 74, value: 127)
-        #expect(synth.normalisedValue(of: stick) == 1)
-        send(synth, controller: 74, value: 0, channel: 9)
-        #expect(synth.normalisedValue(of: stick) == 0)
-        send(synth, controller: 74, value: 100, channel: 15)
-        #expect(abs(synth.normalisedValue(of: stick) - 100.0 / 127) < 1e-6)
-        #expect(synth.value(of: release) == ringBefore)                              // nobody else moved
+        let first = Self.first, volume = try knob("volume")
+        let volumeBefore = synth.value(of: volume)
+        send(synth, controller: Self.firstCC, value: 127)
+        #expect(synth.normalisedValue(of: first) == 1)
+        send(synth, controller: Self.firstCC, value: 0, channel: 9)
+        #expect(synth.normalisedValue(of: first) == 0)
+        send(synth, controller: Self.firstCC, value: 100, channel: 15)
+        #expect(abs(synth.normalisedValue(of: first) - 100.0 / 127) < 1e-6)
+        #expect(synth.value(of: volume) == volumeBefore)                             // nobody else moved
     }
 
     @Test("A choice takes the step nearest to the controller's value")
@@ -97,7 +97,7 @@ struct ControllerTests {
     @Test("A knob with a middle stands on it at 64")
     func middle() throws {
         let synth = Synth()
-        for identifier in ["pan", "alttune", "drift", "tune", "octave"] {
+        for identifier in ["pan", "tune", "octave"] {
             let bipolar = try knob(identifier)
             #expect(bipolar.isBipolar, "\(identifier)")
             let cc = try #require(synth.controller(of: bipolar))
@@ -116,11 +116,11 @@ struct ControllerTests {
     func padModeMovesTheKeyboard() throws {
         let synth = Synth()
         synth.mode = .pads
-        let stick = try knob("stick")
-        let pads = (0..<16).map { synth.normalisedValue(of: stick, in: .pad($0)) }
-        send(synth, controller: 74, value: 127)
-        #expect(synth.normalisedValue(of: stick) == 1)
-        #expect((0..<16).map { synth.normalisedValue(of: stick, in: .pad($0)) } == pads)
+        let first = Self.first
+        let pads = (0..<16).map { synth.normalisedValue(of: first, in: .pad($0)) }
+        send(synth, controller: Self.firstCC, value: 127)
+        #expect(synth.normalisedValue(of: first) == 1)
+        #expect((0..<16).map { synth.normalisedValue(of: first, in: .pad($0)) } == pads)
     }
 
     @Test("The engine counts what MIDI changed, so that a window knows when to look")
@@ -130,10 +130,10 @@ struct ControllerTests {
         synth.noteOn(48)
         run(synth)
         #expect(synth.changes == before)                      // a note changes no knob
-        send(synth, controller: 74, value: 100)
+        send(synth, controller: Self.firstCC, value: 100)
         #expect(synth.changes != before)
         let moved = synth.changes
-        send(synth, controller: 119, value: 100)              // nobody listens to 119
+        send(synth, controller: Self.free[0], value: 100)     // nobody listens to it
         send(synth, controller: 1, value: 100)                // the mod wheel moves no knob
         #expect(synth.changes == moved)
     }
@@ -151,71 +151,71 @@ struct ControllerTests {
     @Test("A knob that is learning takes the next controller that moves, and that controller's value")
     func learn() throws {
         let synth = Synth()
-        let split = try knob("split")
-        let standard = try #require(Controllers.standard(for: split))
+        let rate = try knob("lfo1rate")
+        let standard = try #require(Controllers.standard(for: rate))
         #expect(synth.learning == nil)
-        synth.learn(split)
-        #expect(synth.learning == split)
+        synth.learn(rate)
+        #expect(synth.learning == rate)
         let before = synth.changes
-        send(synth, controller: 40, value: 127)
+        send(synth, controller: Self.free[0], value: 127)
         #expect(synth.learning == nil)
         #expect(synth.changes != before)
-        #expect(synth.controller(of: split) == 40)
-        #expect(synth.normalisedValue(of: split) == 1)
+        #expect(synth.controller(of: rate) == Self.free[0])
+        #expect(synth.normalisedValue(of: rate) == 1)
         send(synth, controller: standard, value: 0)           // the controller it came with
-        #expect(synth.normalisedValue(of: split) == 1)         // no longer moves it
+        #expect(synth.normalisedValue(of: rate) == 1)         // no longer moves it
     }
 
     @Test("Learning can be called off, and a reserved controller does not end it")
     func learnIgnoresReserved() throws {
         let synth = Synth()
-        let split = try knob("split")
-        let standard = Controllers.standard(for: split)
-        synth.learn(split)
+        let rate = try knob("lfo1rate")
+        let standard = Controllers.standard(for: rate)
+        synth.learn(rate)
         send(synth, controller: 1, value: 90)                 // the mod wheel
         send(synth, controller: 64, value: 127)
-        #expect(synth.learning == split)
-        #expect(synth.controller(of: split) == standard)
+        #expect(synth.learning == rate)
+        #expect(synth.controller(of: rate) == standard)
         synth.learn(nil)
         #expect(synth.learning == nil)
-        send(synth, controller: 40, value: 127)
-        #expect(synth.controller(of: split) == standard)
+        send(synth, controller: Self.free[0], value: 127)
+        #expect(synth.controller(of: rate) == standard)
     }
 
     @Test("An amount cannot learn")
     func amountsDoNotLearn() throws {
         let synth = Synth()
-        synth.learn(try knob("lfo1stick"))
+        synth.learn(try knob("lfo1tune"))
         #expect(synth.learning == nil)
-        synth.setController(40, of: try knob("lfo1stick"))
-        #expect(synth.controller(of: try knob("lfo1stick")) == nil)
+        synth.setController(Self.free[0], of: try knob("lfo1tune"))
+        #expect(synth.controller(of: try knob("lfo1tune")) == nil)
     }
 
     @Test("A controller serves one knob: given to another, the first knob has none")
     func oneKnobPerController() throws {
         let synth = Synth()
-        let split = try knob("split"), stick = try knob("stick")
-        synth.learn(split)
-        send(synth, controller: 74, value: 10)                // Stick's controller
-        #expect(synth.controller(of: split) == 74)
-        #expect(synth.controller(of: stick) == nil)
-        let stickBefore = synth.value(of: stick)
-        send(synth, controller: 74, value: 120)
-        #expect(synth.value(of: stick) == stickBefore)
+        let rate = try knob("lfo1rate"), firstKnob = Self.first
+        synth.learn(rate)
+        send(synth, controller: Self.firstCC, value: 10)      // the first knob's controller
+        #expect(synth.controller(of: rate) == Self.firstCC)
+        #expect(synth.controller(of: firstKnob) == nil)
+        let firstBefore = synth.value(of: firstKnob)
+        send(synth, controller: Self.firstCC, value: 120)
+        #expect(synth.value(of: firstKnob) == firstBefore)
     }
 
     @Test("A knob's controller can be taken away, given by hand, and all put back")
     func setAndReset() throws {
         let synth = Synth()
-        let split = try knob("split"), stick = try knob("stick")
-        synth.setController(nil, of: stick)
-        #expect(synth.controller(of: stick) == nil)
-        synth.setController(74, of: split)
-        #expect(synth.controller(of: split) == 74)
-        synth.setController(64, of: stick)                    // reserved: not taken
-        #expect(synth.controller(of: stick) == nil)
-        synth.setController(128, of: stick)                   // not a controller
-        #expect(synth.controller(of: stick) == nil)
+        let rate = try knob("lfo1rate"), firstKnob = Self.first
+        synth.setController(nil, of: firstKnob)
+        #expect(synth.controller(of: firstKnob) == nil)
+        synth.setController(Self.firstCC, of: rate)
+        #expect(synth.controller(of: rate) == Self.firstCC)
+        synth.setController(64, of: firstKnob)                    // reserved: not taken
+        #expect(synth.controller(of: firstKnob) == nil)
+        synth.setController(128, of: firstKnob)                   // not a controller
+        #expect(synth.controller(of: firstKnob) == nil)
         synth.resetControllers()
         #expect(Self.knobs.allSatisfy { synth.controller(of: $0) == Controllers.standard(for: $0) })
     }
@@ -223,12 +223,12 @@ struct ControllerTests {
     @Test("Programs and sent pads leave the controllers alone")
     func soundsKeepControllers() throws {
         let synth = Synth()
-        let split = try knob("split")
-        synth.setController(40, of: split)
-        synth.loadProgram(3)
+        let rate = try knob("lfo1rate")
+        synth.setController(Self.free[0], of: rate)
+        synth.loadProgram(TestKnobs.otherProgram)
         synth.sendToPad(2)
         synth.loadDefaultKit()
-        #expect(synth.controller(of: split) == 40)
+        #expect(synth.controller(of: rate) == Self.free[0])
     }
 
     // MARK: Storing
@@ -236,30 +236,30 @@ struct ControllerTests {
     @Test("The controllers round-trip through the form they are stored in, a knob without one included")
     func mapSurvivesStorage() throws {
         let synth = Synth()
-        synth.setController(40, of: try knob("split"))
-        synth.setController(nil, of: try knob("stick"))
+        synth.setController(Self.free[0], of: try knob("lfo1rate"))
+        synth.setController(nil, of: Self.first)
         let map = ControllerMap(capturing: synth)
         #expect(Set(map.controllers.keys) == Set(Self.knobs.map(\.identifier)))
         let stored = try JSONEncoder().encode(map)
 
         let other = Synth()
         try JSONDecoder().decode(ControllerMap.self, from: stored).apply(to: other)
-        #expect(other.controller(of: try knob("split")) == 40)
-        #expect(other.controller(of: try knob("stick")) == nil)
+        #expect(other.controller(of: try knob("lfo1rate")) == Self.free[0])
+        #expect(other.controller(of: Self.first) == nil)
         #expect(other.controller(of: try knob("volume")) == 7)
         #expect(ControllerMap(capturing: other) == map)
     }
 
     @Test("A stored map from another version: a knob it lacks keeps its standard, a name it has that this version lacks is ignored")
     func tolerantMap() throws {
-        let json = Data(#"{"controllers": {"split": 40, "from-the-future": 50, "stick": -1}, "unknown": true}"#.utf8)
+        let json = Data(#"{"controllers": {"lfo1rate": \#(Self.free[0]), "from-the-future": 50, "\#(Self.first.identifier)": -1}, "unknown": true}"#.utf8)
         let map = try JSONDecoder().decode(ControllerMap.self, from: json)
         let synth = Synth()
-        synth.setController(nil, of: try knob("release"))
+        synth.setController(nil, of: try knob("pan"))
         map.apply(to: synth)
-        #expect(synth.controller(of: try knob("split")) == 40)
-        #expect(synth.controller(of: try knob("stick")) == nil)
-        #expect(synth.controller(of: try knob("release")) == 72)
+        #expect(synth.controller(of: try knob("lfo1rate")) == Self.free[0])
+        #expect(synth.controller(of: Self.first) == nil)
+        #expect(synth.controller(of: try knob("pan")) == 10)
         #expect(synth.controller(of: try knob("volume")) == 7)
 
         let empty = try JSONDecoder().decode(ControllerMap.self, from: Data("{}".utf8))
@@ -269,8 +269,8 @@ struct ControllerTests {
     @Test("A stored map that gives one controller to two knobs leaves it with one")
     func mapWithAClash() throws {
         let synth = Synth()
-        ControllerMap(controllers: ["split": 40, "skin": 40]).apply(to: synth)
-        let holders = Self.knobs.filter { synth.controller(of: $0) == 40 }
+        ControllerMap(controllers: ["lfo1rate": Self.free[0], "lfo2rate": Self.free[0]]).apply(to: synth)
+        let holders = Self.knobs.filter { synth.controller(of: $0) == Self.free[0] }
         #expect(holders.count == 1)
     }
 
@@ -286,19 +286,19 @@ struct ControllerTests {
     func whoLearns() throws {
         #expect(Self.knobs.allSatisfy { Controllers.canLearn($0, in: .keyboard) })
         #expect(!Self.knobs.contains { Controllers.canLearn($0, in: .pad(3)) })
-        #expect(!Controllers.canLearn(try knob("lfo1stick"), in: .keyboard))
-        #expect(!Controllers.canLearn(try knob("velrelease"), in: .keyboard))
+        #expect(!Controllers.canLearn(try knob("lfo1tune"), in: .keyboard))
+        #expect(!Controllers.canLearn(try knob("velvolume"), in: .keyboard))
     }
 
     @Test("In MIDI mode a control shows its controller, a dash without one, and asks for a control while it listens")
     func captions() throws {
-        let stick = try knob("stick"), release = try knob("release")
-        #expect(Controllers.caption(of: stick, in: .keyboard, controller: 74, learning: nil) == "CC 74")
-        #expect(Controllers.caption(of: stick, in: .keyboard, controller: nil, learning: nil) == "—")
-        #expect(Controllers.caption(of: stick, in: .keyboard, controller: 74, learning: stick) == "move a control")
-        #expect(Controllers.caption(of: stick, in: .keyboard, controller: 74, learning: release) == "CC 74")
+        let firstKnob = Self.first, volumeKnob = try knob("volume")
+        #expect(Controllers.caption(of: firstKnob, in: .keyboard, controller: 74, learning: nil) == "CC 74")
+        #expect(Controllers.caption(of: firstKnob, in: .keyboard, controller: nil, learning: nil) == "—")
+        #expect(Controllers.caption(of: firstKnob, in: .keyboard, controller: 74, learning: firstKnob) == "move a control")
+        #expect(Controllers.caption(of: firstKnob, in: .keyboard, controller: 74, learning: volumeKnob) == "CC 74")
         // A pad's set and an amount have no controllers, whatever the keyboard's knob has.
-        #expect(Controllers.caption(of: stick, in: .pad(0), controller: 74, learning: stick) == "—")
-        #expect(Controllers.caption(of: try knob("lfo1stick"), in: .keyboard, controller: nil, learning: nil) == "—")
+        #expect(Controllers.caption(of: firstKnob, in: .pad(0), controller: 74, learning: firstKnob) == "—")
+        #expect(Controllers.caption(of: try knob("lfo1tune"), in: .keyboard, controller: nil, learning: nil) == "—")
     }
 }

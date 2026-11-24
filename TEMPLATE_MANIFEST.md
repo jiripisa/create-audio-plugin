@@ -1,8 +1,10 @@
 # Template manifest
 
 `templates/` is Fanfrnoch, the source instrument of design spec §7, at its tag `v1.0.0` with its
-identity replaced by placeholders, moved to macOS 27 (§"macOS 27" below). It still carries the
-friction-drum engine; the placeholder engine and the platform/instrument seam come later.
+identity replaced by placeholders, moved to macOS 27 (§"macOS 27" below), with its friction-drum
+engine replaced by a placeholder instrument, "Tone", behind a seam between the platform and the
+instrument (§"The instrument seam" below). The site and the manual still describe the friction
+drum; they become templates later (plan, Task 7).
 `scaffold.py --templates` renders it (double-brace variables, flag blocks, `__APP__` in paths).
 
 This file is the skill's map of the template. It lives at the repo root, outside `templates/`, so
@@ -43,8 +45,12 @@ content with the new instrument's; the line says with what).
 
 `scripts/check_leftovers.sh templates` (words: `scripts/leftover-words.txt`) finds no identity
 token; the subtype `Fanf` is matched as a whole word only, so that words such as `Fanfare` stay
-allowed. Content words of the friction drum (drum, friction, stick, horsehair, the programs'
-instrument names, …) are still here on purpose.
+allowed. The words file also holds the friction drum's content words (drum, friction, stick, rub,
+skin, pot, the programs' instrument names, the palette's Modrotisk, …), short ones as whole words
+so that `sticky` or `pottery` stay allowed. They are gone from everything but `docs/`, whose
+bodies still describe the friction drum: `check_leftovers.sh --skip-dir docs templates` finds
+nothing, and `verify_template.sh` checks the rendered project with `--skip-dir docs` until the
+site and manual are templates.
 
 ## What resisted a plain rename
 
@@ -55,15 +61,15 @@ instrument names, …) are still here on purpose.
   literal (`'{{AU_SUBTYPE}}'` in `__APP__AU.h`) and a plist string, so it needs no hex anywhere.
 - **Braces that are not tags.** The renderer only takes two opening braces, an optional `#`, `^`
   or `/`, uppercase letters or `_`, two closing braces. C++ aggregate
-  initialisers (`{{kLength, 150}, …}` in `Params.cpp`) and Python's f-string braces in
+  initialisers (`{{kLength, 150}, …}` in the source's `Params.cpp`; the template's tables
+  write `{ {` with a space) and Python's f-string braces in
   `scripts/make_appcast.py` do not match; no file of the source held a literal tag.
   `make_appcast.py`'s f-string now holds `{{PAGES_URL}}` and `{{APP}}`, rendered to plain text before
   Python ever reads it.
 - **The C++ namespace** is `namespace {{APP_LOWER}}`; `identity.py` guarantees it starts with a letter.
-- **Names built from the instrument's name**: programs `{{APP}}` and `{{APP}} High` with their enum
-  values `k{{APP}}`, `k{{APP}}High` (`Params.h/.cpp`), test names such as `b_{{APP_C}}_default_groove`,
-  the kit extension `.{{APP_LOWER}}kit`, Czech declensions such as `{{APP}}u` in `docs/cs/`. They
-  render to valid code and text; the instrument files that hold them are replaced per run.
+- **Names built from the instrument's name**: the kit extension `.{{APP_LOWER}}kit`, the
+  listening renders' directory variable `{{APP_UPPER}}_LISTEN_DIR`, Czech declensions such as
+  `{{APP}}u` in `docs/cs/`. They render to valid code and text.
 - **Kept as they are**: the manufacturer code `JPis` and its name `Jiri Pisa` (the AU's `name` is
   `Jiri Pisa: {{APP}}`) and the shared Sparkle `SUPublicEDKey`.
 - **Display names use `{{APP}}`**, as the mechanical rename gives them (window title, bundle
@@ -147,10 +153,92 @@ Behaviour stays the same; where the new API differs it does not show:
 
 - `Resources/AppIcon.png` — **instrument**: a plain grey 1024 × 1024 opaque PNG so that `build.sh`
   (actool) has a master to compile; a run puts the instrument's icon art here.
-- `Resources/Art/` is absent: `build.sh` copies it only when it exists and `Artwork` falls back to
-  its colours. A run puts the panel's artwork here (**instrument**).
+- `Resources/Art/` is absent: `build.sh` copies it only when it exists, and every image `Artwork`
+  names (`background`, `figure`, `logo`, `knob`, `ornament`) falls back to a plain look; the
+  template's palette is the system's own colours. A run puts the panel's artwork here (**instrument**).
 - `docs/assets/*.png|*.jpg` are absent (the window screenshot, hero, icon, ornament and the
   manual's screenshots): the site still links them; a run makes them (**instrument**).
+
+## The instrument seam
+
+The engine is the platform; an instrument is three files a run writes from its spec and its
+approved prototype: `Sources/__APP__DSP/Params.h` (its knobs and tables), `Voice.h` (its voice)
+and `Tests/__APP__Reference/*` with the instrument test files (table above). Everything else
+stays as it is, and `ParamTable.h` checks the contract below at compile time.
+
+**The parameter table** (permanent, IDs are the Audio Unit's and saved state's):
+
+1. The platform block, IDs 0-13, the same for every instrument (`PlatformParams.h`):
+
+   | ID | Identifier | Name | Range, default | CC |
+   |---|---|---|---|---|
+   | 0 | `volume` | Volume | -40 … 6 dB, 0 | 7 |
+   | 1 | `pan` | Pan | -100 … 100 %, 0 | 10 |
+   | 2 | `tune` | Tune | -100 … 100 ct, 0 | 102 |
+   | 3 | `octave` | Octave | -2 … 2, 0 (programs leave it alone) | 103 |
+   | 4 | `bendup` | Bend Up | 0 … 24 st, 2 | 104 |
+   | 5 | `benddown` | Bend Down | 0 … 24 st, 2 | 105 |
+   | 6 | `voicemode` | Voice Mode | Poly, Mono, Legato; Poly (declared, behaviour in Task 6) | 106 |
+   | 7 | `glide` | Glide | 0 … 2000 ms, log (`log(1 + x / 2 ms)`), 0 (declared, behaviour in Task 6) | 5 |
+   | 8 | `lfostart` | LFO Start | Hit, Free; Hit | 107 |
+   | 9 | `lfo1rate` | LFO 1 Rate | 0.02 … 20 Hz, log, 6 | 108 |
+   | 10 | `lfo1shape` | LFO 1 Shape | Sine … Wander (7); Sine | 109 |
+   | 11 | `lfo2rate` | LFO 2 Rate | 0.02 … 20 Hz, log, 2 | 110 |
+   | 12 | `lfo2shape` | LFO 2 Shape | Sine … Wander (7); Sine | 111 |
+   | 13 | `velsens` | Vel Sens | 0 … 100 %, 70 | 112 |
+
+2. The instrument's knobs, IDs from 14 (`kInstrumentKnobs`, in the enum's order).
+3. The LFO amounts: LFO 1 on each of `kLfoTargets` (`lfo1<id>`, "LFO 1><Name>"), then LFO 2
+   on the same knobs.
+4. The VEL amounts: one on each of `kVelTargets` (`vel<id>`, "VEL><Name>").
+
+Every amount is -100 … 100 %, 0 at rest. The template's Tone fills it as: 14 `attack` (1 … 2000 ms,
+log, 5, CC 73), 15 `decay` (0.05 … 20 s, log, 2, CC 75), 16 `release` (0.01 … 5 s, log, 0.3, CC
+72), 17 `brightness` (0 … 100 %, 30, CC 74); LFO amounts 18-25 on volume, pan, tune, brightness;
+VEL amounts 26-34 on attack, decay, release, brightness, volume, pan, tune, lfo1rate, lfo2rate:
+35 parameters.
+
+**What a run writes in `Params.h`** (the shapes are in `PlatformParams.h`):
+
+| Name | What it is | The contract |
+|---|---|---|
+| `enum InstrumentKnob` | the knobs, the first `= kNumPlatformKnobs`, then `kNumKnobs` | only ever appended to after a release |
+| `kInstrumentKnobs[]` | one `Param` per knob, made with `floatKnob`, `logKnob`, `levelKnob`, `intKnob`, `choiceKnob` | identifiers lowercase ASCII letters and digits, unique; every knob a controller of its own, unreserved, none the platform's (5, 7, 10, 102-112): General MIDI's for the thing, else 14-31, 85-90, 113-119 |
+| `kLfoTargets[]` | the knobs an LFO may move | continuous knobs, each once; must hold `kVolume`, `kPan`, `kTune` |
+| `kVelTargets[]` | the knobs the velocity may move | every continuous instrument knob, and `kVolume`, `kPan`, `kTune`, `kLfo1Rate`, `kLfo2Rate`; never `kVelSens` |
+| `kModWheelTargets[]`, `kAftertouchTargets[]` | `{ param, depth }`: what the wheel moves on a keyboard voice, `depth` the part of the knob's travel at the top | continuous knobs, depth in (0, 1]; `{ kNoTarget, 0 }` for none |
+| `kSections[]` | `{ name, { knobs… } }`, in the order shown; Master (the platform block) follows | every instrument knob in exactly one; at most 16 a section |
+| `enum ProgramIndex`, `kPrograms[]` | `{ name, { { param, plain value }… } }`: the defaults with up to 16 overrides | at least two (the platform tests load the last); a program never sets Octave |
+| `kDefaultKit[16]` | `{ program, note, group, { overrides… } }` per pad | valid programs, notes 0-127, groups 0-16 (0 = Off) |
+| `kRehitContinues` | a note-on on a sounding voice (same key, or a pad of the same group): `true` continues it (`start(…, continuing = true)`), `false` fades it out in 3 ms and starts a fresh one | |
+| `kOutputLevel` | the voice's units to the engine's | the default note at full velocity peaks around 0.5 (-6 dBFS), under the limiter's 0.6 |
+| `kTailSeconds` | the longest a voice sounds after its note-off | the Audio Unit's tail time (`{{APP_C}}_tail_time`) |
+
+**What a run writes in `Voice.h`**: `struct Voice`, default-constructible, with exactly the four
+calls the engine makes (no allocation, lock or I/O in any):
+
+- `void start(const Knobs& knobs, int note, float velocity, bool continuing)`: a note-on.
+  `knobs` (`ParamTable.h`) stays valid while the voice sounds and the engine updates it before
+  every `render`: plain values in table order (`knobs[kAttack]`), moved by the voice's LFOs, the
+  hit's velocity and, on a keyboard voice, the wheels; `knobs.bend` in semitones; `knobs.rate`
+  the voice's rate (twice the host's below 88.2 kHz). `knobs.hz(note)` is the note's frequency
+  with Octave, Tune and the bend. `velocity` is 0…1; the engine already applies Vel Sens and
+  VEL>Volume to the level. `continuing` is true only when the note-on takes over this voice
+  while it sounds (`kRehitContinues`, and Legato in Task 6): go on without a new attack.
+- `void release()`: the note-off of its key or pad.
+- `void render(float* out, int frames)`: the next 1 … 16 mono samples, written (not added).
+- `bool finished() const`: true once the voice is silent for good; the engine frees it.
+
+The platform does around the voice: the voice pool (16 sounding, steal the quietest by a peak
+follower, 3 ms fade), keys, pads and groups (one voice a group), Volume, Pan, Vel Sens,
+VEL>Volume, the LFOs and VEL amounts on every target, the wheels by the instrument's tables,
+pitch bend by Bend Up/Down, the half-band 2x stage, `kOutputLevel`, the limiter, sample-accurate
+MIDI, MIDI learn, the Audio Unit and its state. Code stays under `#pragma clang fp contract(off)`
+and uses `std::exp2` for powers of two, so that debug and release builds render the same samples.
+
+**Also the instrument's**: `SectionLayout.plans` and `PanelLayout.plannedRows`
+(`Sources/__APP__Core/SectionLayout.swift`), `Artwork.swift`, `Resources/AppIcon.png`,
+`Resources/Art/*`, and the site's and manual's bodies.
 
 ## Files
 
@@ -187,9 +275,10 @@ Behaviour stays the same; where the new API differs it does not show:
 | File | Kind | What it is / what a run puts there |
 |---|---|---|
 | `Sources/__APP__DSP/include/__APP__DSP.h` | platform | C interface to the engine |
-| `Sources/__APP__DSP/__APP__Engine.cpp` | platform | voices, pads, sets, LFOs, MIDI, oversampling, limiter (names instrument knobs in places) |
-| `Sources/__APP__DSP/Params.h` | instrument | the parameter table's enum, sections, programs |
-| `Sources/__APP__DSP/Params.cpp` | instrument | the table, the sections, the programs, the default kit |
+| `Sources/__APP__DSP/__APP__Engine.cpp` | platform | voice pool, pads, sets, LFOs, VEL, wheels, MIDI, oversampling, limiter; names no instrument knob |
+| `Sources/__APP__DSP/PlatformParams.h` | platform | `Param`, the platform block, the shapes of the instrument's tables |
+| `Sources/__APP__DSP/ParamTable.h`, `ParamTable.cpp` | platform | the whole table put together, `Knobs`, the seam's `static_assert`s |
+| `Sources/__APP__DSP/Params.h` | instrument | the instrument's knobs and tables (§"The instrument seam") |
 | `Sources/__APP__DSP/Voice.h` | instrument | the instrument's voice from the approved prototype |
 | `Sources/__APP__DSP/Lfo.h` | platform | LFO phase and its seven shapes |
 | `Sources/__APP__DSP/MidiQueue.h` | platform | lock-free MIDI queue to the audio thread |
@@ -213,18 +302,18 @@ Behaviour stays the same; where the new API differs it does not show:
 | `Sources/__APP__Core/Parameter.swift` | platform | one knob, from the engine's table |
 | `Sources/__APP__Core/Presets.swift` | platform | presets and their library |
 | `Sources/__APP__Core/PresetShelves.swift` | platform | a window's view of the files per set |
-| `Sources/__APP__Core/SectionLayout.swift` | platform, its `plans` instrument | placement of a section's controls; a run writes the `plans` for its sections |
+| `Sources/__APP__Core/SectionLayout.swift` | platform, its `plans` and `PanelLayout.plannedRows` instrument | placement of a section's controls and of the cards; a run writes the plans of its sections and the rows of its cards (both empty: everything flows) |
 | `Sources/__APP__Core/StandaloneSettings.swift` | platform | MIDI source, audio output choices |
 | `Sources/__APP__Core/Synth.swift` | platform | the Swift wrapper over the engine |
 | `Sources/__APP__Core/SynthState.swift` | platform | saved knob sets |
-| `Sources/__APP__UI/Artwork.swift` | instrument | the panel's images and palette |
+| `Sources/__APP__UI/Artwork.swift` | instrument | the panel's images, their bounds and palette (template: no images, system colours) |
 | `Sources/__APP__UI/HeaderView.swift` | platform | emblem, wordmark, menus, mode, LFO/VEL/MIDI |
 | `Sources/__APP__UI/InstrumentModel.swift` | platform | what the panel needs from its owner |
 | `Sources/__APP__UI/InstrumentPanel.swift` | platform | the panel |
 | `Sources/__APP__UI/KeyboardStripView.swift` | platform | three octaves of keys |
 | `Sources/__APP__UI/KnobEdit.swift`, `KnobView.swift` | platform | knobs and their edits |
 | `Sources/__APP__UI/LibraryMenuView.swift`, `NameSheetView.swift` | platform | file menus, Save as… |
-| `Sources/__APP__UI/ModeFooterView.swift` | platform | keyboard / pads footer (places the instrument art where it exists) |
+| `Sources/__APP__UI/ModeFooterView.swift` | platform | keyboard / pads footer (`FigureView`: the instrument's figure where the art has one) |
 | `Sources/__APP__UI/PadGridView.swift`, `PadInspectorView.swift`, `SendToPadView.swift` | platform | pads |
 | `Sources/__APP__UI/SectionView.swift` | platform | one section's card |
 | `Sources/__APP__/*.swift` (`__APP__App`, `AppModel`, `AudioOutput`, `ContentView`, `MIDIInput`, `SettingsView`, `UpdateService`) | platform | the standalone app |
@@ -234,21 +323,31 @@ Behaviour stays the same; where the new API differs it does not show:
 
 | File | Kind | What it is / what a run puts there |
 |---|---|---|
-| `Tests/__APP__Reference/__APP__Reference.cpp`, `include/__APP__Reference.h` | instrument | the approved listening prototype as a C++ reference |
-| `Tests/__APP__CoreTests/PrototypeScores.swift` | instrument | the prototype's scores and reference render calls |
-| `Tests/__APP__CoreTests/PrototypeEquivalenceTests.swift` | instrument | engine vs prototype for the instrument's renders |
-| `Tests/__APP__CoreTests/SoundRegressionTests.swift` | instrument | fingerprints taken from the new engine |
+| `Tests/__APP__Reference/__APP__Reference.cpp`, `include/__APP__Reference.h` | instrument | the approved listening prototype as a C++ reference (template: Tone) |
+| `Tests/__APP__CoreTests/PrototypeScores.swift` | instrument | the prototype's programs, scores and reference render calls |
+| `Tests/__APP__CoreTests/PrototypeEquivalenceTests.swift` | instrument | engine vs prototype for every score, at 96 and 48 kHz (residual < -60 dB) |
+| `Tests/__APP__CoreTests/SoundRegressionTests.swift` | instrument | fingerprints taken from the new engine (template: two) |
 | `Tests/__APP__CoreTests/ListeningRenders.swift` | instrument | renders of the instrument for the ear |
 | `Tests/__APP__CoreTests/Grooves.swift` | instrument | scores over the instrument's default kit |
 | `Tests/__APP__CoreTests/ReferenceTests.swift` | instrument | the reference renders its own scores |
-| `Tests/__APP__CoreTests/EngineHarness.swift` | platform | engine test helpers and measures |
-| `Tests/__APP__CoreTests/EngineTests.swift` | platform | engine promises (names instrument knobs in places) |
-| `Tests/__APP__CoreTests/ParameterTableTests.swift` | platform | table invariants (lists the instrument's knobs in places) |
-| `Tests/__APP__CoreTests/ModulationTests.swift`, `ControllerTests.swift`, `PadTests.swift` | platform | LFO/VEL, controllers, pads (address instrument knobs in places) |
+| `Tests/__APP__CoreTests/InstrumentTableTests.swift` | instrument | the instrument's knobs, controllers, targets, wheels, sections, programs, kit, tail, level |
+| `Tests/__APP__CoreTests/EngineHarness.swift` | platform | engine test helpers and measures; `TestKnobs` (the platform block, the instrument's knobs by position) |
+| `Tests/__APP__CoreTests/EngineTests.swift` | platform | engine promises for every instrument |
+| `Tests/__APP__CoreTests/ParameterTableTests.swift` | platform | table invariants: the platform block, order, amounts, sections |
+| `Tests/__APP__CoreTests/ModulationTests.swift`, `ControllerTests.swift`, `PadTests.swift` | platform | LFO/VEL, controllers, pads (the pad VEL test included) |
 | `Tests/__APP__CoreTests/AudioUnitTests.swift`, `AudioUnitWindowTests.swift` | platform | the AU in-process, its window model |
-| `Tests/__APP__CoreTests/SectionLayoutTests.swift` | platform | placement (checks the instrument's plans in places) |
+| `Tests/__APP__CoreTests/SectionLayoutTests.swift` | platform | placement without plans |
 | `Tests/__APP__CoreTests/ThreadTests.swift` | platform | audio-thread rules |
 | `Tests/__APP__CoreTests/` `__APP__CoreTests`, `AppModelLogicTests`, `KeyboardLayoutTests`, `KeyStripTests`, `KitTests`, `KnobEditTests`, `LibraryMenuTests`, `NotesTests`, `PadPanelTests`, `PresetFileTests`, `PresetLibraryTests`, `PresetShelvesTests`, `StandaloneSettingsTests`, `SynthStateTests`, `SynthTests` | platform | the platform's logic |
+
+The platform tests address knobs by identifier from the platform block or by position among the
+instrument's (`TestKnobs.first`, the first instrument knob; `TestKnobs.programKnob`, a knob the
+last program sets apart from the first; `TestKnobs.freeControllers`), never by an instrument
+knob's name. What they assume of every instrument: at least two programs; a voice that sounds
+at the note's pitch (`Knobs::hz`) and is released by its note-off; a first instrument knob that,
+moved over its whole travel by VEL, changes a note's level over its first 0.3 s by more than
+6 dB (the pad VEL test; Tone's Attack does); no velocity in the voice's level besides Vel Sens
+and VEL>Volume (the VEL>Volume and Vel Sens tests).
 
 ### Website (`docs/`)
 

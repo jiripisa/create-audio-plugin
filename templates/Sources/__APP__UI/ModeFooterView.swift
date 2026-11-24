@@ -5,8 +5,8 @@ import {{APP}}Core
 /// The bottom of the panel, the same in the app's window and in the
 /// plug-in's: one glass card that follows the mode, as in the mockups.
 ///
-/// - Keyboard: "Keyboard", an ornament band with the drum standing on the
-///   keys, the last note played, the "Send to pad" button (`SendToPadView`)
+/// - Keyboard: "Keyboard", an ornament band with the instrument's figure
+///   standing on the keys (where the artwork has one), the last note played, the "Send to pad" button (`SendToPadView`)
 ///   and three octaves of keys (`KeyboardStripView`).
 /// - Pads: the sixteen pads on the left (`PadGridView`) and the selected
 ///   pad's pitch and group and the Kit menu on the right (`PadInspectorView`).
@@ -22,8 +22,8 @@ public struct ModeFooterView: View {
 
     private static let padding: CGFloat = 10
     private static let keyboardRow: CGFloat = 60
-    /// How tall the drum stands: taller than its row, it reaches up over the card's edge.
-    private static let drumHeight: CGFloat = 100
+    /// How tall the figure stands: taller than its row, it reaches up over the card's edge.
+    private static let figureHeight: CGFloat = 100
 
     @State private var sending = false
 
@@ -48,22 +48,22 @@ public struct ModeFooterView: View {
             HStack(spacing: 14) {
                 Text("Keyboard")
                     .font(.system(size: 30, weight: .semibold, design: .serif))
-                    .foregroundStyle(Artwork.cream)
+                    .foregroundStyle(Artwork.ink)
                     .fixedSize()
                     .padding(.leading, 8)
                 OrnamentBand()
                     .frame(maxWidth: .infinity)
-                // A box as wide as the drum, which stands on the keys and reaches up out of it.
+                // A box as wide as the figure, which stands on the keys and reaches up out of it.
                 Color.clear
-                    .frame(width: DrumView.width(height: Self.drumHeight), height: Self.keyboardRow)
+                    .frame(width: FigureView.width(height: Self.figureHeight), height: Self.keyboardRow)
                     .overlay(alignment: .bottom) {
-                        DrumView()
-                            .frame(height: Self.drumHeight)
+                        FigureView()
+                            .frame(height: Self.figureHeight)
                             .offset(y: 6)
                     }
                 OrnamentBand()
                     .frame(maxWidth: .infinity)
-                Rectangle().fill(Artwork.cream.opacity(0.3)).frame(width: 1, height: 40)
+                Rectangle().fill(Artwork.ink.opacity(0.3)).frame(width: 1, height: 40)
                 lastNote
                 sendButton
             }
@@ -79,13 +79,13 @@ public struct ModeFooterView: View {
         VStack(spacing: 3) {
             Text("Last note")
                 .font(.system(size: 12, weight: .semibold))
-                .foregroundStyle(Artwork.cream)
+                .foregroundStyle(Artwork.ink)
             Text(Notes.name(PadLabel.sendPitch(lastNote: model.lastNote)))
                 .font(.system(size: 22, weight: .semibold, design: .serif).monospacedDigit())
-                .foregroundStyle(Artwork.cream)
+                .foregroundStyle(Artwork.ink)
                 .frame(width: 76, height: 34)
-                .background(Artwork.indigo.opacity(0.6), in: .rect(cornerRadius: 8))
-                .overlay { RoundedRectangle(cornerRadius: 8).strokeBorder(Artwork.cream.opacity(0.25), lineWidth: 1) }
+                .background(Artwork.deep.opacity(0.6), in: .rect(cornerRadius: 8))
+                .overlay { RoundedRectangle(cornerRadius: 8).strokeBorder(Artwork.ink.opacity(0.25), lineWidth: 1) }
         }
         .accessibilityElement(children: .combine)
         .help("The pitch Send to pad gives a pad: the last note played, C2 before any")
@@ -97,7 +97,7 @@ public struct ModeFooterView: View {
         } label: {
             Text("Send to pad")
                 .font(.system(size: 14, weight: .semibold))
-                .foregroundStyle(Artwork.cream)
+                .foregroundStyle(Artwork.ink)
                 .padding(.horizontal, 8)
                 .padding(.vertical, 4)
         }
@@ -115,54 +115,51 @@ public struct ModeFooterView: View {
         HStack(alignment: .top, spacing: 12) {
             PadGridView(model: model)
                 .frame(maxWidth: .infinity)
-            Rectangle().fill(Artwork.cream.opacity(0.25)).frame(width: 1)
+            Rectangle().fill(Artwork.ink.opacity(0.25)).frame(width: 1)
             PadInspectorView(model: model)
                 .frame(width: PadInspectorView.width)
         }
     }
 }
 
-/// The {{APP_LOWER}} standing upright, cropped to the jug and its tufts: the
-/// artwork is a square with transparent margins around them.
-struct DrumView: View {
+/// The instrument's figure, cropped to `Artwork.figureBounds`; nothing (and no width) without
+/// the artwork.
+struct FigureView: View {
 
-    /// The jug's bounds in the square artwork (`Resources/Art/drum.png`, 1200 px, measured
-    /// on its alpha): x 293…920, y 147…1054.
-    static let bounds = CGRect(x: 0.244, y: 0.122, width: 0.523, height: 0.757)
-
-    /// The width the drum takes at a height.
-    static func width(height: CGFloat) -> CGFloat {
-        height * bounds.width / bounds.height
+    /// The width the figure takes at a height.
+    @MainActor static func width(height: CGFloat) -> CGFloat {
+        guard let figure = Artwork.figure, figure.size.height > 0 else { return 0 }
+        let bounds = Artwork.figureBounds
+        return height * figure.size.width * bounds.width / (figure.size.height * bounds.height)
     }
 
     var body: some View {
-        if let drum = Artwork.drum {
-            CroppedArt(image: drum, bounds: Self.bounds)
+        if let figure = Artwork.figure {
+            CroppedArt(image: figure, bounds: Artwork.figureBounds)
         }
     }
 }
 
-/// The cream jug beside the wordmark, cropped to its bounds as the drum is.
+/// The emblem beside the wordmark, cropped to `Artwork.logoBounds`.
 struct LogoView: View {
 
-    /// The emblem's bounds in its square (`Resources/Art/logo.png`, 512 px): x 119…391, y 68…455.
-    static let bounds = CGRect(x: 0.232, y: 0.133, width: 0.534, height: 0.758)
-
     /// The width the emblem takes at a height.
-    static func width(height: CGFloat) -> CGFloat {
-        height * bounds.width / bounds.height
+    @MainActor static func width(height: CGFloat) -> CGFloat {
+        guard let logo = Artwork.logo, logo.size.height > 0 else { return 0 }
+        let bounds = Artwork.logoBounds
+        return height * logo.size.width * bounds.width / (logo.size.height * bounds.height)
     }
 
     var body: some View {
         if let logo = Artwork.logo {
-            CroppedArt(image: logo, bounds: Self.bounds)
+            CroppedArt(image: logo, bounds: Artwork.logoBounds)
         }
     }
 }
 
 /// A part of an artwork, `bounds` in parts of its size from the top left, at
 /// the proportions of that part. Only a picture: it never takes a click, so
-/// whatever it reaches over (the drum over a card's edge) keeps working.
+/// whatever it reaches over (the figure over a card's edge) keeps working.
 struct CroppedArt: View {
 
     let image: NSImage

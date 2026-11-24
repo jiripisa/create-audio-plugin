@@ -6,19 +6,19 @@ import Testing
 @Suite("Synth state")
 struct SynthStateTests {
 
-    private func pot() throws -> Parameter { try #require(Parameters.named("pot")) }
-    private func release() throws -> Parameter { try #require(Parameters.named("release")) }
+    private func tune() throws -> Parameter { try #require(Parameters.named("tune")) }
+    private func release() throws -> Parameter { TestKnobs.programKnob }
 
     @Test("A state goes through JSON and into a fresh synth unchanged")
     func roundTrip() throws {
         let source = Synth(sampleRate: 48_000)
-        let pot = try pot(), release = try release()
-        source.setValue(700, of: pot)
-        source.setValue(1.5, of: release)
-        source.loadProgram(2, into: .pad(7))
-        for (pad, hz) in [(0, 500.0), (7, 1_100), (15, 1_400)] {
-            source.setValue(Float(hz), of: pot, in: .pad(pad))
-            source.setValue(Float(pad) / 8, of: release, in: .pad(pad))
+        let tune = try tune(), release = try release()
+        source.setValue(35, of: tune)
+        source.setValue(release.plain(0.7), of: release)
+        source.loadProgram(TestKnobs.otherProgram, into: .pad(7))
+        for (pad, hz) in [(0, -50.0), (7, 55), (15, 90)] {
+            source.setValue(Float(hz), of: tune, in: .pad(pad))
+            source.setValue(release.plain(Float(pad) / 16), of: release, in: .pad(pad))
         }
         source.setPadNote(50, pad: 0)
         source.setPadNote(73, pad: 7)
@@ -38,8 +38,8 @@ struct SynthStateTests {
         #expect(target.state == saved)
         #expect(target.mode == .pads)
         #expect(target.padNote(7) == 73 && target.padGroup(7) == 9 && target.padGroup(0) == nil)
-        #expect(abs(target.value(of: pot, in: .pad(7)) - 1_100) < 1)
-        #expect(target.program(in: .pad(7)) == 2)
+        #expect(abs(target.value(of: tune, in: .pad(7)) - 55) < 0.01)
+        #expect(target.program(in: .pad(7)) == TestKnobs.otherProgram)
     }
 
     @Test("The state holds the keyboard, sixteen pads and every knob by its identifier")
@@ -53,23 +53,23 @@ struct SynthStateTests {
     @Test("A name this version does not know is ignored; a knob the state lacks takes its program's value")
     func unknownAndMissingKeys() throws {
         let synth = Synth(sampleRate: 48_000)
-        let pot = try pot(), release = try release()
-        synth.setValue(900, of: pot)
+        let tune = try tune(), release = try release()
+        synth.setValue(45, of: tune)
         synth.setValue(0.6, of: release)
         var state = synth.state
         state.keyboard.values["from-the-future"] = 1
-        state.keyboard.values["pot"] = 600
-        state.keyboard.values["release"] = nil
+        state.keyboard.values["tune"] = -30
+        state.keyboard.values[TestKnobs.programKnob.identifier] = nil
         state.pads[3].set.values["from-the-future"] = 1
 
         synth.apply(state)
-        #expect(abs(synth.value(of: pot) - 600) < 1)
+        #expect(abs(synth.value(of: tune) + 30) < 0.01)
         let programRelease = Programs.value(program: state.keyboard.program, parameter: release)
         #expect(abs(synth.value(of: release) - programRelease) < 1e-4)
 
         // The same when the state's program differs: the missing knob is that program's.
         synth.setValue(0.6, of: release)
-        state.keyboard.program = (synth.program() + 1) % 3
+        state.keyboard.program = (synth.program() + 1) % Programs.names.count
         synth.apply(state)
         #expect(synth.program() == state.keyboard.program)
         #expect(abs(synth.value(of: release) - Programs.value(program: state.keyboard.program, parameter: release)) < 1e-4)
@@ -78,7 +78,7 @@ struct SynthStateTests {
     @Test("A state of 30 knobs takes the program's values for the other four, the octave included")
     func thirtyKnobState() throws {
         let synth = Synth(sampleRate: 48_000)
-        let program = 3
+        let program = TestKnobs.otherProgram
         let kept = Set(Parameters.all.prefix(30).map(\.identifier))
         #expect(kept.count == 30 && Parameters.all.count > 30)
         var set = SetState(program: program, values: [:])
@@ -95,7 +95,7 @@ struct SynthStateTests {
 
     @Test("A set's preset name survives JSON, and a set saved without one reads as none")
     func presetName() throws {
-        let set = SetState(program: 2, values: ["pot": 600], preset: "Mine")
+        let set = SetState(program: TestKnobs.otherProgram, values: ["tune": -30], preset: "Mine")
         let data = try JSONEncoder().encode(set)
         #expect(try JSONDecoder().decode(SetState.self, from: data) == set)
         #expect(try JSONDecoder().decode(SetState.self, from: Data(#"{"program":2}"#.utf8)).preset == nil)
@@ -150,7 +150,7 @@ struct SynthStateTests {
             keyboard["midiMappings"] = [1, 2, 3]
             object["keyboard"] = keyboard
             var pads = try #require(object["pads"] as? [[String: Any]])
-            pads[2]["colour"] = "terracotta"
+            pads[2]["colour"] = "red"
             object["pads"] = pads
         }
         #expect(loaded == saved)

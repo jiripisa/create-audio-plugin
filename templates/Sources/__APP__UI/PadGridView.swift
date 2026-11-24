@@ -4,7 +4,7 @@ import {{APP}}Core
 /// The sixteen pads, 4 × 4, pad 01 top left. A click selects a pad and hits
 /// it: soft near its top, firmer further down (`KeyStrip`); letting go ends
 /// the note. Each tile shows the pad's number, and its name over its pitch and
-/// group; the selected pad has a terracotta outline, and a pad lights up for a
+/// group; the selected pad has an `Artwork.accent` outline, and a pad lights up for a
 /// moment whenever it is hit, from the screen or from MIDI.
 struct PadGridView: View {
 
@@ -49,7 +49,7 @@ struct PadGridView: View {
     }
 }
 
-/// One pad, a tile of blue glass colour on the footer's card: "05 | Cuíca Whoop" over "B2  G4".
+/// One pad, a glass tile on the footer's card: "05 | Bright" over "B2  G4".
 private struct PadTile: View {
 
     let pad: Int
@@ -69,36 +69,36 @@ private struct PadTile: View {
         HStack(spacing: 9) {
             Text(PadLabel.number(pad))
                 .font(.system(size: 19, weight: .semibold, design: .serif).monospacedDigit())
-                .foregroundStyle(Artwork.cream)
+                .foregroundStyle(Artwork.ink)
                 .frame(width: 26)
             Rectangle()
-                .fill(Artwork.cream.opacity(0.3))
+                .fill(Artwork.ink.opacity(0.3))
                 .frame(width: 1, height: 24)
             VStack(alignment: .leading, spacing: 0) {
                 Text(name)
                     .font(.system(size: 15, weight: .semibold, design: .serif))
-                    .foregroundStyle(Artwork.cream)
+                    .foregroundStyle(Artwork.ink)
                     .lineLimit(1)
                     .minimumScaleFactor(0.8)
                 Text(PadLabel.pitchAndGroup(note: model.padNote(pad), group: model.padGroup(pad)))
                     .font(.system(size: 11, weight: .medium).monospacedDigit())
-                    .foregroundStyle(Artwork.parchment)
+                    .foregroundStyle(Artwork.muted)
             }
             Spacer(minLength: 0)
         }
         .padding(.horizontal, 8)
         .frame(maxWidth: .infinity)
         .frame(height: PadGridView.rowHeight)
-        .background(lit ? Artwork.terracotta.opacity(0.55) : Artwork.glass.opacity(0.75),
+        .background(lit ? Artwork.accent.opacity(0.55) : Artwork.glass.opacity(0.75),
                     in: .rect(cornerRadius: Self.corner))
         .overlay {
             RoundedRectangle(cornerRadius: Self.corner)
-                .strokeBorder(selected ? Artwork.terracotta : Artwork.cream.opacity(0.16), lineWidth: selected ? 2 : 1)
-                .shadow(color: selected ? Artwork.terracotta.opacity(0.7) : .clear, radius: 4)
+                .strokeBorder(selected ? Artwork.accent : Artwork.ink.opacity(0.16), lineWidth: selected ? 2 : 1)
+                .shadow(color: selected ? Artwork.accent.opacity(0.7) : .clear, radius: 4)
                 .allowsHitTesting(false)
         }
         .contentShape(.rect(cornerRadius: Self.corner))
-        .shadow(color: lit ? Artwork.terracotta.opacity(0.8) : .clear, radius: 8)
+        .shadow(color: lit ? Artwork.accent.opacity(0.8) : .clear, radius: 8)
         .gesture(hit)
         .onChange(of: pressing) { _, isPressing in
             if !isPressing { release() }

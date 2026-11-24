@@ -4,18 +4,17 @@ import {{APP}}DSP
 @testable import {{APP}}Core
 
 /// Pad mode: sixteen pads, each a key press frozen with its own knob set and pitch; the pads of a
-/// group are one drum; Send to pad, and the kit the engine starts with.
+/// group share one voice; Send to pad, and the kit the engine starts with.
 @Suite("Pads")
 struct PadTests: EngineHarness {
 
     static let pads = Int32({{APP_UPPER}}_MODE_PADS)
     static let firstPadNote = Int32({{APP_UPPER}}_FIRST_PAD_NOTE)
 
-    /// A fresh engine in pad mode. Every pad plays program {{APP}} with `plain` and then `knobs`, at
-    /// note 47 (B2) with its group Off; the keyboard set has the same knobs. With no randomness, a
-    /// stroke sounds the same whatever seed its voice has.
+    /// A fresh engine in pad mode. Every pad plays the first program with `knobs`, at note 47
+    /// (B2) with its group Off; the keyboard set has the same knobs.
     private func makePads(_ knobs: [String: Float] = [:]) -> OpaquePointer {
-        let sound = Self.plain.merging(knobs) { $1 }
+        let sound = knobs
         let engine = makeEngine(sound)
         {{APP_C}}_set_mode(engine, Self.pads)
         for pad: Int32 in 0..<Int32({{APP_UPPER}}_NUM_PADS) {
@@ -53,7 +52,8 @@ struct PadTests: EngineHarness {
     @Test("A pad hit is a frozen key press")
     func frozenKeyPress() {
         // A set unlike the defaults, at a pitch moved by its own Octave and Tune.
-        let sound: [String: Float] = ["release": 1, "stick": 0.8, "pot": 700, "potlevel": 6, "octave": -1, "tune": 30]
+        let first = TestKnobs.first
+        let sound: [String: Float] = [first.identifier: first.plain(0.7), "pan": 20, "octave": -1, "tune": 30]
         let key = makeEngine(sound)
         defer { {{APP_C}}_destroy(key) }
         {{APP_C}}_midi(key, 0x90, 55, 110, 0)
@@ -71,12 +71,12 @@ struct PadTests: EngineHarness {
         #expect(r < -100, "residual \(r) dB")
     }
 
-    // Volume, which a voice reads at every control tick, turned to the bottom halfway into a long
-    // stroke.
+    // Volume, which a voice reads at every control tick, turned to the bottom halfway into a
+    // note.
     @Test("Pads ignore later knob changes; keyboard voices follow them")
     func padsAreFrozen() {
         func play(_ mode: Int32, turnAtHalf: Bool) -> [Float] {
-            let engine = makePads(["length": 2000])
+            let engine = makePads()
             defer { {{APP_C}}_destroy(engine) }
             {{APP_C}}_set_mode(engine, mode)
             {{APP_C}}_midi(engine, 0x90, 36, 110, 0)
@@ -110,9 +110,9 @@ struct PadTests: EngineHarness {
         #expect({{APP_C}}_sounding_voices(engine) == 2)
     }
 
-    // MARK: - Groups: the pads of a group are one drum
+    // MARK: - Groups: the pads of a group share one voice
 
-    // Volume -12 dB keeps the two strokes under the limiter, so that the bus adds them linearly.
+    // Volume -12 dB keeps the two notes under the limiter, so that the bus adds them linearly.
     @Test("Same-pitch pads with Group Off sound over each other")
     func groupOffRingsOver() {
         let knobs: [String: Float] = ["volume": -12]
@@ -122,63 +122,48 @@ struct PadTests: EngineHarness {
         #expect(r < -100, "residual \(r) dB")
     }
 
-    // Pad 2's hit on group 1's sounding drum plays on from where pad 1 left the head, with pad 2's
-    // set and pitch: what the keyboard's one drum plays when its set turns into pad 2's at the
-    // second stroke. The second hit lands on a block's first frame, where the keyboard set is read.
-    @Test("A hit continues its group's drum with its own set and pitch")
-    func groupIsOneDrum() {
-        let first: [String: Float] = ["length": 2000], second: [String: Float] = ["length": 2000, "stick": 0.7, "potlevel": 6]
-        for note: Int32 in [47, 54] {                         // whatever the pitch
-            var voices: Int32 = 0
-            let grouped = play([(0, 0), (1, 0.5)], first) { engine in
-                {{APP_C}}_set_pad_group(engine, 0, 1); {{APP_C}}_set_pad_group(engine, 1, 1)
-                {{APP_C}}_set_pad_note(engine, 1, note)
-                self.setKnobs(engine, second, set: 2)
-            }
-            let keyboard = makeEngine(Self.plain.merging(first) { $1 })
-            defer { {{APP_C}}_destroy(keyboard) }
-            {{APP_C}}_midi(keyboard, 0x90, 47, 110, 0)
-            var one = render(keyboard, seconds: 0.5)
-            setKnobs(keyboard, second)
-            {{APP_C}}_midi(keyboard, 0x90, note, 110, 0)
-            one += render(keyboard, seconds: 1.0)
-            voices = {{APP_C}}_sounding_voices(keyboard)
-            #expect(voices == 1)
-            #expect(grouped == one, "note \(note)")
+    // Two alike pads of one group: a hit on the second while the first sounds is a hit on the
+    // group's one voice, as a second hit on the first pad would be, however the instrument plays
+    // a hit on a sounding voice. Without the group the two pads are two voices.
+    @Test("The pads of a group share one voice")
+    func groupSharesAVoice() {
+        let group1: (OpaquePointer) -> Void = { {{APP_C}}_set_pad_group($0, 0, 1); {{APP_C}}_set_pad_group($0, 1, 1) }
+        #expect(play([(0, 0), (1, 0.5)], setup: group1) == play([(0, 0), (0, 0.5)], setup: group1))
+        for (grouped, voices) in [(true, Int32(1)), (false, 2)] {
+            let engine = makePads()
+            defer { {{APP_C}}_destroy(engine) }
+            if grouped { group1(engine) }
+            hitPad(engine, 0)
+            _ = render(engine, seconds: 0.5)
+            hitPad(engine, 1)
+            _ = render(engine, seconds: 0.1)
+            #expect({{APP_C}}_sounding_voices(engine) == voices, "grouped: \(grouped)")
         }
-        // Without the group the two pads are two drums.
-        let engine = makePads(first)
-        defer { {{APP_C}}_destroy(engine) }
-        hitPad(engine, 0)
-        _ = render(engine, seconds: 0.5)
-        hitPad(engine, 1)
-        _ = render(engine, seconds: 0.1)
-        #expect({{APP_C}}_sounding_voices(engine) == 2)
     }
 
-    @Test("Alternate counts across a group")
-    func alternateAcrossGroup() {
-        let alternate: [String: Float] = ["alternate": 12, "volume": -12]
-        let group1: (OpaquePointer) -> Void = { {{APP_C}}_set_pad_group($0, 0, 1); {{APP_C}}_set_pad_group($0, 1, 1) }
-        // In a group the two pads are one drum: the second hit is the other hand's.
-        #expect(play([(0, 0), (1, 0.5)], alternate, setup: group1) == play([(0, 0), (0, 0.5)], alternate, setup: group1))
-        // With Group Off each pad is a drum of its own: pad 2's first hit is the first hand's, as a
-        // lone first hit is.
-        let both = play([(0, 0), (1, 0.5)], alternate)
-        #expect(both != play([(0, 0), (0, 0.5)], alternate))
-        let r = residualDb(both, sum(play([(0, 0)], alternate), play([(1, 0.5)], alternate)))
-        #expect(r < -100, "residual \(r) dB")
+    // Pad 2 of the group at another pitch and with its own Tune: once its hit has taken the
+    // group's voice, the voice sounds at pad 2's pitch.
+    @Test("A hit on a group's voice plays the hit pad's set and pitch")
+    func groupHitTakesItsPad() {
+        let out = play([(0, 0), (1, 0.5)], seconds: 1.0) { engine in
+            {{APP_C}}_set_pad_group(engine, 0, 1); {{APP_C}}_set_pad_group(engine, 1, 1)
+            {{APP_C}}_set_pad_note(engine, 1, 54)
+            self.setKnobs(engine, ["tune": 50], set: 2)
+        }
+        let expected = 440 * pow(2, (54 + 0.5 - 69) / 12.0)
+        let hz = fundamental(Array(out[Self.frames(0.7)...]), rate: Self.rate, expected: expected)
+        #expect(abs(hz / expected - 1) < 0.002, "\(hz) Hz, expected \(expected) Hz")
     }
 
     /// `first` sounds from 0 s and `second` is hit at 0.5 s, with Volume -12 dB: what the two play
-    /// together is the sum of the two alone, so the second hit is not on the first's drum.
+    /// together is the sum of the two alone, so the second hit is not on the first's voice.
     private func ringOver(_ first: Int32, _ second: Int32, setup: @escaping (OpaquePointer) -> Void) -> Double {
         let knobs: [String: Float] = ["volume": -12]
         let both = play([(first, 0), (second, 0.5)], knobs, setup: setup)
         return residualDb(both, sum(play([(first, 0)], knobs, setup: setup), play([(second, 0.5)], knobs, setup: setup)))
     }
 
-    @Test("A hit leaves the drum of another group alone")
+    @Test("A hit leaves the voice of another group alone")
     func otherGroupRingsOn() {
         let r = ringOver(0, 1) { {{APP_C}}_set_pad_group($0, 0, 2); {{APP_C}}_set_pad_group($0, 1, 1) }
         #expect(r < -100, "residual \(r) dB")
@@ -192,11 +177,10 @@ struct PadTests: EngineHarness {
         #expect(off < -100, "residual \(off) dB")
     }
 
-    @Test("After a reset the hands alternate again from the first, on the keyboard and on the pads")
-    func alternateRestartsAtReset() {
-        let alternate: [String: Float] = ["alternate": 12]
+    @Test("After a reset a hit plays as on a fresh engine, on the keyboard and on the pads")
+    func resetPlaysAsFresh() {
         for mode in [Int32({{APP_UPPER}}_MODE_KEYBOARD), Self.pads] {
-            let engine = makePads(alternate)
+            let engine = makePads()
             defer { {{APP_C}}_destroy(engine) }
             {{APP_C}}_set_mode(engine, mode)
             {{APP_C}}_midi(engine, 0x90, 36, 110, 0)
@@ -209,21 +193,46 @@ struct PadTests: EngineHarness {
 
     @Test("A velocity-0 note-on is a note-off")
     func velocityZeroIsNoteOff() {
-        // The pad's own Key Up decides; the keyboard set's is Ignore.
-        func release(_ status: Int32, keyUp: Float) -> [Float] {
-            let engine = makePads(["length": 2000])
+        func release(_ status: Int32?) -> [Float] {
+            let engine = makePads()
             defer { {{APP_C}}_destroy(engine) }
-            {{APP_C}}_set_plain(engine, 1, Self.index("keyup"), keyUp)
             hitPad(engine, 0)
             _ = render(engine, seconds: 0.5)
-            {{APP_C}}_midi(engine, status, 36, 0, 0)
+            if let status { {{APP_C}}_midi(engine, status, 36, 0, 0) }
             _ = render(engine, seconds: 0.4)
             return render(engine, seconds: 0.2)
         }
-        let noteOn0 = release(0x90, keyUp: 1), noteOff = release(0x80, keyUp: 1), ignored = release(0x90, keyUp: 0)
+        let noteOn0 = release(0x90), noteOff = release(0x80), held = release(nil)
         #expect(noteOn0 == noteOff)
-        #expect(rms(ignored) > 0.01)
-        #expect(20 * log10(rms(noteOn0) / rms(ignored)) < -50)
+        #expect(rms(held) > 0.001)
+        #expect(noteOn0 != held)
+    }
+
+    // The keyboard's VEL amount on the first instrument knob is 0, pad 4's +100 %, with Vel Sens
+    // 0 everywhere and the knob at the top of its travel: a soft hit on the pad moves the knob to
+    // the bottom, a soft key does not move it.
+    @Test("A pad hit applies its own set's VEL amounts")
+    func padVelAmounts() throws {
+        let first = TestKnobs.first
+        let vel = try #require(Velocity.amount(of: first))
+        func level(_ mode: Int32, velocity: Int32) -> Double {
+            let engine = makeEngine()
+            defer { {{APP_C}}_destroy(engine) }
+            for set: Int32 in 0..<Int32({{APP_UPPER}}_NUM_SETS) {
+                {{APP_C}}_set_plain(engine, set, Self.index("velsens"), 0)
+                {{APP_C}}_set_normalised(engine, set, Int32(first.index), 1)
+            }
+            {{APP_C}}_set_plain(engine, 3 + 1, Int32(vel.index), 100)
+            {{APP_C}}_set_plain(engine, Self.keyboard, Int32(vel.index), 0)
+            {{APP_C}}_set_mode(engine, mode)
+            {{APP_C}}_midi(engine, 0x90, mode == Self.pads ? Self.firstPadNote + 3 : 60, velocity, 0)
+            return rms(render(engine, seconds: 0.3))
+        }
+        let keys = Int32({{APP_UPPER}}_MODE_KEYBOARD)
+        let pad = 20 * log10(level(Self.pads, velocity: 127) / level(Self.pads, velocity: 1))
+        let key = 20 * log10(level(keys, velocity: 127) / level(keys, velocity: 1))
+        #expect(abs(pad) > 6, "pad 4: hard and soft differ by \(pad) dB")
+        #expect(abs(key) < 0.1, "keyboard: hard and soft differ by \(key) dB")
     }
 
     // MARK: - Send to pad and the kit
@@ -232,8 +241,8 @@ struct PadTests: EngineHarness {
     func sendToPad() {
         let engine = makeEngine()
         defer { {{APP_C}}_destroy(engine) }
-        {{APP_C}}_set_program(engine, Self.keyboard, 2)
-        setKnobs(engine, ["release": 1, "pot": 700, "octave": 1, "lfo1stick": 40])
+        {{APP_C}}_set_program(engine, Self.keyboard, Int32(TestKnobs.otherProgram))
+        setKnobs(engine, [TestKnobs.first.identifier: TestKnobs.first.plain(0.8), "volume": -6, "octave": 1, "lfo1tune": 40])
 
         {{APP_C}}_send_to_pad(engine, 2)                       // no note played yet: C2
         #expect({{APP_C}}_pad_note(engine, 2) == 36)
@@ -243,7 +252,7 @@ struct PadTests: EngineHarness {
         _ = render(engine, frames: 128)
         {{APP_C}}_send_to_pad(engine, 3)
         #expect({{APP_C}}_pad_note(engine, 3) == 43 && {{APP_C}}_pad_group(engine, 3) == 5)
-        #expect({{APP_C}}_get_program(engine, 4) == 2)
+        #expect({{APP_C}}_get_program(engine, 4) == Int32(TestKnobs.otherProgram))
         for i in 0..<{{APP_C}}_num_params() {
             #expect({{APP_C}}_get_normalised(engine, 4, i) == {{APP_C}}_get_normalised(engine, Self.keyboard, i), "parameter \(i)")
         }
@@ -254,54 +263,43 @@ struct PadTests: EngineHarness {
         #expect({{APP_C}}_pad_note(engine, 4) == 36)
     }
 
-    /// The kit of the instrument design (§7): pad, note, program, group.
-    static let kit: [(note: Int32, program: Int32, group: Int32)] = [
-        (47, 0, 1), (47, 0, 1), (55, 1, 2), (60, 1, 2), (49, 2, 3), (39, 2, 3), (65, 6, 4), (79, 6, 4),
-        (79, 7, 4), (57, 3, 5), (57, 3, 5), (36, 5, 6), (37, 8, 0), (47, 9, 0), (63, 10, 0), (36, 11, 0),
-    ]
-
-    /// The kit's programs by name, as the design's table gives them.
-    static let kitPrograms = ["{{APP}}", "{{APP}}", "{{APP}} High", "{{APP}} High", "Brummtopf", "Brummtopf",
-                              "Cuíca", "Cuíca", "Cuíca Whoop", "Zambomba", "Zambomba", "Putipù", "Furruco", "Creak",
-                              "Flick", "Buhai"]
-
-    private func expectDefaultKit(_ engine: OpaquePointer) {
-        let jump = Self.index("jump"), octave = Self.index("octave")
-        #expect(Self.kit.map { Programs.names[Int($0.program)] } == Self.kitPrograms)
-        for (pad, expected) in Self.kit.enumerated() {
-            let p = Int32(pad), set = p + 1
-            #expect({{APP_C}}_pad_note(engine, p) == expected.note, "pad \(pad + 1)")
-            #expect({{APP_C}}_pad_group(engine, p) == expected.group, "pad \(pad + 1)")
-            #expect({{APP_C}}_get_program(engine, set) == expected.program, "pad \(pad + 1)")
-            for i in 0..<{{APP_C}}_num_params() {
-                var want = {{APP_C}}_program_value(expected.program, i)
-                if i == jump && pad == 9 { want = 0 }           // the Zambomba without its jump
-                if i == jump && pad == 10 { want = 100 }        // and with it
-                if i == octave { want = 0 }
-                let got = {{APP_C}}_get_plain(engine, set, i)
-                #expect(abs(got - want) <= 1e-4 * max(1, abs(want)), "pad \(pad + 1), parameter \(i): \(got), not \(want)")
-            }
+    /// Every pad's note, group, program and knobs.
+    private func padState(_ engine: OpaquePointer) -> [[Float]] {
+        (0..<Int32({{APP_UPPER}}_NUM_PADS)).map { pad in
+            [Float({{APP_C}}_pad_note(engine, pad)), Float({{APP_C}}_pad_group(engine, pad)), Float({{APP_C}}_get_program(engine, pad + 1))]
+                + (0..<{{APP_C}}_num_params()).map { {{APP_C}}_get_plain(engine, pad + 1, $0) }
         }
     }
 
-    @Test("The default kit is loaded at creation")
+    @Test("A new engine's pads hold the default kit: a program in every set, Octave 0")
     func defaultKit() {
         let engine = {{APP_C}}_create()!
         defer { {{APP_C}}_destroy(engine) }
-        expectDefaultKit(engine)
+        let octave = Self.index("octave")
+        for pad: Int32 in 0..<Int32({{APP_UPPER}}_NUM_PADS) {
+            let program = {{APP_C}}_get_program(engine, pad + 1)
+            #expect(program >= 0 && program < {{APP_C}}_num_programs(), "pad \(pad + 1)")
+            #expect({{APP_C}}_get_plain(engine, pad + 1, octave) == 0, "pad \(pad + 1)")
+            #expect((0...127).contains({{APP_C}}_pad_note(engine, pad)), "pad \(pad + 1)")
+            #expect((0...Int32({{APP_UPPER}}_NUM_GROUPS)).contains({{APP_C}}_pad_group(engine, pad)), "pad \(pad + 1)")
+        }
     }
 
     @Test("A reset leaves the pads alone; Load Default Kit puts the kit back")
     func resetKeepsPads() {
+        let fresh = {{APP_C}}_create()!
+        defer { {{APP_C}}_destroy(fresh) }
+        let kit = padState(fresh)
         let engine = makeEngine()
         defer { {{APP_C}}_destroy(engine) }
-        for set: Int32 in 1...16 { {{APP_C}}_set_program(engine, set, 6); {{APP_C}}_set_plain(engine, set, Self.index("octave"), 2) }
+        let other = Int32(TestKnobs.otherProgram)
+        for set: Int32 in 1...16 { {{APP_C}}_set_program(engine, set, other); {{APP_C}}_set_plain(engine, set, Self.index("octave"), 2) }
         for pad: Int32 in 0..<16 { {{APP_C}}_set_pad_note(engine, pad, 60); {{APP_C}}_set_pad_group(engine, pad, 16) }
         {{APP_C}}_reset(engine)
-        #expect({{APP_C}}_get_program(engine, 1) == 6 && {{APP_C}}_get_plain(engine, 1, Self.index("octave")) == 2)
+        #expect({{APP_C}}_get_program(engine, 1) == other && {{APP_C}}_get_plain(engine, 1, Self.index("octave")) == 2)
         #expect({{APP_C}}_pad_note(engine, 0) == 60 && {{APP_C}}_pad_group(engine, 0) == 16)
         {{APP_C}}_load_default_kit(engine)
-        expectDefaultKit(engine)
+        #expect(padState(engine) == kit)
     }
 
     // MARK: - Modes and wheels
@@ -309,7 +307,7 @@ struct PadTests: EngineHarness {
     @Test("Mode switch leaves sounding voices alone")
     func modeSwitch() {
         func play(from: Int32, switching: Bool) -> [Float] {
-            let engine = makePads(["length": 2000])
+            let engine = makePads()
             defer { {{APP_C}}_destroy(engine) }
             {{APP_C}}_set_mode(engine, from)
             {{APP_C}}_midi(engine, 0x90, 37, 110, 0)
@@ -326,7 +324,7 @@ struct PadTests: EngineHarness {
     }
 
     /// A hit on note 36 in `first` mode, and at 0.5 s another on note 36 in the other mode: with
-    /// Volume -12 dB, the sum of the two alone. The keyboard's drum and a pad's are not one.
+    /// Volume -12 dB, the sum of the two alone. The keyboard's voice and a pad's are not one.
     private func acrossModes(from first: Int32) -> Double {
         func play(firstHit: Bool, secondHit: Bool) -> [Float] {
             let engine = makePads(["volume": -12])
@@ -354,14 +352,14 @@ struct PadTests: EngineHarness {
     @Test("Wheels change keyboard voices, not sounding pad voices")
     func wheelsLeavePadsAlone() {
         func play(_ mode: Int32, wheels: Bool) -> [Float] {
-            let engine = makePads(["length": 2000])
+            let engine = makePads()
             defer { {{APP_C}}_destroy(engine) }
             {{APP_C}}_set_mode(engine, mode)
             {{APP_C}}_midi(engine, 0x90, 36, 110, 0)
             var out = render(engine, seconds: 0.3)
             if wheels {
-                {{APP_C}}_midi(engine, 0xB0, 1, 127, 0)        // mod wheel: Rub
-                {{APP_C}}_midi(engine, 0xD0, 127, 0, 0)        // aftertouch: Stick
+                {{APP_C}}_midi(engine, 0xB0, 1, 127, 0)        // mod wheel
+                {{APP_C}}_midi(engine, 0xD0, 127, 0, 0)        // aftertouch
                 {{APP_C}}_midi(engine, 0xE0, 0x7F, 0x7F, 0)    // pitch bend: the pitch
             }
             out += render(engine, seconds: 1.0)

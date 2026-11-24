@@ -10,6 +10,6 @@ Tests: `python3 -m unittest tests/test_scaffold_templates.py` (needs `~/.claude/
 
 Template check: `scripts/verify_template.sh [--quick] [--auval] [--capture]` renders `templates/`
 for a dummy instrument into `$SCRATCH` (default `$TMPDIR`), builds it without warnings, runs its
-tests and ends with `TEMPLATE OK`; `scripts/check_leftovers.sh <dir>` lists words of
-`scripts/leftover-words.txt` that are still there. What each template file is:
+tests and ends with `TEMPLATE OK`; `scripts/check_leftovers.sh [--skip-dir NAME]... <dir>` lists
+words of `scripts/leftover-words.txt` that are still there. What each template file is:
 `TEMPLATE_MANIFEST.md`.

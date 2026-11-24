@@ -1,29 +1,27 @@
-// {{APP}}Engine.cpp - the {{APP}} sound engine and its C interface.
+// {{APP}}Engine.cpp - the {{APP}} sound engine and its C interface: the platform around the
+// instrument's voice (Voice.h).
 //
-// One engine is a pool of voices (Voice.h), each one drum's head under the hand, and seventeen
-// knob sets: the keyboard's and one per pad. A voice belongs to a drum, and a stroke on a drum
-// that sounds continues that drum's voice: its phase, its envelope and its alternation run on,
-// so strokes on one drum run into each other with a dip, not a click, and never pile up. At most
-// 16 voices sound at once: a stroke on a silent drum that would be the 17th steals the quietest,
-// which fades out in 3 ms.
-//   * In keyboard mode every note strikes the keyboard set at its own pitch. With Drum = One all
-//     notes are one drum; with Drum = Many every note number is a drum of its own. The voice
-//     follows the keyboard set while it sounds.
+// One engine is a pool of voices and seventeen knob sets: the keyboard's and one per pad. At
+// most 16 voices sound at once: a note that would be the 17th steals the quietest, which fades
+// out in 3 ms.
+//   * In keyboard mode every note plays the keyboard set at its own pitch, a voice of its own.
+//     The voice follows the keyboard set while it sounds.
 //   * In pad mode notes 36-51 hit pads 1-16. A pad hit is a key press frozen: its voice takes the
-//     pad's set at the hit and sounds at the pad's note. The pads of one group are one drum: a hit
-//     continues the group's voice with the new pad's set and pitch. A pad whose group is Off is
-//     a drum of its own.
+//     pad's set at the hit and sounds at the pad's note. The pads of one group share one voice; a
+//     pad whose group is Off has one of its own.
+//   * A note-on on a voice that sounds (the same key, or a pad of the same group) continues it
+//     or fades it out for a fresh one, as the instrument says (kRehitContinues).
 //
-//   voices (each with its DC blocker) -> sum (L, R) -> kLevel -> [half-band decimator] -> limiter -> out
+//   voices -> Volume, Vel Sens, Pan -> sum (L, R) -> kOutputLevel -> [half-band decimator] -> limiter -> out
 //
-// Below 88.2 kHz everything up to kLevel runs at twice the host rate (the internal rate), and
-// a half-band filter (HalfBand.h) decimates it: the slips' sharp corners would otherwise fold
-// back into the band (at Stick 0.95 and 860 Hz the worst product is -51 dB re the fundamental at
-// 44.1 kHz and -57 dB at 48 kHz; with the 2x stage below -76 dB). From 88.2 kHz up the internal
-// rate is the host's and there is no filter. The limiter always runs at the host rate.
+// Below 88.2 kHz everything up to kOutputLevel runs at twice the host rate (the internal rate),
+// and a half-band filter (HalfBand.h) decimates it, so that what a voice makes above the host's
+// band does not fold back into it. From 88.2 kHz up the internal rate is the host's and there is
+// no filter. The limiter always runs at the host rate.
 //
-// What a voice plays is its view (viewFor): the knob set, moved by the voice's two LFOs, the
-// hit's velocity and, for a keyboard voice, the wheels.
+// What a voice plays is its Knobs (viewFor): the knob set, moved by the voice's two LFOs, the
+// hit's velocity and, for a keyboard voice, the wheels, worked out every 16 internal samples
+// (a control tick).
 //
 // MIDI controllers: every knob of the keyboard set listens to a control change number (it comes
 // with one, and can be given another: "learn"), and a control change puts the knob where its
@@ -37,16 +35,17 @@
 
 #include "{{APP}}DSP.h"
 #include "HalfBand.h"
+#include "Lfo.h"
 #include "MidiQueue.h"
-#include "Params.h"
+#include "ParamTable.h"
 #include "Voice.h"
 
 #include <algorithm>
 #include <atomic>
+#include <cmath>
 #include <cstdint>
 #include <cstdio>
 #include <cstring>
-#include <random>
 
 using namespace {{APP_LOWER}};
 
@@ -54,14 +53,14 @@ namespace {
 
 bool validSet(int set) { return set >= 0 && set < {{APP_UPPER}}_NUM_SETS; }
 
-static_assert(kLfo2Rate == kLfo1Rate + 2 && kLfo2Shape == kLfo1Shape + 2, "an LFO's knobs are two apart");
-
-// For every knob, the amounts that move it (-1 where a source cannot), and the knobs that
-// anything can move: an LFO, the velocity or a wheel.
+// For every knob, the amounts that move it (-1 where a source cannot), how far the wheels move it
+// at the top, and the knobs that anything can move: an LFO, the velocity or a wheel.
 struct Moves
 {
     int lfo[kNumKnobs][kNumLfos];
     int vel[kNumKnobs];
+    float modWheel[kNumKnobs];
+    float pressure[kNumKnobs];
     int knobs[kNumKnobs];
     int numKnobs;
 };
@@ -69,9 +68,11 @@ struct Moves
 constexpr Moves makeMoves()
 {
     Moves m{};
+    for (const Target& t : kModWheelTargets) if (t.param != kNoTarget) m.modWheel[t.param] += t.depth;
+    for (const Target& t : kAftertouchTargets) if (t.param != kNoTarget) m.pressure[t.param] += t.depth;
     for (int i = 0; i < kNumKnobs; ++i)
     {
-        bool moves = i == kRub || i == kStick;         // the mod wheel and the aftertouch
+        bool moves = m.modWheel[i] != 0.0f || m.pressure[i] != 0.0f;
         for (int k = 0; k < kNumLfos; ++k) { m.lfo[i][k] = amountOf(k, i); moves = moves || m.lfo[i][k] >= 0; }
         m.vel[i] = velAmountOf(i);
         moves = moves || m.vel[i] >= 0;
@@ -91,10 +92,20 @@ int  padSet(int pad) { return pad + 1; }
 // The note Send to pad gives a pad when no note has been played: C2.
 constexpr int kSendNoteIfNone = 36;
 
-// How far the wheels move their knobs at the top, in parts of the knob's travel: the mod wheel
-// adds 20 dB of Rub (of its 40), aftertouch 0.07 of Stick (of its 0.45).
-constexpr float kRubPerModWheel = 0.5f;
-constexpr float kStickPerPressure = 0.07f / 0.45f;
+// The internal samples of a control tick, and of the engine's own blocks.
+constexpr int kControlFrames = 16;
+constexpr int kChunk = 64;
+
+// What a voice belongs to: a key in keyboard mode, a group of pads, or a pad whose group is Off.
+// A note-on on what a sounding voice belongs to finds that voice.
+enum VoiceKey
+{
+    kKeyFirstNote = 0,                                          // + note
+    kKeyFirstGroup = kKeyFirstNote + 128,                       // + group - 1
+    kKeyFirstPad = kKeyFirstGroup + {{APP_UPPER}}_NUM_GROUPS,   // + pad
+};
+
+inline float dbToGain(float db) { return std::pow(10.0f, db / 20.0f); }
 
 // tanh as a Padé approximant, exact enough for a limiter and cheap.
 inline float fastTanh(float x)
@@ -106,6 +117,37 @@ inline float fastTanh(float x)
     const float b = 135135.0f + x2 * (62370.0f + x2 * (3150.0f + x2 * 28.0f));
     return a / b;
 }
+
+// One voice of the pool: the instrument's Voice and what the platform keeps around it.
+struct Slot
+{
+    bool active = false, choking = false;
+    bool fromKey = true;            // a key's voice plays the keyboard set as it is now, whatever the mode
+    int key = 0;                    // what it belongs to (VoiceKey)
+    int note = 0;                   // the MIDI note whose note-off releases it
+    float velocity = 1.0f;
+    Knobs knobs;
+    // A pad's knob set as it stood at the hit, normalised and as plain values: what its Knobs are
+    // worked out from. A key's voice reads the keyboard set instead.
+    float setAtHit[kNumParams] = {};
+    float plainAtHit[kNumParams] = {};
+    Lfo lfo[kNumLfos];
+    int ctl = 0;                    // internal samples left in this control tick
+    float velocityGain = 1.0f;      // VEL>Volume's gain
+    float outGain = 1.0f, panL = 1.0f, panR = 1.0f;
+    float chokeGain = 1.0f, chokeMul = 1.0f;
+    float level = 0.0f;             // a peak follower on the output: what voice stealing compares
+    Voice voice;
+
+    // Fades the voice out: it falls 40 dB in `ms`.
+    void choke(float ms, double rate)
+    {
+        if (choking) return;
+        choking = true;
+        const float tc = std::max(ms, 1.0f) * 0.001f / 4.6f;
+        chokeMul = (float)std::exp(-1.0 / (tc * rate));
+    }
+};
 
 } // namespace
 
@@ -174,7 +216,7 @@ struct {{APP}}Engine
     {
         for (int pad = 0; pad < {{APP_UPPER}}_NUM_PADS; ++pad)
         {
-            const KitPad& k = kDefaultKit[(size_t)pad];
+            const KitPad& k = kDefaultKit[pad];
             const int s = padSet(pad);
             setProgram(s, k.program);
             set(s, kOctave, param(kOctave).def);             // a program leaves the octave alone
@@ -234,6 +276,7 @@ struct {{APP}}Engine
         if (!(sampleRate > 0.0) || !std::isfinite(sampleRate)) return;
         oversampling_ = sampleRate < kOversampleBelow ? 2 : 1;
         internalRate_ = sampleRate * oversampling_;
+        followMul_ = (float)std::exp(-1.0 / (kFollowSeconds * internalRate_));
         decimL_.design();
         decimR_.design();
         latency_.store(oversampling_ == 2 ? HalfBand::kLatency : 0, std::memory_order_relaxed);
@@ -242,9 +285,7 @@ struct {{APP}}Engine
 
     void reset()
     {
-        for (Voice& v : voices_) v = Voice();
-        nextSeed_ = 1;
-        for (int& n : strokes_) n = 0;
+        for (Slot& s : slots_) s = Slot();
         lastNote_.store(-1, std::memory_order_relaxed);
         decimL_.reset();
         decimR_.reset();
@@ -280,7 +321,7 @@ struct {{APP}}Engine
         numEvents_ = 0;
 
         int sounding = 0;
-        for (const Voice& v : voices_) if (v.active && !v.choking) ++sounding;
+        for (const Slot& s : slots_) if (s.active && !s.choking) ++sounding;
         sounding_.store(sounding, std::memory_order_relaxed);
     }
 
@@ -292,17 +333,16 @@ private:
     static_assert(kNumSlots > {{APP_UPPER}}_MAX_VOICES, "room for the voices being choked");
     static constexpr int kMaxEvents = 256;
 
-    // A stolen voice falls 40 dB in this long; All Sound Off and All Notes Off take this long.
+    // A stolen voice, and one a re-hit replaces, falls 40 dB in this long; All Sound Off and All
+    // Notes Off take this long.
     static constexpr float kStealMs = 3.0f;
     static constexpr float kAllOffMs = 10.0f;
 
     // Below this host rate the voices run at twice it.
     static constexpr double kOversampleBelow = 88200.0;
 
-    // The output scale. The default stroke at full velocity (B2, velocity 127, program {{APP}})
-    // peaks at 1.56 in the prototype's units: the median of 40 strokes at 48 kHz, which Vary and
-    // the noise spread from 1.14 to 2.30. 0.32 puts it at 0.50, -6.1 dBFS, under the limiter's 0.6.
-    static constexpr float kLevel = 0.32f;
+    // How fast a voice's peak follower falls: what voice stealing hears as its loudness.
+    static constexpr double kFollowSeconds = 0.02;
 
     // The keyboard set, normalised and as plain values, read once per block.
     void readKeyboardSet()
@@ -310,26 +350,27 @@ private:
         for (int i = 0; i < kNumParams; ++i)
         {
             keyNorm_[i] = getNormalised({{APP_UPPER}}_KEYBOARD_SET, i);
-            keyView_.v[i] = param(i).toPlain(keyNorm_[i]);
+            keyPlain_[i] = param(i).toPlain(keyNorm_[i]);
         }
     }
 
-    // Where every knob of `v` stands now. A knob a source moves stands at
-    //   knob + sum of (LFO amount * LFO value) - VEL amount * (1 - velocity)  (+ a wheel),
+    // Where every knob of `s` stands now. A knob a source moves stands at
+    //   knob + sum of (LFO amount * LFO value) - VEL amount * (1 - velocity)  (+ the wheels),
     // in parts of its travel and no further than its ends; Volume's VEL amount is a gain
     // instead, and the pitch bend is a pitch in semitones. The one place that adds modulation:
-    // with every amount and wheel at rest, the view is the knob set itself, value for value.
-    void viewFor(const Voice& v, KnobView& out) const
+    // with every amount and wheel at rest, the Knobs are the knob set itself, value for value.
+    void viewFor(Slot& s) const
     {
-        const bool keyboard = v.followsKeyboard();
-        const float* set = keyboard ? keyNorm_ : v.setAtHit;
-        const float* plain = keyboard ? keyView_.v : v.plainAtHit;
+        Knobs& out = s.knobs;
+        const bool keyboard = s.fromKey;
+        const float* set = keyboard ? keyNorm_ : s.setAtHit;
+        const float* plain = keyboard ? keyPlain_ : s.plainAtHit;
         std::copy(plain, plain + kNumParams, out.v);
 
         float lfoValue[kNumLfos];
         for (int k = 0; k < kNumLfos; ++k)
-            lfoValue[k] = v.lfo[k].value(std::clamp((int)std::lround(out.v[kLfo1Shape + 2 * k]), 0, (int)kNumLfoShapes - 1));
-        const float soft = 1.0f - (float)v.vel;
+            lfoValue[k] = s.lfo[k].value(std::clamp((int)std::lround(out.v[kLfo1Shape + 2 * k]), 0, (int)kNumLfoShapes - 1));
+        const float soft = 1.0f - s.velocity;
 
         for (int n = 0; n < kMoves.numKnobs; ++n)
         {
@@ -346,23 +387,38 @@ private:
             if (velAmount != 0.0f) { position -= velAmount * soft; moved = true; }
             if (keyboard)
             {
-                if (i == kRub && modWheel_ != 0.0f) { position += kRubPerModWheel * modWheel_; moved = true; }
-                if (i == kStick && pressure_ != 0.0f) { position += kStickPerPressure * pressure_; moved = true; }
+                if (kMoves.modWheel[i] != 0.0f && modWheel_ != 0.0f) { position += kMoves.modWheel[i] * modWheel_; moved = true; }
+                if (kMoves.pressure[i] != 0.0f && pressure_ != 0.0f) { position += kMoves.pressure[i] * pressure_; moved = true; }
             }
             if (moved) out.v[i] = param(i).toPlain(std::clamp(position, 0.0f, 1.0f));
         }
 
-        out.velocityGain = std::max(0.0f, 1.0f - out.v[velAmountOf(kVolume)] / 100.0f * soft);
+        s.velocityGain = std::max(0.0f, 1.0f - out.v[velAmountOf(kVolume)] / 100.0f * soft);
         out.bend = keyboard ? bend_ * (bend_ >= 0.0f ? out.v[kBendUp] : out.v[kBendDown]) : 0.0f;
+        out.rate = internalRate_;
+    }
+
+    // A control tick of `s`: its Knobs as they stand now, its LFOs a tick on, and its gains:
+    // Volume, VEL>Volume, Vel Sens and Pan.
+    void control(Slot& s) const
+    {
+        viewFor(s);
+        for (int k = 0; k < kNumLfos; ++k)
+            s.lfo[k].advance(s.knobs[kLfo1Rate + 2 * k] * (float)kControlFrames / (float)internalRate_);
+        const float sensitivity = 1.0f - s.knobs[kVelSens] / 100.0f * (1.0f - s.velocity);
+        s.outGain = dbToGain(s.knobs[kVolume]) * s.velocityGain * sensitivity;
+        const float pan = s.knobs[kPan] / 100.0f;
+        s.panL = std::min(1.0f, 1.0f - pan);
+        s.panR = std::min(1.0f, 1.0f + pan);
     }
 
     // A hit's LFOs: restarted (Hit), or where the engine's free-running ones stand (Free).
-    void startLfos(Voice& v, int start) const
+    void startLfos(Slot& s, int start) const
     {
         for (int k = 0; k < kNumLfos; ++k)
         {
-            if (start == kLfoStartFree) v.lfo[k] = freeLfo_[k];
-            else v.lfo[k].restart(kHitSeed + (uint32_t)k);
+            if (start == kLfoStartFree) s.lfo[k] = freeLfo_[k];
+            else s.lfo[k].restart(kHitSeed + (uint32_t)k);
         }
     }
 
@@ -370,7 +426,7 @@ private:
     void turnFreeLfos()
     {
         for (int k = 0; k < kNumLfos; ++k)
-            freeLfo_[k].advance(keyView_.v[kLfo1Rate + 2 * k] * 16.0f / (float)internalRate_);
+            freeLfo_[k].advance(keyPlain_[kLfo1Rate + 2 * k] * (float)kControlFrames / (float)internalRate_);
     }
 
     void handleMidi(const MidiEvent& ev)
@@ -382,7 +438,7 @@ private:
             else if (validPad(ev.data1 - {{APP_UPPER}}_FIRST_PAD_NOTE)) padHit(ev.data1 - {{APP_UPPER}}_FIRST_PAD_NOTE, ev.data1, velocity);
         }
         else if (ev.isNoteOff()) noteOff(ev.data1);
-        else if (ev.isAllNotesOff()) { for (Voice& v : voices_) if (v.active) v.choke(kAllOffMs); }
+        else if (ev.isAllNotesOff()) { for (Slot& s : slots_) if (s.active) s.choke(kAllOffMs, internalRate_); }
         else if (ev.isController() && ev.data1 == 121) bend_ = modWheel_ = pressure_ = 0.0f;   // Reset All Controllers
         else if (ev.isController() && ev.data1 == 1) modWheel_ = ev.data2 / 127.0f;
         else if (ev.isController() && !controllerReserved(ev.data1)) controllerMoved(ev.data1, ev.data2);
@@ -415,102 +471,107 @@ private:
                 const bool onMiddle = value == 64 && p.max > 0.0f && p.min == -p.max;
                 setNormalised({{APP_UPPER}}_KEYBOARD_SET, i, onMiddle ? 0.5f : (float)value / 127.0f);
                 keyNorm_[i] = getNormalised({{APP_UPPER}}_KEYBOARD_SET, i);
-                keyView_.v[i] = p.toPlain(keyNorm_[i]);
+                keyPlain_[i] = p.toPlain(keyNorm_[i]);
                 changed = true;
             }
         if (changed) changes_.fetch_add(1, std::memory_order_release);
     }
 
-    // Before a stroke on a silent drum: if {{APP_UPPER}}_MAX_VOICES voices sound, the quietest of
-    // them is choked, in kStealMs. A stroke on a drum that sounds takes no room.
+    // Before a new voice: if {{APP_UPPER}}_MAX_VOICES voices sound, the quietest of them is choked,
+    // in kStealMs.
     void makeRoom()
     {
         int sounding = 0;
-        Voice* quietest = nullptr;
-        float least = 0.0f;
-        for (Voice& v : voices_)
+        Slot* quietest = nullptr;
+        for (Slot& s : slots_)
         {
-            if (!v.active || v.choking) continue;
+            if (!s.active || s.choking) continue;
             ++sounding;
-            const float loudness = v.loudness();
-            if (!quietest || loudness < least) { quietest = &v; least = loudness; }
+            if (!quietest || s.level < quietest->level) quietest = &s;
         }
-        if (sounding >= {{APP_UPPER}}_MAX_VOICES) quietest->choke(kStealMs);
+        if (sounding >= {{APP_UPPER}}_MAX_VOICES) quietest->choke(kStealMs, internalRate_);
     }
 
     // The slot a new voice takes: a free one, or else the quietest of those being choked, which
     // is cut. After makeRoom at most {{APP_UPPER}}_MAX_VOICES - 1 voices sound, so one of the two is
     // there.
-    Voice& freeSlot()
+    Slot& freeSlot()
     {
-        Voice* quietest = nullptr;
-        float least = 0.0f;
-        for (Voice& v : voices_)
+        Slot* quietest = nullptr;
+        for (Slot& s : slots_)
         {
-            if (!v.active) return v;
-            if (!v.choking) continue;
-            const float loudness = v.loudness();
-            if (!quietest || loudness < least) { quietest = &v; least = loudness; }
+            if (!s.active) return s;
+            if (!s.choking) continue;
+            if (!quietest || s.level * s.chokeGain < quietest->level * quietest->chokeGain) quietest = &s;
         }
-        return quietest ? *quietest : voices_[0];
+        return quietest ? *quietest : slots_[0];
     }
 
-    // The voice a drum sounds with, or a new one. A voice being choked no longer belongs to its
-    // drum: a stroke on it starts a new voice while the old one fades.
-    Voice& voiceFor(int drum)
+    // The slot a note-on on `key` plays: the voice that sounds for it when the instrument
+    // continues one (`continuing` is then true), else a fresh one. A voice being choked no longer
+    // belongs to its key; one the instrument does not continue is choked now.
+    Slot& slotFor(int key, bool& continuing)
     {
-        for (Voice& v : voices_)
-            if (v.active && !v.choking && v.drum == drum) return v;
+        continuing = false;
+        for (Slot& s : slots_)
+            if (s.active && !s.choking && s.key == key)
+            {
+                if (kRehitContinues) { continuing = true; return s; }
+                s.choke(kStealMs, internalRate_);
+                break;
+            }
         makeRoom();
-        Voice& slot = freeSlot();
-        slot.begin(drum, nextSeed_++, internalRate_);
+        Slot& slot = freeSlot();
+        slot = Slot();
+        slot.active = true;
+        slot.key = key;
         return slot;
     }
 
-    // A stroke on `drum`: what is taken at the stroke is taken from the stroke's view, and every
-    // second stroke of the drum is the other hand's.
-    void strike(int drum, Voice& v, const Origin& origin, int pitch, float velocity, const float* plain)
+    // A note-on on `s`: the LFOs start, the Knobs are worked out for the hit, and the voice starts.
+    void start(Slot& s, bool continuing, int note, int pitch, float velocity, const float* plain)
     {
-        v.origin = origin;
-        v.note = pitch;
-        v.vel = velocity;
-        startLfos(v, (int)std::lround(plain[kLfoStart]));
-        viewFor(v, v.view);
-        v.strike(strokes_[drum]++ % 2 == 1);
+        s.note = note;
+        s.velocity = velocity;
+        startLfos(s, (int)std::lround(plain[kLfoStart]));
+        viewFor(s);
+        s.ctl = 0;
+        s.voice.start(s.knobs, pitch, velocity, continuing);
     }
 
-    // A key strikes the keyboard's one drum (Drum One) or its own note's (Drum Many).
+    // A key plays the keyboard set at its own pitch.
     void noteOn(int note, float velocity)
     {
-        const int drum = (int)std::lround(keyView_.v[kDrum]) == kDrumMany ? kDrumFirstNote + note : kDrumKeyboard;
-        Voice& v = voiceFor(drum);
-        strike(drum, v, Origin{ kOriginKey, note, -1, 0 }, note, velocity, keyView_.v);
+        bool continuing = false;
+        Slot& s = slotFor(kKeyFirstNote + note, continuing);
+        s.fromKey = true;
+        start(s, continuing, note, note, velocity, keyPlain_);
         lastNote_.store(note, std::memory_order_relaxed);
     }
 
-    // A pad hit strikes its group's drum, or the pad's own with Group Off, with the pad's set
+    // A pad hit plays its group's voice, or the pad's own with Group Off, with the pad's set
     // frozen at the hit and at the pad's note.
     void padHit(int pad, int note, float velocity)
     {
         const int group = padGroup(pad);
-        const int drum = group != 0 ? kDrumFirstGroup + group - 1 : kDrumFirstPad + pad;
-        Voice& v = voiceFor(drum);
+        bool continuing = false;
+        Slot& s = slotFor(group != 0 ? kKeyFirstGroup + group - 1 : kKeyFirstPad + pad, continuing);
+        s.fromKey = false;
         padHits_[pad].fetch_add(1, std::memory_order_relaxed);
         const int set = padSet(pad);
         for (int i = 0; i < kNumParams; ++i)        // the pad's set, frozen at the hit
         {
-            v.setAtHit[i] = getNormalised(set, i);
-            v.plainAtHit[i] = param(i).toPlain(v.setAtHit[i]);
+            s.setAtHit[i] = getNormalised(set, i);
+            s.plainAtHit[i] = param(i).toPlain(s.setAtHit[i]);
         }
-        strike(drum, v, Origin{ kOriginPad, note, pad, group }, padNote(pad), velocity, v.plainAtHit);
+        start(s, continuing, note, padNote(pad), velocity, s.plainAtHit);
     }
 
-    // A released key ends the stroke it made, a key's or a pad's: with Key Up = Stop the hand
-    // stops there.
+    // A released key releases the voices it started, a key's or a pad's.
     void noteOff(int note)
     {
-        for (Voice& v : voices_)
-            if (v.active && !v.choking && v.origin.note == note) v.release();
+        for (Slot& s : slots_)
+            if (s.active && !s.choking && s.note == note) s.voice.release();
     }
 
     // The peaks are left alone up to 0.6 and bent towards 1 above it.
@@ -523,7 +584,7 @@ private:
     }
 
     // The bus at the internal rate: the level.
-    static float bus(float x) { return x * kLevel; }
+    static float bus(float x) { return x * kOutputLevel; }
 
     // The bus at the host rate: the limiter. Its output is flushed to zero when it is too small
     // to hear, so that silence is exact and no denormal tail lingers.
@@ -533,34 +594,75 @@ private:
         return std::fabs(out) < 1e-20f ? 0.0f : out;
     }
 
-    // One internal sample: the voices, summed, through the bus.
-    StereoSample tick()
+    // `n` internal samples of one voice, added into l and r. The voice renders up to the end of
+    // its control tick at a time; it leaves the pool when it is finished or faded out.
+    void renderSlot(Slot& s, float* l, float* r, int n)
     {
-        if (freeTick_-- <= 0) { turnFreeLfos(); freeTick_ = 15; }
-        float l = 0.0f, r = 0.0f;
-        for (Voice& v : voices_)
+        float buffer[kControlFrames];
+        int pos = 0;
+        while (pos < n && s.active)
         {
-            if (!v.active) continue;
-            if (v.controlDue()) { viewFor(v, v.view); v.turnLfos(); }   // the knobs as this tick sees them
-            const StereoSample s = v.process();
-            l += s.l; r += s.r;
+            if (s.ctl <= 0) { control(s); s.ctl = kControlFrames; }
+            const int m = std::min(s.ctl, n - pos);
+            s.voice.render(buffer, m);
+            for (int j = 0; j < m; ++j)
+            {
+                const float o = buffer[j] * s.outGain * s.chokeGain;
+                l[pos + j] += o * s.panL;
+                r[pos + j] += o * s.panR;
+                s.level = std::max(std::fabs(o), s.level * followMul_);
+                if (s.choking) s.chokeGain *= s.chokeMul;
+            }
+            s.ctl -= m;
+            pos += m;
+            if (s.voice.finished() || (s.choking && s.chokeGain < 1e-5f)) s.active = false;
         }
-        return { bus(l), bus(r) };
+    }
+
+    // `n` internal samples of every voice, summed into l and r (zeroed by the caller), with the
+    // free-running LFOs a control tick on every 16 samples.
+    void mix(float* l, float* r, int n)
+    {
+        int pos = 0;
+        while (pos < n)
+        {
+            if (freeTick_ <= 0) { turnFreeLfos(); freeTick_ = kControlFrames; }
+            const int m = std::min(freeTick_, n - pos);
+            for (Slot& s : slots_) if (s.active) renderSlot(s, l + pos, r + pos, m);
+            freeTick_ -= m;
+            pos += m;
+        }
     }
 
     // Host frames [from, to): one internal sample each, or two decimated into one.
     void render(float* outL, float* outR, int from, int to)
     {
-        for (int i = from; i < to; ++i)
+        float l[kChunk], r[kChunk];
+        int host = from;
+        while (host < to)
         {
-            StereoSample y = tick();
-            if (oversampling_ == 2)
+            const int frames = std::min(to - host, kChunk / oversampling_);
+            const int n = frames * oversampling_;
+            std::fill(l, l + n, 0.0f);
+            std::fill(r, r + n, 0.0f);
+            mix(l, r, n);
+            for (int i = 0; i < frames; ++i)
             {
-                const StereoSample second = tick();
-                y = { decimL_.process(y.l, second.l), decimR_.process(y.r, second.r) };
+                float yl, yr;
+                if (oversampling_ == 2)
+                {
+                    yl = decimL_.process(bus(l[2 * i]), bus(l[2 * i + 1]));
+                    yr = decimR_.process(bus(r[2 * i]), bus(r[2 * i + 1]));
+                }
+                else
+                {
+                    yl = bus(l[i]);
+                    yr = bus(r[i]);
+                }
+                outL[host + i] = limited(yl);
+                if (outR) outR[host + i] = limited(yr);
             }
-            outL[i] = limited(y.l);
-            if (outR) outR[i] = limited(y.r);
+            host += frames;
         }
     }
 
@@ -586,14 +688,13 @@ private:
     // --- audio thread ----------------------------------------------------------------------
     double internalRate_ = 88200.0;
     int    oversampling_ = 2;                                 // internal samples per host frame
+    float  followMul_ = 1.0f;
     float  keyNorm_[kNumParams] = {};
-    KnobView keyView_{};
+    float  keyPlain_[kNumParams] = {};
     Lfo    freeLfo_[kNumLfos];
     int    freeTick_ = 0;
     float  bend_ = 0.0f, modWheel_ = 0.0f, pressure_ = 0.0f;   // -1..1, 0..1, 0..1
-    Voice  voices_[kNumSlots];
-    uint32_t nextSeed_ = 1;                                   // the next new voice's generator: 1, 2, ... since the reset
-    int    strokes_[kNumDrums] = {};                           // strokes per drum since the reset
+    Slot   slots_[kNumSlots];
     HalfBand decimL_, decimR_;
 };
 
@@ -661,6 +762,8 @@ int {{APP_C}}_vel_amount(int param) { return validParam(param) ? velAmountOf(par
 
 int {{APP_C}}_standard_controller(int param) { return validParam(param) ? standardController(param) : kNoController; }
 int {{APP_C}}_controller_reserved(int cc) { return cc < 0 || cc > 127 || controllerReserved(cc) ? 1 : 0; }
+
+double {{APP_C}}_tail_time(void) { return kTailSeconds; }
 
 int {{APP_C}}_num_programs(void) { return (int)programs().size(); }
 const char* {{APP_C}}_program_name(int p) { return p >= 0 && p < {{APP_C}}_num_programs() ? programs()[(size_t)p].name : ""; }

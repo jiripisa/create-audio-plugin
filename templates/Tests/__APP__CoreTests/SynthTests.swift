@@ -15,15 +15,15 @@ struct SynthTests {
     @Test("A value round-trips, plain and normalised, in the keyboard set and in a pad")
     func valuesRoundTrip() throws {
         let synth = Synth(sampleRate: 48_000)
-        let pot = try #require(Parameters.named("pot"))
+        let tune = try #require(Parameters.named("tune"))
         for set in [SoundSet.keyboard, .pad(0), .pad(15)] {
-            synth.setValue(900, of: pot, in: set)
-            #expect(abs(synth.value(of: pot, in: set) - 900) < 0.5)
-            synth.setNormalisedValue(0.25, of: pot, in: set)
-            #expect(abs(synth.normalisedValue(of: pot, in: set) - 0.25) < 1e-5)
+            synth.setValue(45, of: tune, in: set)
+            #expect(abs(synth.value(of: tune, in: set) - 45) < 0.01)
+            synth.setNormalisedValue(0.25, of: tune, in: set)
+            #expect(abs(synth.normalisedValue(of: tune, in: set) - 0.25) < 1e-5)
         }
-        synth.setValue(pot.range.lowerBound, of: pot, in: .pad(3))
-        #expect(synth.value(of: pot, in: .keyboard) != synth.value(of: pot, in: .pad(3)))
+        synth.setValue(tune.range.lowerBound, of: tune, in: .pad(3))
+        #expect(synth.value(of: tune, in: .keyboard) != synth.value(of: tune, in: .pad(3)))
         #expect(SoundSet.keyboard.index == 0 && SoundSet.pad(0).index == 1 && SoundSet.pad(15).index == 16)
     }
 
@@ -40,10 +40,10 @@ struct SynthTests {
     @Test("Writing one pad's set leaves the other pads and the keyboard set as they were")
     func padSetsApart() throws {
         let synth = Synth()
-        let pot = try #require(Parameters.named("pot"))
+        let tune = try #require(Parameters.named("tune"))
         let before = everything(synth)
-        synth.loadProgram(before.programs[6] == 3 ? 4 : 3, into: .pad(5))
-        synth.setValue(pot.range.upperBound, of: pot, in: .pad(5))
+        synth.loadProgram(before.programs[6] == TestKnobs.otherProgram ? 0 : TestKnobs.otherProgram, into: .pad(5))
+        synth.setValue(tune.range.upperBound, of: tune, in: .pad(5))
         let after = everything(synth)
         for set in after.knobs.indices where set != 6 {
             #expect(after.knobs[set] == before.knobs[set], "set \(set) changed")
@@ -56,20 +56,20 @@ struct SynthTests {
     @Test("A pad outside 0...15 is ignored: nothing is written, and reading it gives defaults and nil")
     func padsOutOfRange() throws {
         let synth = Synth()
-        let pot = try #require(Parameters.named("pot"))
+        let tune = try #require(Parameters.named("tune"))
         synth.noteOn(52)                        // what Send to pad would copy
         _ = render(synth)
         let before = everything(synth)
         for pad in [-1, 16, 20] {
             #expect(SoundSet.pad(pad).index == -1)
-            synth.setValue(pot.range.lowerBound, of: pot, in: .pad(pad))
-            synth.setNormalisedValue(1, of: pot, in: .pad(pad))
-            synth.loadProgram(3, into: .pad(pad))
+            synth.setValue(tune.range.lowerBound, of: tune, in: .pad(pad))
+            synth.setNormalisedValue(1, of: tune, in: .pad(pad))
+            synth.loadProgram(TestKnobs.otherProgram, into: .pad(pad))
             synth.setPadNote(70, pad: pad)
             synth.setPadGroup(5, pad: pad)
             synth.sendToPad(pad)
-            #expect(synth.value(of: pot, in: .pad(pad)) == pot.defaultValue)
-            #expect(synth.normalisedValue(of: pot, in: .pad(pad)) == pot.normalised(pot.defaultValue))
+            #expect(synth.value(of: tune, in: .pad(pad)) == tune.defaultValue)
+            #expect(synth.normalisedValue(of: tune, in: .pad(pad)) == tune.normalised(tune.defaultValue))
             #expect(synth.program(in: .pad(pad)) == 0)
             #expect(synth.padNote(pad) == nil && synth.padGroup(pad) == nil)
         }
@@ -81,10 +81,12 @@ struct SynthTests {
     @Test("A program loads into its own set")
     func programs() {
         let synth = Synth()
-        synth.loadProgram(2, into: .pad(4))
-        synth.loadProgram(1)
-        #expect(synth.program(in: .pad(4)) == 2)
-        #expect(synth.program(in: .keyboard) == 1)
+        synth.loadProgram(TestKnobs.otherProgram, into: .pad(4))
+        #expect(synth.program(in: .pad(4)) == TestKnobs.otherProgram)
+        #expect(synth.program(in: .keyboard) == 0)
+        synth.loadProgram(TestKnobs.otherProgram)
+        #expect(synth.program(in: .keyboard) == TestKnobs.otherProgram)
+        #expect(synth.program(in: .pad(3)) == 0)
     }
 
     @Test("The mode, a pad's note and its group round-trip; Off reads back as nil")
@@ -135,7 +137,6 @@ struct SynthTests {
     func voicesAndLatency() throws {
         let synth = Synth(sampleRate: 48_000)
         #expect(synth.latency == Int({{APP_C}}_latency(synth.engine)) && synth.latency > 0)
-        synth.setValue(1, of: try #require(Parameters.named("drum")))        // Many: two notes, two drums
         synth.noteOn(48)
         synth.noteOn(55)
         _ = render(synth, frames: 512)

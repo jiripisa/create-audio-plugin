@@ -13,9 +13,9 @@ public struct Parameter: Identifiable, Sendable, Equatable {
     /// Position in the engine's table. Permanent: saved state relies on `identifier`,
     /// hosts rely on the index.
     public let index: Int
-    /// Stable name used in saved state ("stick", "velattack").
+    /// Stable name used in saved state ("volume", "velattack").
     public let identifier: String
-    /// What the user sees ("Stick", "VEL>Attack").
+    /// What the user sees ("Volume", "VEL>Attack").
     public let name: String
     /// "s", "Hz", "ms", "dB", "%", "st", "ct" or "".
     public let unit: String
@@ -39,17 +39,17 @@ public struct Parameter: Identifiable, Sendable, Equatable {
         {{APP_C}}_param_to_plain(Int32(index), normalised)
     }
 
-    /// The value as text without its unit: "4.00", "-24.0", "Alternate", "+1".
+    /// The value as text without its unit: "4.00", "-24.0", "Legato", "+1".
     public func text(_ plain: Float) -> String {
         withUnsafeTemporaryAllocation(of: CChar.self, capacity: 64) { buffer in
             String(cString: {{APP_C}}_param_display(Int32(index), plain, buffer.baseAddress, Int32(buffer.count)))
         }
     }
 
-    /// The value with its unit, as shown under a knob: "4.00 s", "800 Hz", "Alternate".
+    /// The value with its unit, as shown under a knob: "4.00 s", "800 Hz", "Legato".
     public func label(_ plain: Float) -> String {
         let value = text(plain)
-        // A unit belongs to a number, not to a word such as "Alternate" or "Free".
+        // A unit belongs to a number, not to a word such as "Legato" or "Free".
         let isNumber = value.first.map { $0.isNumber || $0 == "-" || $0 == "+" } ?? false
         return unit.isEmpty || !isNumber ? value : "\(value) \(unit)"
     }
@@ -84,7 +84,7 @@ public enum Parameters {
     }
 }
 
-/// A group of controls: Stroke, Hands, Pitch, Friction, Body, Noise, Master.
+/// A group of controls: the instrument's sections, then Master (the platform's knobs).
 /// The groups and the order of their parameters come from the sound engine,
 /// which also gives them to the Audio Unit.
 public struct ParameterSection: Identifiable, Sendable {
@@ -100,7 +100,7 @@ public struct ParameterSection: Identifiable, Sendable {
     }
 }
 
-/// The built-in programs (factory presets): the friction drum and its relatives.
+/// The built-in programs (factory presets) of the instrument.
 public enum Programs {
     public static let names: [String] = (0..<Int({{APP_C}}_num_programs())).map {
         String(cString: {{APP_C}}_program_name(Int32($0)))

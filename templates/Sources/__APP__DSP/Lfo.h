@@ -11,7 +11,7 @@
 
 #include "dsp/noise.h"
 
-#include "Params.h"
+#include "PlatformParams.h"
 
 #include <cmath>
 #include <cstdint>

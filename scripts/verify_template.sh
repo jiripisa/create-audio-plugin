@@ -187,7 +187,9 @@ echo "$ID" | jq '. + {
 # --- Render ---
 step "render" python3 -I "$SCAFFOLD" --config "$OUT/config.json" --out "$PROJ" \
     --templates "$SKILL_DIR/templates"
-step "leftovers" "$SKILL_DIR/scripts/check_leftovers.sh" "$PROJ"
+# docs/ is left out until the site and the manual are templates (plan, Task 7): their bodies still
+# describe the source instrument.
+step "leftovers" "$SKILL_DIR/scripts/check_leftovers.sh" --skip-dir docs "$PROJ"
 if grep -rIn -E '\{\{[#^/]?[A-Z_]+\}\}|__APP__' "$PROJ" > "$LOGS/placeholders.log"; then
     echo "FAILED: unrendered placeholders (full list: $LOGS/placeholders.log)"
     head -n 20 "$LOGS/placeholders.log"

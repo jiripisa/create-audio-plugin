@@ -1,8 +1,10 @@
 import AppKit
 import SwiftUI
 
-/// The panel's artwork (Resources/Art, copied into the bundle by build.sh) and its colours: the
-/// palette of concept 1, "Modrotisk" (`.planning/design/concepts/concepts.md`).
+/// The panel's artwork and its colours: what the instrument looks like. The template's are the
+/// system's own colours and no images; a run puts its instrument's palette here and its images
+/// into Resources/Art (copied into the bundle by build.sh), and every image that is missing falls
+/// back to a plain look.
 @MainActor
 public enum Artwork {
 
@@ -11,45 +13,44 @@ public enum Artwork {
     /// before the first panel is made.
     public static var bundle = Bundle.main
 
-    /// Indigo modrotisk cloth behind the whole panel.
+    /// Behind the whole panel (`Art/background.png`); `deep` without it.
     public static let background = image("background")
-    /// The {{APP_LOWER}}: a terracotta jug standing upright, its bladder and two tufts of horsehair.
-    public static let drum = image("drum")
-    /// The cream jug emblem beside the wordmark.
+    /// The instrument, standing on the keyboard's card and beside the pad inspector (`Art/figure.png`).
+    public static let figure = image("figure")
+    /// The part of `figure` that shows the instrument, in parts of its size from the top left.
+    public static let figureBounds = CGRect(x: 0, y: 0, width: 1, height: 1)
+    /// The emblem beside the wordmark (`Art/logo.png`).
     public static let logo = image("logo")
-    /// A knob's pearl-graphite cap, without a pointer: the cap stands still and the pointer is drawn.
+    /// The part of `logo` that shows the emblem.
+    public static let logoBounds = CGRect(x: 0, y: 0, width: 1, height: 1)
+    /// A knob's cap, without a pointer: the cap stands still and the pointer is drawn (`Art/knob.png`).
     public static let knob = image("knob")
-    /// The cream floral-and-dot band, tileable from left to right.
+    /// A band, tileable from left to right (`Art/ornament.png`).
     public static let ornament = image("ornament")
 
-    /// Midnight indigo: the glass cards' tint, the dark text on lit controls, the black keys.
-    public static let indigo = rgb(0x101D38)
-    /// Blue glass: the fill of what sits on a card (the pads, the Last note box).
-    public static let glass = rgb(0x233653)
-    /// Cream: the wordmark, the titles, the names of the controls and their values.
-    public static let cream = rgb(0xF6ECD8)
-    /// Terracotta, the jug's clay: value arcs and what is chosen, held or listening.
-    public static let terracotta = rgb(0xD88C5B)
-    /// Parchment, the drum's skin: captions and the second line of a pad.
-    public static let parchment = rgb(0xDBC79F)
-    /// Light sky blue: LFO 1.
-    public static let sky = rgb(0x8EC9EF)
-    /// Mint: LFO 2.
-    public static let mint = rgb(0x93D6B4)
+    /// The ground: behind the panel without a background, the dark text on lit controls, the black keys.
+    public static let deep = Color(nsColor: .windowBackgroundColor)
+    /// The tint of the glass cards and the fill of what sits on a card (the pads, the Last note box).
+    public static let glass = Color(nsColor: .controlBackgroundColor)
+    /// The wordmark, the titles, the names of the controls and their values.
+    public static let ink = Color.primary
+    /// Value arcs and what is chosen, held or listening.
+    public static let accent = Color.accentColor
+    /// Captions and the second line of a pad.
+    public static let muted = Color.secondary
+    /// LFO 1.
+    public static let sky = Color.cyan
+    /// LFO 2.
+    public static let mint = Color.mint
 
     /// The colour of an LFO (0 for the first): its button in the header and its
-    /// arcs on the knobs it moves. Sky blue for LFO 1, mint for LFO 2: cool
-    /// colours, apart from the terracotta of the knobs' own arcs.
+    /// arcs on the knobs it moves.
     public static func lfo(_ index: Int) -> Color {
         index == 0 ? sky : mint
     }
 
-    /// The colour of the velocity, the warm hand: the VEL button and its arcs on the knobs.
-    public static let vel = parchment
-
-    private static func rgb(_ hex: UInt32) -> Color {
-        Color(red: Double(hex >> 16 & 0xFF) / 255, green: Double(hex >> 8 & 0xFF) / 255, blue: Double(hex & 0xFF) / 255)
-    }
+    /// The colour of the velocity: the VEL button and its arcs on the knobs.
+    public static let vel = Color.orange
 
     private static func image(_ name: String) -> NSImage? {
         guard let url = bundle.url(forResource: name, withExtension: "png", subdirectory: "Art") else { return nil }
@@ -58,21 +59,21 @@ public enum Artwork {
 }
 
 public extension View {
-    /// The modrotisk cloth behind the panel, covering the view's whole frame;
-    /// plain indigo where the artwork is missing.
+    /// The background behind the panel, covering the view's whole frame;
+    /// plain `deep` where the artwork is missing.
     func instrumentBackground() -> some View {
         background {
             if let background = Artwork.background {
                 Image(nsImage: background).resizable().scaledToFill()
             } else {
-                Artwork.indigo
+                Artwork.deep
             }
         }
         .clipped()
         .preferredColorScheme(.dark)
     }
 
-    /// A card of the panel: blue glass over the cloth, the mockup's rounded corners.
+    /// A card of the panel: glass over the background, with rounded corners.
     func instrumentCard(cornerRadius: CGFloat = 14) -> some View {
         glassEffect(.regular.tint(Artwork.glass.opacity(0.45)), in: .rect(cornerRadius: cornerRadius))
     }

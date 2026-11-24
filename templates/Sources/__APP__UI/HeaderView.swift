@@ -73,14 +73,14 @@ struct HeaderView<Trailing: View>: View {
             LogoView().frame(width: LogoView.width(height: 38), height: 38)
             Text("{{APP}}")
                 .font(.system(size: 32, weight: .semibold, design: .serif))
-                .foregroundStyle(Artwork.cream)
+                .foregroundStyle(Artwork.ink)
         }
         .fixedSize()
         .accessibilityElement(children: .combine)
     }
 
     private var separator: some View {
-        Rectangle().fill(Artwork.cream.opacity(0.3)).frame(width: 1, height: 34)
+        Rectangle().fill(Artwork.ink.opacity(0.3)).frame(width: 1, height: 34)
     }
 
     /// A menu with its name above it.
@@ -88,7 +88,7 @@ struct HeaderView<Trailing: View>: View {
         VStack(alignment: .leading, spacing: 2) {
             Text(title)
                 .font(.system(size: 12, weight: .semibold))
-                .foregroundStyle(Artwork.cream)
+                .foregroundStyle(Artwork.ink)
                 .padding(.leading, 6)
             menu()
         }
@@ -161,11 +161,11 @@ struct HeaderView<Trailing: View>: View {
             editing = on ? .value : source
         } label: {
             HStack(spacing: 6) {
-                Circle().fill(on ? Artwork.indigo.opacity(0.7) : source.colour).frame(width: 7, height: 7)
+                Circle().fill(on ? Artwork.deep.opacity(0.7) : source.colour).frame(width: 7, height: 7)
                 Text(title)
             }
             .font(.system(size: 13, weight: .semibold))
-            .foregroundStyle(on ? Artwork.indigo : Artwork.cream)
+            .foregroundStyle(on ? Artwork.deep : Artwork.ink)
             .padding(.horizontal, 12)
             .padding(.vertical, 6)
             .contentShape(Capsule())
@@ -180,7 +180,7 @@ struct HeaderView<Trailing: View>: View {
 }
 
 /// A file's error, for a while, in a small capsule under the header's menus:
-/// cream on indigo, one line.
+/// `Artwork.ink` on `Artwork.deep`, one line.
 struct ErrorLine: View {
 
     let message: String
@@ -188,12 +188,12 @@ struct ErrorLine: View {
     var body: some View {
         Text(message)
             .font(.system(size: 12, weight: .semibold))
-            .foregroundStyle(Artwork.cream)
+            .foregroundStyle(Artwork.ink)
             .lineLimit(1)
             .padding(.horizontal, 10)
             .padding(.vertical, 4)
-            .background(Artwork.indigo.opacity(0.92), in: Capsule())
-            .overlay { Capsule().stroke(Artwork.terracotta.opacity(0.6), lineWidth: 1) }
+            .background(Artwork.deep.opacity(0.92), in: Capsule())
+            .overlay { Capsule().stroke(Artwork.accent.opacity(0.6), lineWidth: 1) }
             .fixedSize()
             .allowsHitTesting(false)            // it hangs over the controls below
             .accessibilityElement()

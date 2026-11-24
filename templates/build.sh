@@ -61,7 +61,7 @@ cp "$SPM_BUILD_DIR/$SPM_CONFIG/$APP_NAME" "$APP_BUNDLE/Contents/MacOS/"
 # Copy Info.plist
 cp "Resources/Info.plist" "$APP_BUNDLE/Contents/"
 
-# Window artwork (background, drum, logo, knob cap, ornament)
+# Window artwork (background, figure, logo, knob cap, ornament)
 if [ -d "Resources/Art" ]; then
     cp -R "Resources/Art" "$APP_BUNDLE/Contents/Resources/Art"
 fi

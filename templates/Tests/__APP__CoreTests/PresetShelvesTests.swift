@@ -26,13 +26,13 @@ struct PresetShelvesTests {
         PresetShelves(presets: libraries.presets, kits: libraries.kits, inUse: names)
     }
 
-    private func pot() throws -> Parameter { try #require(Parameters.named("pot")) }
+    private func tune() throws -> Parameter { try #require(Parameters.named("tune")) }
 
-    /// Program 2 with Pot at 777 Hz.
-    private func sound(pot plain: Float = 777) throws -> SetState {
+    /// The last program with Tune at 37 cents.
+    private func sound(tune plain: Float = 37) throws -> SetState {
         let synth = Synth(sampleRate: 48_000)
-        synth.loadProgram(2)
-        synth.setValue(plain, of: try pot())
+        synth.loadProgram(TestKnobs.otherProgram)
+        synth.setValue(plain, of: try tune())
         return synth.state(of: .keyboard)
     }
 
@@ -46,7 +46,7 @@ struct PresetShelvesTests {
 
         try shelves.save(try sound(), as: " Mine ", from: .keyboard)
         let loaded = try shelves.load("mine", into: .pad(3))
-        #expect(loaded.preset == "Mine" && loaded.values["pot"] == 777)
+        #expect(loaded.preset == "Mine" && loaded.values["tune"] == 37)
         #expect(shelves.presets == ["Mine"])
         #expect(shelves.inUse(in: .keyboard) == "Mine")
         #expect(shelves.inUse(in: .pad(3)) == "Mine")
@@ -70,19 +70,19 @@ struct PresetShelvesTests {
         let libraries = Self.libraries()
         defer { remove(libraries) }
         var shelves = shelves(libraries)
-        let pot = try pot()
-        let release = try #require(Parameters.named("release"))
+        let tune = try tune()
+        let programmed = TestKnobs.programKnob
         var older = try sound()
-        older.values["release"] = nil                                       // a file from before Release
+        older.values[TestKnobs.programKnob.identifier] = nil                                       // a file from before that knob
         try libraries.presets.save(older, as: "Older")
 
         _ = try shelves.load("Older", into: .pad(0))
-        #expect(shelves.resetValue(of: pot, in: .pad(0), program: 2) == 777)
-        #expect(shelves.resetValue(of: release, in: .pad(0), program: 2) == Programs.value(program: 2, parameter: release))
-        #expect(shelves.resetValue(of: pot, in: .keyboard, program: 3) == Programs.value(program: 3, parameter: pot))
-        #expect(shelves.resetValue(of: pot, in: .keyboard, program: -1) == pot.defaultValue)
+        #expect(shelves.resetValue(of: tune, in: .pad(0), program: TestKnobs.otherProgram) == 37)
+        #expect(shelves.resetValue(of: programmed, in: .pad(0), program: TestKnobs.otherProgram) == Programs.value(program: TestKnobs.otherProgram, parameter: programmed))
+        #expect(shelves.resetValue(of: tune, in: .keyboard, program: TestKnobs.otherProgram) == Programs.value(program: TestKnobs.otherProgram, parameter: tune))
+        #expect(shelves.resetValue(of: tune, in: .keyboard, program: -1) == tune.defaultValue)
         shelves.leave(.pad(0))
-        #expect(shelves.resetValue(of: pot, in: .pad(0), program: 2) == Programs.value(program: 2, parameter: pot))
+        #expect(shelves.resetValue(of: tune, in: .pad(0), program: TestKnobs.otherProgram) == Programs.value(program: TestKnobs.otherProgram, parameter: tune))
     }
 
     @Test("Deleting a preset leaves every set that used it with none; a set using another keeps it")
@@ -91,7 +91,7 @@ struct PresetShelvesTests {
         defer { remove(libraries) }
         var shelves = shelves(libraries)
         try shelves.save(try sound(), as: "Mine", from: .keyboard)
-        try shelves.save(try sound(pot: 600), as: "Other", from: .pad(5))
+        try shelves.save(try sound(tune: -30), as: "Other", from: .pad(5))
         _ = try shelves.load("Mine", into: .pad(2))
 
         try shelves.delete("mine")
@@ -128,14 +128,14 @@ struct PresetShelvesTests {
         let libraries = Self.libraries()
         defer { remove(libraries) }
         var shelves = shelves(libraries)
-        let pot = try pot()
+        let tune = try tune()
         try shelves.save(try sound(), as: "Mine", from: .keyboard)
         _ = try shelves.load("Mine", into: .pad(1))
-        try shelves.save(try sound(pot: 1500), as: "MINE", from: .pad(9))
+        try shelves.save(try sound(tune: 75), as: "MINE", from: .pad(9))
         #expect(shelves.presets == ["MINE"])
         #expect(shelves.inUse(in: .pad(1)) == "MINE")
-        #expect(shelves.resetValue(of: pot, in: .pad(1), program: 2) == 1500)
-        #expect(shelves.resetValue(of: pot, in: .keyboard, program: 2) == 1500)
+        #expect(shelves.resetValue(of: tune, in: .pad(1), program: TestKnobs.otherProgram) == 75)
+        #expect(shelves.resetValue(of: tune, in: .keyboard, program: TestKnobs.otherProgram) == 75)
     }
 
     @Test("A set told its preset (by a saved state or a host) has it while the folder does")
@@ -229,7 +229,7 @@ struct PresetShelvesTests {
     @Test("A set's state is what the whole state holds for it")
     func setState() {
         let synth = Synth(sampleRate: 48_000)
-        synth.loadProgram(4, into: .pad(6))
+        synth.loadProgram(TestKnobs.otherProgram, into: .pad(6))
         #expect(synth.state(of: .pad(6)) == synth.state.pads[6].set)
         #expect(synth.state(of: .keyboard) == synth.state.keyboard)
     }
@@ -237,34 +237,34 @@ struct PresetShelvesTests {
     @Test("A set records the program it came from without a knob moving")
     func recordProgram() throws {
         let synth = Synth(sampleRate: 48_000)
-        let release = try #require(Parameters.named("release"))
-        synth.setValue(2.5, of: release, in: .pad(2))
-        synth.recordProgram(3, in: .pad(2))
-        #expect(synth.program(in: .pad(2)) == 3)
-        #expect(abs(synth.value(of: release, in: .pad(2)) - 2.5) < 1e-4)
+        let programmed = TestKnobs.programKnob
+        synth.setValue(programmed.plain(0.7), of: programmed, in: .pad(2))
+        synth.recordProgram(TestKnobs.otherProgram, in: .pad(2))
+        #expect(synth.program(in: .pad(2)) == TestKnobs.otherProgram)
+        #expect(abs(synth.value(of: programmed, in: .pad(2)) - programmed.plain(0.7)) <= 1e-4 * programmed.plain(0.7))
         synth.recordProgram(999, in: .pad(2))
         synth.recordProgram(-1, in: .pad(2))
-        #expect(synth.program(in: .pad(2)) == 3)
+        #expect(synth.program(in: .pad(2)) == TestKnobs.otherProgram)
     }
 
     @Test("A saved set's values in full: its own, the program's for the knobs it lacks, kept within each knob")
     func resolvedValues() throws {
-        let pot = try pot()
+        let tune = try tune()
         let octave = try #require(Parameters.named("octave"))
-        let drum = try #require(Parameters.named("drum"))
-        let release = try #require(Parameters.named("release"))
+        let lfoStart = try #require(Parameters.named("lfostart"))
+        let programmed = TestKnobs.programKnob
         var saved = try sound()
-        saved.values["release"] = nil
-        saved.values["drum"] = 1.4
+        saved.values[TestKnobs.programKnob.identifier] = nil
+        saved.values["lfostart"] = 1.4
         saved.values["octave"] = 7
         saved.values["unknown"] = 3
 
         let resolved = saved.resolved(currentProgram: 0)
-        #expect(resolved.program == 2)
+        #expect(resolved.program == TestKnobs.otherProgram)
         #expect(resolved.values.count == Parameters.all.count)
-        #expect(resolved.values[pot.index] == 777)
-        #expect(resolved.values[release.index] == Programs.value(program: 2, parameter: release))
-        #expect(resolved.values[drum.index] == 1)
+        #expect(resolved.values[tune.index] == 37)
+        #expect(resolved.values[programmed.index] == Programs.value(program: TestKnobs.otherProgram, parameter: programmed))
+        #expect(resolved.values[lfoStart.index] == 1)
         #expect(resolved.values[octave.index] == 2)
 
         // What the synth does with the same set.
@@ -276,7 +276,7 @@ struct PresetShelvesTests {
 
         // A program number that is no program leaves the set's own.
         saved.program = 3_000
-        #expect(saved.resolved(currentProgram: 4).program == 4)
-        #expect(saved.resolved(currentProgram: 4).values[release.index] == Programs.value(program: 4, parameter: release))
+        #expect(saved.resolved(currentProgram: TestKnobs.otherProgram).program == TestKnobs.otherProgram)
+        #expect(saved.resolved(currentProgram: TestKnobs.otherProgram).values[programmed.index] == Programs.value(program: TestKnobs.otherProgram, parameter: programmed))
     }
 }

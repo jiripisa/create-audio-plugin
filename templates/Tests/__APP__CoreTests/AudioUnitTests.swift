@@ -221,8 +221,8 @@ struct AudioUnitTests {
         try #require(AudioUnitGetPropertyInfo(unit, kAudioUnitProperty_ParameterList, kAudioUnitScope_Global, 0, &size, nil) == noErr)
         var ids = [AudioUnitParameterID](repeating: 0, count: Int(size) / MemoryLayout<AudioUnitParameterID>.size)
         try #require(AudioUnitGetProperty(unit, kAudioUnitProperty_ParameterList, kAudioUnitScope_Global, 0, &ids, &size) == noErr)
-        #expect(Parameters.all.count == 103)
-        #expect(ids == (0..<103).map { AudioUnitParameterID($0) })
+        #expect(Parameters.all.count == Int({{APP_C}}_num_params()))
+        #expect(ids == (0..<Parameters.all.count).map { AudioUnitParameterID($0) })
 
         var sectionOf: [Int: Int] = [:]
         for (section, group) in ParameterSection.all.enumerated() {
@@ -252,7 +252,7 @@ struct AudioUnitTests {
                 #expect(try #require(strings).takeRetainedValue() as? [String] == choices)
             }
         }
-        #expect(sectionOf.count == 45)
+        #expect(sectionOf.count == TestKnobs.all.count)
 
         for (section, group) in ParameterSection.all.enumerated() {
             var clump = AudioUnitParameterNameInfo(inID: AudioUnitParameterID(section + 1), inDesiredLength: Int32(kAudioUnitParameterName_Full), outName: nil)
@@ -275,11 +275,11 @@ struct AudioUnitTests {
     func hostParameterReachesEngine() throws {
         let instrument = try Instrument()
         let engine = try instrument.engine()
-        let release = try #require(Parameters.named("release"))
-        try instrument.setParameter("release", to: 2)
+        let volume = try #require(Parameters.named("volume"))
+        try instrument.setParameter("volume", to: -20)
         _ = try instrument.render()
-        #expect(abs({{APP_C}}_get_plain(engine, Int32({{APP_UPPER}}_KEYBOARD_SET), Int32(release.index)) - 2) < 0.001)
-        #expect({{APP_C}}_get_plain(engine, 1, Int32(release.index)) != 2)        // a pad's set is not the unit's
+        #expect(abs({{APP_C}}_get_plain(engine, Int32({{APP_UPPER}}_KEYBOARD_SET), Int32(volume.index)) + 20) < 0.001)
+        #expect({{APP_C}}_get_plain(engine, 1, Int32(volume.index)) != -20)       // a pad's set is not the unit's
     }
 
     @Test("A factory preset loads its program into the keyboard set and leaves the octave alone")
@@ -290,17 +290,18 @@ struct AudioUnitTests {
         try instrument.setParameter("octave", to: 1)
         _ = try instrument.render()
 
-        try instrument.loadPreset(2)
+        let other = TestKnobs.otherProgram
+        try instrument.loadPreset(other)
         _ = try instrument.render()
 
         var present = AUPreset()
         var size = UInt32(MemoryLayout<AUPreset>.size)
         try #require(AudioUnitGetProperty(instrument.unit, kAudioUnitProperty_PresentPreset, kAudioUnitScope_Global, 0, &present, &size) == noErr)
         present.presetName?.release()
-        #expect(present.presetNumber == 2)
-        #expect({{APP_C}}_get_program(engine, Int32({{APP_UPPER}}_KEYBOARD_SET)) == 2)
+        #expect(present.presetNumber == Int32(other))
+        #expect({{APP_C}}_get_program(engine, Int32({{APP_UPPER}}_KEYBOARD_SET)) == Int32(other))
         for parameter in Parameters.all where parameter != octave {
-            let value = Programs.value(program: 2, parameter: parameter)
+            let value = Programs.value(program: other, parameter: parameter)
             #expect(try instrument.parameter(parameter.index) == value, "\(parameter.identifier)")
             #expect(abs({{APP_C}}_get_plain(engine, Int32({{APP_UPPER}}_KEYBOARD_SET), Int32(parameter.index)) - value) <= 0.001 * max(1, abs(value)),
                     "\(parameter.identifier)")
@@ -313,18 +314,18 @@ struct AudioUnitTests {
     func factoryPresetThenRevert() throws {
         let instrument = try Instrument()
         let engine = try instrument.engine()
-        let release = try #require(Parameters.named("release"))
+        let knob = TestKnobs.programKnob, other = TestKnobs.otherProgram
         _ = try instrument.render()
-        let before = try instrument.parameter(release.index)
-        try #require(Programs.value(program: 2, parameter: release) != before)
+        let before = try instrument.parameter(knob.index)
+        try #require(Programs.value(program: other, parameter: knob) != before)
 
-        try instrument.loadPreset(2)
-        try instrument.setParameter("release", to: before)         // automation, a reset or a click, within one buffer
+        try instrument.loadPreset(other)
+        try instrument.setParameter(knob.identifier, to: before)   // automation, a reset or a click, within one buffer
         _ = try instrument.render()
 
-        #expect(try instrument.parameter(release.index) == before)
-        #expect(abs({{APP_C}}_get_plain(engine, Int32({{APP_UPPER}}_KEYBOARD_SET), Int32(release.index)) - before) < 0.001)
-        #expect({{APP_C}}_get_program(engine, Int32({{APP_UPPER}}_KEYBOARD_SET)) == 2)
+        #expect(try instrument.parameter(knob.index) == before)
+        #expect(abs({{APP_C}}_get_plain(engine, Int32({{APP_UPPER}}_KEYBOARD_SET), Int32(knob.index)) - before) <= 0.001 * max(1, abs(before)))
+        #expect({{APP_C}}_get_program(engine, Int32({{APP_UPPER}}_KEYBOARD_SET)) == Int32(other))
     }
 
     // MARK: MIDI controllers
@@ -347,65 +348,65 @@ struct AudioUnitTests {
     func controllerMirrorsToHost() async throws {
         let instrument = try Instrument()
         let engine = try instrument.engine()
-        let pot = try #require(Parameters.named("pot"))
-        #expect(Synth(borrowing: engine).controller(of: pot) == 87)
+        let tune = try #require(Parameters.named("tune"))
+        #expect(Synth(borrowing: engine).controller(of: tune) == 102)
         let told = Told()
-        let host = try Self.listen(to: pot, of: instrument.unit, told: told)
+        let host = try Self.listen(to: tune, of: instrument.unit, told: told)
         defer { AUListenerDispose(host) }
 
-        try instrument.midi(0xB0, 87, 127)
+        try instrument.midi(0xB0, 102, 127)
         _ = try instrument.render()
-        let top = {{APP_C}}_get_plain(engine, Int32({{APP_UPPER}}_KEYBOARD_SET), Int32(pot.index))
-        #expect(abs(top - pot.range.upperBound) < 0.01)
-        #expect(try instrument.parameter(pot.index) == top)               // what a host reads and saves
+        let top = {{APP_C}}_get_plain(engine, Int32({{APP_UPPER}}_KEYBOARD_SET), Int32(tune.index))
+        #expect(abs(top - tune.range.upperBound) < 0.01)
+        #expect(try instrument.parameter(tune.index) == top)               // what a host reads and saves
         for _ in 0..<200 where told.all.isEmpty { try await Task.sleep(for: .milliseconds(10)) }
         #expect(told.all == [top])
 
-        try instrument.midi(0xB3, 87, 0)                                     // any channel
+        try instrument.midi(0xB3, 102, 0)                                     // any channel
         _ = try instrument.render()
-        let bottom = try instrument.parameter(pot.index)
-        #expect(abs(bottom - pot.range.lowerBound) < 0.01)
+        let bottom = try instrument.parameter(tune.index)
+        #expect(abs(bottom - tune.range.lowerBound) < 0.01)
         for _ in 0..<200 where told.all.count < 2 { try await Task.sleep(for: .milliseconds(10)) }
         #expect(told.all == [top, bottom])
 
         // The next block does not hand the old value back: the controller's stays.
         _ = try instrument.render()
-        #expect(abs({{APP_C}}_get_plain(engine, Int32({{APP_UPPER}}_KEYBOARD_SET), Int32(pot.index)) - pot.range.lowerBound) < 0.01)
+        #expect(abs({{APP_C}}_get_plain(engine, Int32({{APP_UPPER}}_KEYBOARD_SET), Int32(tune.index)) - tune.range.lowerBound) < 0.01)
     }
 
     @Test("A knob the host has set stays there until its controller moves")
     func hostAndControllerTakeTurns() throws {
         let instrument = try Instrument()
-        let pot = try #require(Parameters.named("pot"))
-        try instrument.midi(0xB0, 87, 127)
+        let tune = try #require(Parameters.named("tune"))
+        try instrument.midi(0xB0, 102, 127)
         _ = try instrument.render()
-        try instrument.setParameter("pot", to: 1000)
+        try instrument.setParameter("tune", to: 50)
         _ = try instrument.render()
         try instrument.midi(0xB0, 7, 64)                                     // another knob's controller
         _ = try instrument.render()
-        #expect(try instrument.parameter(pot.index) == 1000)
-        #expect(abs(Synth(borrowing: try instrument.engine()).value(of: pot) - 1000) < 0.01)
+        #expect(try instrument.parameter(tune.index) == 50)
+        #expect(abs(Synth(borrowing: try instrument.engine()).value(of: tune) - 50) < 0.01)
 
-        try instrument.midi(0xB0, 87, 0)
+        try instrument.midi(0xB0, 102, 0)
         _ = try instrument.render()
-        #expect(abs(try instrument.parameter(pot.index) - pot.range.lowerBound) < 0.01)
+        #expect(abs(try instrument.parameter(tune.index) - tune.range.lowerBound) < 0.01)
     }
 
     @Test("A host write and a controller on one knob before one block: the controller, played in the block, wins")
     func controllerWinsWithinTheBlock() throws {
         let instrument = try Instrument()
         let engine = try instrument.engine()
-        let pot = try #require(Parameters.named("pot"))
-        try instrument.setParameter("pot", to: 1000)
-        try instrument.midi(0xB0, 87, 127)
+        let tune = try #require(Parameters.named("tune"))
+        try instrument.setParameter("tune", to: 50)
+        try instrument.midi(0xB0, 102, 127)
         _ = try instrument.render()
-        let top = {{APP_C}}_get_plain(engine, Int32({{APP_UPPER}}_KEYBOARD_SET), Int32(pot.index))
-        #expect(abs(top - pot.range.upperBound) < 0.01)
-        #expect(try instrument.parameter(pot.index) == top)
+        let top = {{APP_C}}_get_plain(engine, Int32({{APP_UPPER}}_KEYBOARD_SET), Int32(tune.index))
+        #expect(abs(top - tune.range.upperBound) < 0.01)
+        #expect(try instrument.parameter(tune.index) == top)
 
-        _ = try instrument.render()                                          // and the host's 1000 is not handed back
-        #expect(try instrument.parameter(pot.index) == top)
-        #expect({{APP_C}}_get_plain(engine, Int32({{APP_UPPER}}_KEYBOARD_SET), Int32(pot.index)) == top)
+        _ = try instrument.render()                                          // and the host's 50 is not handed back
+        #expect(try instrument.parameter(tune.index) == top)
+        #expect({{APP_C}}_get_plain(engine, Int32({{APP_UPPER}}_KEYBOARD_SET), Int32(tune.index)) == top)
     }
 
     // MARK: Saved state
@@ -414,14 +415,14 @@ struct AudioUnitTests {
     func stateRoundTrip() throws {
         let saved = try Instrument()
         let synth = Synth(borrowing: try saved.engine())
-        let pot = try #require(Parameters.named("pot")), split = try #require(Parameters.named("split"))
-        synth.loadProgram(4, into: .pad(3))
-        synth.setValue(1500, of: pot, in: .pad(3))
+        let tune = try #require(Parameters.named("tune")), pan = try #require(Parameters.named("pan"))
+        synth.loadProgram(TestKnobs.otherProgram, into: .pad(3))
+        synth.setValue(75, of: tune, in: .pad(3))
         synth.setPadNote(60, pad: 3)
         synth.setPadGroup(7, pad: 3)
         synth.setPadGroup(nil, pad: 0)
         synth.mode = .pads
-        try saved.setParameter("split", to: 55)
+        try saved.setParameter("pan", to: 55)
         _ = try saved.render()
         let state = try saved.classInfo()
 
@@ -431,29 +432,30 @@ struct AudioUnitTests {
         try restored.restore(state)
         _ = try restored.render()
 
-        #expect(try restored.parameter(split.index) == 55)
+        #expect(try restored.parameter(pan.index) == 55)
         #expect(other.state == synth.state)
         #expect(other.mode == .pads && other.padNote(3) == 60 && other.padGroup(3) == 7 && other.padGroup(0) == nil)
-        #expect(other.program(in: .pad(3)) == 4 && abs(other.value(of: pot, in: .pad(3)) - 1500) < 0.5)
+        #expect(other.program(in: .pad(3)) == TestKnobs.otherProgram && abs(other.value(of: tune, in: .pad(3)) - 75) < 0.01)
     }
 
     @Test("A pad's shorter list of values covers the first parameters; the later ones stay at their defaults")
     func stateShorterValues() throws {
         let saved = try Instrument()
         let synth = Synth(borrowing: try saved.engine())
-        let amount = try #require(Parameters.named("lfo1stick"))
-        #expect(amount.index >= 45)
-        synth.setValue(1500, of: try #require(Parameters.named("pot")), in: .pad(3))
+        let amount = try #require(Parameters.named("lfo1tune"))
+        let knobs = TestKnobs.all.count
+        #expect(amount.index >= knobs)
+        synth.setValue(75, of: try #require(Parameters.named("tune")), in: .pad(3))
         synth.setValue(50, of: amount, in: .pad(3))
         let state = try #require(try saved.classInfo() as? [String: Any])
 
-        // The state as a version with only the first 45 parameters saved it.
+        // The state as a version with only the knobs saved it.
         var pads = try #require(state["{{APP_LOWER}}-pads"] as? [String: Any])
         var list = try #require(pads["pads"] as? [[String: Any]])
         #expect(list.count == 16)
         let values = try #require(list[3]["values"] as? Data)
-        #expect(values.count == 103 * MemoryLayout<Float32>.size)
-        list[3]["values"] = values.prefix(45 * MemoryLayout<Float32>.size)
+        #expect(values.count == Parameters.all.count * MemoryLayout<Float32>.size)
+        list[3]["values"] = values.prefix(knobs * MemoryLayout<Float32>.size)
         pads["pads"] = list
         var older = state
         older["{{APP_LOWER}}-pads"] = pads
@@ -463,7 +465,7 @@ struct AudioUnitTests {
         let other = Synth(borrowing: try restored.engine())
         // The engine keeps knobs as 0...1 positions: a plain value comes back a few ulps off.
         for parameter in Parameters.all {
-            if parameter.index < 45 {
+            if parameter.index < knobs {
                 let value = synth.value(of: parameter, in: .pad(3))
                 #expect(abs(other.value(of: parameter, in: .pad(3)) - value) <= 1e-5 * max(1, abs(value)), "\(parameter.identifier)")
             } else {
@@ -475,8 +477,9 @@ struct AudioUnitTests {
     @Test("A reopened project keeps the keyboard's program, so a reset goes to that program's value")
     func stateKeepsTheKeyboardProgram() throws {
         let saved = try Instrument()
-        try saved.loadPreset(3)                                 // Zambomba: Release 0.14 s
-        try saved.setParameter("split", to: 55)
+        let program = TestKnobs.otherProgram, knob = TestKnobs.programKnob
+        try saved.loadPreset(program)
+        try saved.setParameter("pan", to: 55)
         _ = try saved.render()
         let state = try saved.classInfo()
 
@@ -484,22 +487,22 @@ struct AudioUnitTests {
         let other = Synth(borrowing: try restored.engine())
         try restored.restore(state)
         _ = try restored.render()
-        let release = try #require(Parameters.named("release")), split = try #require(Parameters.named("split"))
-        #expect(other.program(in: .keyboard) == 3)
-        #expect(try restored.parameter(split.index) == 55)       // the values are the project's, not the program's
-        #expect(abs(other.value(of: split, in: .keyboard) - 55) < 0.001)
-        #expect(Programs.value(program: other.program(in: .keyboard), parameter: release) == Float(60) / 440)
+        let pan = try #require(Parameters.named("pan"))
+        #expect(other.program(in: .keyboard) == program)
+        #expect(try restored.parameter(pan.index) == 55)       // the values are the project's, not the program's
+        #expect(abs(other.value(of: pan, in: .keyboard) - 55) < 0.001)
+        #expect(Programs.value(program: other.program(in: .keyboard), parameter: knob) != Programs.value(program: 0, parameter: knob))
 
         // A state without the key leaves the index alone.
         var older = try #require(state as? [String: Any])
         var pads = try #require(older["{{APP_LOWER}}-pads"] as? [String: Any])
-        #expect(pads["keyboardProgram"] as? Int == 3)
+        #expect(pads["keyboardProgram"] as? Int == program)
         pads["keyboardProgram"] = nil
         older["{{APP_LOWER}}-pads"] = pads
         let another = try Instrument()
-        try another.loadPreset(5)
+        try another.loadPreset(program)
         try another.restore(older as CFDictionary)
-        #expect({{APP_C}}_get_program(try another.engine(), Int32({{APP_UPPER}}_KEYBOARD_SET)) == 5)
+        #expect({{APP_C}}_get_program(try another.engine(), Int32({{APP_UPPER}}_KEYBOARD_SET)) == Int32(program))
     }
 
     @Test("Saved state of the wrong shape is ignored, part by part")
@@ -538,23 +541,24 @@ struct AudioUnitTests {
     func stateKeepsControllersAndSelection() throws {
         let saved = try Instrument()
         let synth = Synth(borrowing: try saved.engine())
-        let pot = try #require(Parameters.named("pot")), release = try #require(Parameters.named("release"))
-        let split = try #require(Parameters.named("split"))
-        synth.setController(40, of: pot)
-        synth.setController(nil, of: release)
+        let tune = try #require(Parameters.named("tune")), volume = try #require(Parameters.named("volume"))
+        let pan = try #require(Parameters.named("pan"))
+        let free = TestKnobs.freeControllers
+        synth.setController(free[0], of: tune)
+        synth.setController(nil, of: volume)
         #expect(saved.setSelectedPad(5) == noErr)
         var names = [String](repeating: "", count: 17)
         names[0] = "Warm"
         names[2] = "Kick"
         names[16] = "Last pad"
         #expect(saved.setPresetNames(names as CFArray) == noErr)
-        synth.learn(split)                                                    // listening when the project is saved
+        synth.learn(pan)                                                    // listening when the project is saved
         let state = try saved.classInfo()
 
         let dictionary = try #require(state as? [String: Any])
         #expect(dictionary.keys.filter { $0.hasPrefix("{{APP_LOWER}}-") }.sorted() == ["{{APP_LOWER}}-controllers", "{{APP_LOWER}}-pads"])
         let controllers = try #require(dictionary["{{APP_LOWER}}-controllers"] as? Data)
-        #expect(controllers.count == 45 * MemoryLayout<Int32>.size)
+        #expect(controllers.count == TestKnobs.all.count * MemoryLayout<Int32>.size)
         let pads = try #require(dictionary["{{APP_LOWER}}-pads"] as? [String: Any])
         #expect(Set(pads.keys) == ["mode", "keyboardProgram", "selectedPad", "keyboardPreset", "pads"])      // nothing of the learn
         #expect(pads["selectedPad"] as? Int == 5)
@@ -568,7 +572,7 @@ struct AudioUnitTests {
         for parameter in Parameters.all {
             #expect(other.controller(of: parameter) == synth.controller(of: parameter), "\(parameter.identifier)")
         }
-        #expect(other.controller(of: pot) == 40 && other.controller(of: release) == nil)
+        #expect(other.controller(of: tune) == free[0] && other.controller(of: volume) == nil)
         #expect(other.learning == nil)
         #expect(try restored.selectedPad() == 5)
         #expect(try restored.presetNames() == names)
@@ -579,19 +583,20 @@ struct AudioUnitTests {
         let instrument = try Instrument()
         let synth = Synth(borrowing: try instrument.engine())
         var state = try #require(try instrument.classInfo() as? [String: Any])
-        let knobs = Parameters.all.prefix(45)
-        // Attack 40, Length out of range, Release the sustain pedal (reserved), Damp below zero, Key Up
-        // none; the knobs after the sixth are not in the list.
-        let saved: [Int32] = [40, 300, 64, -7, -1, 41]
+        let knobs = TestKnobs.all, last = knobs.count - 1, free = TestKnobs.freeControllers.map(Int32.init)
+        // The first knob a free controller, the second one out of range, the third the sustain
+        // pedal (reserved), the fourth below zero, the fifth none, the sixth another free one; the
+        // knobs after the sixth are not in the list.
+        let saved: [Int32] = [free[0], 300, 64, -7, -1, free[1]]
         state["{{APP_LOWER}}-controllers"] = saved.withUnsafeBufferPointer { Data(buffer: $0) }
-        synth.setController(50, of: knobs[20])
+        synth.setController(Int(free[2]), of: knobs[last])
         try instrument.restore(state as CFDictionary)
 
-        #expect(synth.controller(of: knobs[0]) == 40)
+        #expect(synth.controller(of: knobs[0]) == Int(free[0]))
         for index in 1...4 { #expect(synth.controller(of: knobs[index]) == nil, "\(knobs[index].identifier)") }
-        #expect(synth.controller(of: knobs[5]) == 41)
-        #expect(synth.controller(of: knobs[20]) == 50)                        // after the list: left alone
-        for knob in knobs.dropFirst(6) where knob.index != 20 {
+        #expect(synth.controller(of: knobs[5]) == Int(free[1]))
+        #expect(synth.controller(of: knobs[last]) == Int(free[2]))            // after the list: left alone
+        for knob in knobs.dropFirst(6) where knob.index != last {
             #expect(synth.controller(of: knob) == Controllers.standard(for: knob), "\(knob.identifier)")
         }
 
@@ -599,14 +604,15 @@ struct AudioUnitTests {
         for wrong: Any in ["40", [40, 41], Data([1, 2, 3])] {
             state["{{APP_LOWER}}-controllers"] = wrong
             try instrument.restore(state as CFDictionary)
-            #expect(synth.controller(of: knobs[0]) == 40 && synth.controller(of: knobs[20]) == 50)
+            #expect(synth.controller(of: knobs[0]) == Int(free[0]) && synth.controller(of: knobs[last]) == Int(free[2]))
         }
     }
 
     @Test("A project saved before controllers, pad selection and presets keeps the standard controllers and pad 01")
     func olderStateKeepsDefaults() throws {
         let saved = try Instrument()
-        Synth(borrowing: try saved.engine()).setController(40, of: try #require(Parameters.named("pot")))
+        let free = TestKnobs.freeControllers[0]
+        Synth(borrowing: try saved.engine()).setController(free, of: try #require(Parameters.named("tune")))
         saved.setSelectedPad(9)
         var names = [String](repeating: "Old", count: 17)
         saved.setPresetNames(names as CFArray)
@@ -634,7 +640,7 @@ struct AudioUnitTests {
         // Restored over an instance that has its own: the controllers and the pad stay; the sets
         // that came from the project lose the names of the presets they no longer hold.
         try saved.restore(older as CFDictionary)
-        #expect(Synth(borrowing: try saved.engine()).controller(of: try #require(Parameters.named("pot"))) == 40)
+        #expect(Synth(borrowing: try saved.engine()).controller(of: try #require(Parameters.named("tune"))) == free)
         #expect(try saved.selectedPad() == 9)
         names = [String](repeating: "", count: 17)
         #expect(try saved.presetNames() == names)
@@ -799,14 +805,12 @@ struct AudioUnitTests {
         #expect(abs(try instrument.float64Property(kAudioUnitProperty_Latency) - 29.0 / 44_100) < 1e-12)
     }
 
-    // The longest a stroke can sound: the hand rubs for the top of Length, and the voice retires
-    // once Release's top has passed three times over (and 0.1 s more).
-    @Test("The tail is as long as the longest stroke")
-    func tailIsTheLongestStroke() throws {
+    // The longest a voice can sound once its key is let go, as the instrument says.
+    @Test("The tail is the engine's tail time")
+    func tailIsTheEngines() throws {
         let instrument = try Instrument()
-        let length = try #require(Parameters.named("length")), release = try #require(Parameters.named("release"))
-        let longest = Float64(length.range.upperBound) / 1000 + 3 * Float64(release.range.upperBound) + 0.1
-        #expect(abs(try instrument.float64Property(kAudioUnitProperty_TailTime) - longest) < 1e-6)
+        #expect({{APP_C}}_tail_time() > 0)
+        #expect(abs(try instrument.float64Property(kAudioUnitProperty_TailTime) - {{APP_C}}_tail_time()) < 1e-9)
     }
 
     @Test("A mono output gets both sides mixed: (L+R)/2, so a pad panned right is heard")
@@ -838,10 +842,10 @@ struct AudioUnitTests {
         #expect(size == UInt32(MemoryLayout<UnsafeRawPointer>.size) && !writable.boolValue)
 
         let engine = try instrument.engine()
-        let pot = try #require(Parameters.named("pot"))
-        try instrument.setParameter("pot", to: 1200)
+        let tune = try #require(Parameters.named("tune"))
+        try instrument.setParameter("tune", to: 60)
         _ = try instrument.render()
-        #expect(abs({{APP_C}}_get_plain(engine, Int32({{APP_UPPER}}_KEYBOARD_SET), Int32(pot.index)) - 1200) < 0.5)
+        #expect(abs({{APP_C}}_get_plain(engine, Int32({{APP_UPPER}}_KEYBOARD_SET), Int32(tune.index)) - 60) < 0.01)
         #expect(try Instrument().engine() != engine)
     }
 

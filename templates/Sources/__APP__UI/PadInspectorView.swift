@@ -2,16 +2,17 @@ import SwiftUI
 import {{APP}}Core
 
 /// Beside the pads: "Pads" between two ornaments, which pad is selected, the
-/// drum, and the pad's pitch and group and the Kit menu. The pitch and the
-/// group belong to the pad, not to its knobs: all the pads of a group are one
-/// drum. A kit is all sixteen pads, their sounds, pitches and groups.
+/// instrument's figure, and the pad's pitch and group and the Kit menu. The
+/// pitch and the group belong to the pad, not to its knobs: all the pads of a
+/// group share one voice. A kit is all sixteen pads, their sounds, pitches and
+/// groups.
 struct PadInspectorView: View {
 
     let model: any InstrumentModel
 
     static let width: CGFloat = 300
     private static let menuWidth: CGFloat = 132
-    private static let drumHeight: CGFloat = 96
+    private static let figureHeight: CGFloat = 96
 
     var body: some View {
         let pad = model.selectedPad
@@ -20,17 +21,17 @@ struct PadInspectorView: View {
                 OrnamentBand().frame(maxWidth: .infinity)
                 Text("Pads")
                     .font(.system(size: 24, weight: .semibold, design: .serif))
-                    .foregroundStyle(Artwork.cream)
+                    .foregroundStyle(Artwork.ink)
                     .fixedSize()
                 OrnamentBand().frame(maxWidth: .infinity)
             }
             Text("Selected: \(PadLabel.title(pad, name: model.padName(pad)))")
                 .font(.system(size: 14, weight: .semibold, design: .serif))
-                .foregroundStyle(Artwork.cream)
+                .foregroundStyle(Artwork.ink)
                 .lineLimit(1)
             HStack(alignment: .bottom, spacing: 10) {
-                DrumView()
-                    .frame(width: DrumView.width(height: Self.drumHeight), height: Self.drumHeight)
+                FigureView()
+                    .frame(width: FigureView.width(height: Self.figureHeight), height: Self.figureHeight)
                 VStack(alignment: .trailing, spacing: 5) {
                     labelled("Pitch") { pitchMenu(pad) }
                     labelled("Group") { groupMenu(pad) }
@@ -45,7 +46,7 @@ struct PadInspectorView: View {
         HStack(spacing: 10) {
             Text(title)
                 .font(.system(size: 13, weight: .semibold))
-                .foregroundStyle(Artwork.cream)
+                .foregroundStyle(Artwork.ink)
             control()
                 .frame(width: Self.menuWidth)
         }
@@ -97,8 +98,8 @@ struct PadInspectorView: View {
         .accessibilityLabel("Pitch")
     }
 
-    /// Off, or one of sixteen groups: the pads of a group are one drum, and a hit on any of
-    /// them goes on from where that drum is.
+    /// Off, or one of sixteen groups: the pads of a group share one voice, and a hit on any
+    /// of them plays that voice.
     private func groupMenu(_ pad: Int) -> some View {
         let group = model.padGroup(pad)
         return Menu {
@@ -116,7 +117,7 @@ struct PadInspectorView: View {
         .menuStyle(.button)
         .buttonStyle(.glass)
         .buttonSizing(.flexible)
-        .help("Off: the pad is a drum of its own. A group: its pads are one drum, and a hit on any of them goes on from where that drum is")
+        .help("Off: the pad has a voice of its own. A group: its pads share one voice, and a hit on any of them plays that voice")
         .accessibilityLabel("Group")
     }
 }

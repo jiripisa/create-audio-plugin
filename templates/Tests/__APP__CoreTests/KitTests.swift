@@ -16,7 +16,7 @@ struct KitTests {
         try? FileManager.default.removeItem(at: library.folder.deletingLastPathComponent())
     }
 
-    private func pot() throws -> Parameter { try #require(Parameters.named("pot")) }
+    private func tune() throws -> Parameter { try #require(Parameters.named("tune")) }
 
     @Test("A kit goes through its file into another synth, pad for pad")
     func roundTrip() throws {
@@ -24,11 +24,11 @@ struct KitTests {
         defer { remove(library) }
         let source = Synth(sampleRate: 48_000)
         for pad in 0..<16 {
-            source.setValue(Float(200 + pad * 80), of: try pot(), in: .pad(pad))
+            source.setValue(Float(-60 + pad * 8), of: try tune(), in: .pad(pad))
             source.setPadNote(40 + pad, pad: pad)
             source.setPadGroup(pad % 3 == 0 ? nil : pad, pad: pad)
         }
-        source.loadProgram(2, into: .pad(5))
+        source.loadProgram(TestKnobs.otherProgram, into: .pad(5))
         var kit = source.kit
         kit.name = "Mine"
         #expect(kit.pads.count == 16)
@@ -46,20 +46,20 @@ struct KitTests {
     @Test("Applying a kit leaves the mode and the keyboard set alone")
     func keyboardUntouched() throws {
         let source = Synth(sampleRate: 48_000)
-        source.setValue(555, of: try pot(), in: .pad(0))
+        source.setValue(55, of: try tune(), in: .pad(0))
         source.setPadNote(70, pad: 0)
         let kit = source.kit
 
         let target = Synth(sampleRate: 48_000)
         target.mode = .keyboard
-        target.loadProgram(3)
-        target.setValue(900, of: try pot())
+        target.loadProgram(TestKnobs.otherProgram)
+        target.setValue(45, of: try tune())
         let keyboard = target.state.keyboard
         target.apply(kit)
         #expect(target.mode == .keyboard)
         #expect(target.state.keyboard == keyboard)
-        let pot = try pot()
-        #expect(target.padNote(0) == 70 && abs(target.value(of: pot, in: .pad(0)) - 555) < 1)
+        let tune = try tune()
+        #expect(target.padNote(0) == 70 && abs(target.value(of: tune, in: .pad(0)) - 55) < 0.01)
 
         target.mode = .pads
         target.apply(kit)

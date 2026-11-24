@@ -64,21 +64,18 @@ struct ListeningRenders {
 
     // MARK: The renders
 
-    /// The spike's groove on B2 (`{{APP_C}}_spike.cpp`, `groove`), its first strokes from 0.3 s.
-    private static let groove = PrototypeScores.midiEvents(PrototypeScores.render(named: "01b_{{APP_C}}_default_groove"))
-    private static let grooveLength = PrototypeScores.render(named: "01b_{{APP_C}}_default_groove").seconds
+    /// The prototype's melody, its first note at 0.2 s.
+    private static let melody = PrototypeScores.render(named: "01_tone_melody")
 
     private static var renders: [Render] {
         var all: [Render] = []
 
-        // The engine's version of every spike render (`.planning/research/spike/renders/`, all but
-        // 13b), under the spike's name, to be compared with it. Volume -12 dB in every set keeps
-        // the limiter out of them (Pot Level +6 dB nearly doubles a stroke's peak), as it is out of
-        // the spike's, which are normalised.
+        // The engine's version of every prototype render, under the prototype's name, to be
+        // compared with it. Volume -12 dB in every set keeps the limiter out of them.
         for render in PrototypeScores.renders {
-            let sets: [SoundSet] = render.isPads ? render.drums.indices.map { .pad($0) } : [.keyboard]
+            let sets: [SoundSet] = render.pads ? (0..<16).map { .pad($0) } : [.keyboard]
             all.append(Render(name: render.name, sampleRate: 48_000, seconds: render.seconds,
-                              mode: render.isPads ? .pads : .keyboard,
+                              mode: render.pads ? .pads : .keyboard,
                               cues: [Cue(time: 0) { PrototypeScores.setUp(render, in: $0) }]
                                   + sets.map { set(0, "volume", -12, in: $0) }
                                   + cues(PrototypeScores.midiEvents(render))))
@@ -88,46 +85,42 @@ struct ListeningRenders {
         all.append(Render(name: "F01_default_kit_groove", sampleRate: 48_000, seconds: Grooves.defaultKitLength,
                           mode: .pads, cues: cues(Grooves.defaultKit)))
 
-        // F02: the groove with the mod wheel at 0, then rising to 127 over 3 s: Rub from Off to -20 dB.
-        all.append(Render(name: "F02_modwheel_rub", sampleRate: 48_000, seconds: grooveLength, mode: .keyboard,
-                          cues: [set(0, "rub", -40), midi(0.1, 0xB0, 1, 0)] + cues(Self.groove)
-                              + ramp(from: 1.5, to: 4.5) { time, p in midi(time, 0xB0, 1, UInt8((p * 127).rounded())) }))
+        // F02: the melody with the mod wheel rising from 0 to 127 over 3 s: Brightness from 10 % to 60 %.
+        all.append(Render(name: "F02_modwheel_brightness", sampleRate: 48_000, seconds: melody.seconds, mode: .keyboard,
+                          cues: [set(0, "brightness", 10), midi(0.1, 0xB0, 1, 0)] + cues(PrototypeScores.midiEvents(melody))
+                              + ramp(from: 1.0, to: 4.0) { time, p in midi(time, 0xB0, 1, UInt8((p * 127).rounded())) }))
 
-        // F03: the groove with aftertouch rising from 0 to 127 over 3 s: Stick from 0.80 to 0.87.
-        all.append(Render(name: "F03_aftertouch_stick", sampleRate: 48_000, seconds: grooveLength, mode: .keyboard,
-                          cues: [set(0, "stick", 0.80), midi(0.1, 0xD0, 0, 0)] + cues(Self.groove)
-                              + ramp(from: 1.5, to: 4.5) { t, p in midi(t, 0xD0, UInt8((p * 127).rounded()), 0) }))
-
-        // F04: long strokes while the bend goes down 2 st, up 12 st and back (the cuíca's pressing hand).
-        let long: [GrooveEvent] = [GrooveEvent(0.3, 0x90, 55, 110), GrooveEvent(2.3, 0x90, 55, 100)]
-        all.append(Render(name: "F04_pitchbend", sampleRate: 48_000, seconds: 5.5, mode: .keyboard,
-                          cues: [set(0, "length", 1800)] + cues(long)
+        // F03: a long note while the bend goes down 2 st, up 2 st and back.
+        let long: [GrooveEvent] = [GrooveEvent(0.3, 0x90, 60, 110), GrooveEvent(3.8, 0x80, 60, 0)]
+        all.append(Render(name: "F03_pitchbend", sampleRate: 48_000, seconds: 5.5, mode: .keyboard,
+                          cues: [set(0, "decay", 20)] + cues(long)
                               + ramp(from: 0.6, to: 1.2) { t, p in bend(t, 8192 - Int(p * 8192)) }
                               + ramp(from: 1.2, to: 2.0) { t, p in bend(t, Int(p * 16383)) }
                               + ramp(from: 2.6, to: 3.6) { t, p in bend(t, 16383 - Int(p * 8191)) }))
 
-        // F05: LFO 1 > Tune at 5 Hz on long strokes: off for the first, on (±25 ct) from 2.2 s.
-        let held: [GrooveEvent] = [GrooveEvent(0.3, 0x90, 47, 110), GrooveEvent(2.3, 0x90, 52, 100)]
-        all.append(Render(name: "F05_lfo1_tune_vibrato", sampleRate: 48_000, seconds: 5.0, mode: .keyboard,
-                          cues: [set(0, "length", 1500), set(0, "lfo1rate", 5)] + cues(held) + [set(2.2, "lfo1tune", 12.5)]))
+        // F04: LFO 1 > Tune at 5 Hz on long notes: off for the first, on (±25 ct) from 2.2 s.
+        let held: [GrooveEvent] = [GrooveEvent(0.3, 0x90, 57, 110), GrooveEvent(2.0, 0x80, 57, 0),
+                                   GrooveEvent(2.3, 0x90, 64, 100), GrooveEvent(4.3, 0x80, 64, 0)]
+        all.append(Render(name: "F04_lfo1_tune_vibrato", sampleRate: 48_000, seconds: 5.5, mode: .keyboard,
+                          cues: [set(0, "decay", 20), set(0, "lfo1rate", 5)] + cues(held) + [set(2.2, "lfo1tune", 12.5)]))
 
-        // F06: the kit, the first 2 bars all centre, then spread hard left, hard right and centre.
+        // F05: the kit, the first 2 bars all centre, then spread hard left, hard right and centre.
         let bar = 4 * 60.0 / 100
         let spread: [(pad: Int, pan: Float)] = [(0, -50), (1, 50), (2, -100), (3, 100), (4, -100), (5, 100), (6, 0), (7, 0)]
-        all.append(Render(name: "F06_pan_across_pads", sampleRate: 48_000, seconds: Grooves.defaultKitLength,
+        all.append(Render(name: "F05_pan_across_pads", sampleRate: 48_000, seconds: Grooves.defaultKitLength,
                           mode: .pads,
                           cues: cues(Grooves.defaultKit) + spread.map { set(0.2 + 2 * bar - 0.05, "pan", $0.pan, in: .pad($0.pad)) }))
 
-        // F07: the groove, first without velocity modulation, then VEL>Attack 60 % and VEL>Stick 40 %:
-        // the soft strokes softer at the onset and darker.
-        all.append(Render(name: "F07_vel_attack_and_stick", sampleRate: 48_000, seconds: grooveLength, mode: .keyboard,
-                          cues: cues(Self.groove) + [set(2.4, "velattack", -60), set(2.4, "velstick", 40)]))
+        // F06: the melody, first without velocity modulation, then VEL>Attack -60 % and VEL>Brightness
+        // 40 %: the soft notes slower at the onset and darker.
+        all.append(Render(name: "F06_vel_attack_and_brightness", sampleRate: 48_000, seconds: melody.seconds, mode: .keyboard,
+                          cues: cues(PrototypeScores.midiEvents(melody)) + [set(2.4, "velattack", -60), set(2.4, "velbrightness", 40)]))
 
-        // F08: one default stroke at 44.1 kHz and the same at 96 kHz.
-        let stroke = [GrooveEvent(0.2, 0x90, 47, 110)]
+        // F07: one default note at 44.1 kHz and the same at 96 kHz.
+        let note = [GrooveEvent(0.2, 0x90, 60, 110), GrooveEvent(1.2, 0x80, 60, 0)]
         for (suffix, rate) in [("44k1", 44_100.0), ("96k", 96_000.0)] {
-            all.append(Render(name: "F08_default_stroke_44k1_vs_96k_\(suffix)", sampleRate: rate, seconds: 2,
-                              mode: .keyboard, cues: cues(stroke)))
+            all.append(Render(name: "F07_default_note_44k1_vs_96k_\(suffix)", sampleRate: rate, seconds: 2,
+                              mode: .keyboard, cues: cues(note)))
         }
         return all
     }
@@ -186,7 +179,7 @@ struct ListeningRenders {
         let directory = URL(filePath: try #require(Self.directory), directoryHint: .isDirectory)
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
         let specs = Self.renders
-        #expect(specs.count == PrototypeScores.renders.count + 9)
+        #expect(specs.count == PrototypeScores.renders.count + 8)
         for spec in specs {
             let audio = Self.render(spec)
             let url = directory.appending(path: spec.name + ".wav")

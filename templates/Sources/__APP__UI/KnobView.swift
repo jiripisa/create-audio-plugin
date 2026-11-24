@@ -35,11 +35,11 @@ public enum KnobEditing: Equatable, Sendable {
         }
     }
 
-    /// The colour of the source whose amounts are being set; cream for the
+    /// The colour of the source whose amounts are being set; `Artwork.ink` for the
     /// controllers.
     @MainActor var colour: Color {
         switch self {
-        case .value, .controller: Artwork.cream
+        case .value, .controller: Artwork.ink
         case .amount(let lfo): Artwork.lfo(lfo)
         case .velocity: Artwork.vel
         }
@@ -102,7 +102,7 @@ public struct KnobView: View {
         VStack(spacing: 0) {
             Text(parameter.name)
                 .font(.system(size: 12, weight: .semibold))
-                .foregroundStyle(Artwork.cream)
+                .foregroundStyle(Artwork.ink)
                 .lineLimit(1)
                 .fixedSize()
             ZStack {
@@ -110,15 +110,15 @@ public struct KnobView: View {
                     .stroke(Color.white.opacity(0.14), style: StrokeStyle(lineWidth: 3, lineCap: .round))
                     .padding(1.5)
                 arc(from: parameter.isBipolar ? min(0.5, position) : 0, to: parameter.isBipolar ? max(0.5, position) : position)
-                    .stroke(Artwork.terracotta.opacity(amount == nil && editing != .controller ? 1 : 0.4),
+                    .stroke(Artwork.accent.opacity(amount == nil && editing != .controller ? 1 : 0.4),
                             style: StrokeStyle(lineWidth: 3, lineCap: .round))
                     .padding(1.5)
                 modulationArcs(position: position)
                 cap
                     .frame(width: Self.cap, height: Self.cap)
-                // The pointer: a cream line on the graphite cap, turning with the value.
+                // The pointer: an `Artwork.ink` line on the cap, turning with the value.
                 Capsule()
-                    .fill(Artwork.cream.opacity(0.9))
+                    .fill(Artwork.ink.opacity(0.9))
                     .frame(width: 2.5, height: 7)
                     .offset(y: -8.5)
                     .rotationEffect(.degrees(-Self.sweep / 2 + Self.sweep * position))
@@ -127,7 +127,7 @@ public struct KnobView: View {
             .overlay {
                 // Listening for a controller: a dashed ring round the knob.
                 if listening {
-                    Circle().stroke(Artwork.terracotta, style: StrokeStyle(lineWidth: 1.5, dash: [4, 3])).padding(-1)
+                    Circle().stroke(Artwork.accent, style: StrokeStyle(lineWidth: 1.5, dash: [4, 3])).padding(-1)
                 }
             }
             .contentShape(Circle())
@@ -141,7 +141,7 @@ public struct KnobView: View {
             .onDisappear(perform: finishEdit)
             Text(valueText)
                 .font(.system(size: 12).monospacedDigit())
-                .foregroundStyle(listening ? Artwork.terracotta : amount == nil ? Artwork.parchment : editing.colour)
+                .foregroundStyle(listening ? Artwork.accent : amount == nil ? Artwork.muted : editing.colour)
                 .lineLimit(1)
                 .minimumScaleFactor(0.8)            // "move a control" in a knob's width
         }
@@ -242,7 +242,7 @@ public struct KnobView: View {
         if let image = Artwork.knob {
             Image(nsImage: image).resizable().interpolation(.high)
         } else {
-            Circle().fill(Artwork.indigo).padding(Self.cap * 0.1)
+            Circle().fill(Artwork.deep).padding(Self.cap * 0.1)
         }
     }
 

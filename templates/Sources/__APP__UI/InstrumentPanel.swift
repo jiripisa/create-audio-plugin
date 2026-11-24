@@ -4,8 +4,8 @@ import {{APP}}Core
 
 /// The instrument's panel, the same in the app's window and in the plug-in's:
 /// the header (`HeaderView`), an ornament band, the section cards on glass
-/// where `PanelLayout` puts them (Stroke, Hands and Pitch over Friction, Body
-/// and Noise, Master the full height on the right), another band, then
+/// where `PanelLayout` puts them (the instrument's sections on the left,
+/// Master the full height on the right), another band, then
 /// `footer` (the pads or the keyboard). The knobs show the set the model
 /// shows: the keyboard's, or the selected pad's. With LFO 1, LFO 2 or VEL on
 /// in the header, they set that source's amounts; with MIDI on, they show
@@ -82,7 +82,7 @@ public struct InstrumentPanel<Footer: View, Trailing: View>: View {
             }
             OrnamentBand()
             footer
-                .zIndex(1)              // the drum reaches up over the band
+                .zIndex(1)              // the figure reaches up over the band
         }
         .padding(.horizontal, Self.margin)
         .padding(.top, 4)
@@ -124,7 +124,7 @@ enum PanelMeasures {
     static let sideWidth: CGFloat = 214
 }
 
-/// The cream floral band, repeated across the panel (and beside the drum in
+/// The ornament band, repeated across the panel (and beside the figure in
 /// the footer); nothing where the artwork is missing.
 struct OrnamentBand: View {
 

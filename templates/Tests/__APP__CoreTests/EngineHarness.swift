@@ -13,15 +13,6 @@ extension EngineHarness {
     static var rate: Double { 96_000 }
     static var keyboard: Int32 { Int32({{APP_UPPER}}_KEYBOARD_SET) }
 
-    /// The engine's output scale (`kLevel` in {{APP}}Engine.cpp) against the prototype's units.
-    static var level: Double { 0.32 }
-
-    /// No randomness: no Vary, Wobble, Shimmer, Rub or Scrape.
-    static var plain: [String: Float] { ["vary": 0, "wobble": 0, "shimmer": 0, "rub": -40, "scrape": 0] }
-
-    /// A steady stroke: no randomness, no Drift, a hand that rubs for 2 s.
-    static var steady: [String: Float] { plain.merging(["drift": 0, "length": 2000]) { $1 } }
-
     static func index(_ identifier: String) -> Int32 {
         guard let parameter = Parameters.named(identifier) else { preconditionFailure("unknown knob \(identifier)") }
         return Int32(parameter.index)
@@ -89,7 +80,7 @@ extension EngineHarness {
         return 10 * log10(difference / signal)
     }
 
-    /// The fundamental of `x` in Hz: the autocorrelation's highest peak from its first zero
+    /// The fundamental of `x` in Hz: the normalised autocorrelation's highest peak from its first zero
     /// crossing up to 1.5 periods of `expected`, placed between samples by a parabola. The window
     /// keeps out an octave error (half or twice the period) without steering the answer.
     func fundamental(_ x: [Float], rate: Double, expected: Double) -> Double {
@@ -99,6 +90,14 @@ extension EngineHarness {
         x.withUnsafeBufferPointer { signal in
             vDSP_conv(signal.baseAddress!, 1, signal.baseAddress!, 1, &r, 1, vDSP_Length(maxLag + 1), vDSP_Length(length))
         }
+        // Normalised: each lag's product over the energies of the two stretches it multiplies, so
+        // that a decaying note does not pull the peak towards the shorter lags.
+        var energy = [Double](repeating: 0, count: x.count + 1)
+        for (i, sample) in x.enumerated() { energy[i + 1] = energy[i] + Double(sample) * Double(sample) }
+        for lag in 0...maxLag {
+            let a = energy[length] - energy[0], b = energy[lag + length] - energy[lag]
+            r[lag] = a > 0 && b > 0 ? Float(Double(r[lag]) / (a * b).squareRoot()) : 0
+        }
         guard let firstNegative = r.firstIndex(where: { $0 < 0 }) else { return 0 }
         var best = firstNegative
         for lag in firstNegative..<maxLag where r[lag] > r[best] { best = lag }
@@ -106,4 +105,43 @@ extension EngineHarness {
         let a = Double(r[best - 1]), b = Double(r[best]), c = Double(r[best + 1])
         return rate / (Double(best) + 0.5 * (a - c) / (a - 2 * b + c))
     }
+}
+
+/// The knobs the platform's tests address: the platform block by identifier, the instrument's by
+/// position, never by name, so that the tests hold for every instrument.
+enum TestKnobs {
+
+    /// The platform block, the first knobs of every instrument's table, in their permanent order.
+    static let platform = ["volume", "pan", "tune", "octave", "bendup", "benddown", "voicemode", "glide", "lfostart",
+                           "lfo1rate", "lfo1shape", "lfo2rate", "lfo2shape", "velsens"]
+
+    /// Every knob, in table order: the parameters that come with a MIDI controller.
+    static let all = Parameters.all.filter { Controllers.standard(for: $0) != nil }
+
+    /// The instrument's knobs, after the platform block.
+    static let instrument = Array(all.dropFirst(platform.count))
+
+    /// The first of the instrument's knobs.
+    static var first: Parameter { instrument[0] }
+
+    static func named(_ identifier: String) -> Parameter {
+        guard let parameter = Parameters.named(identifier) else { preconditionFailure("unknown knob \(identifier)") }
+        return parameter
+    }
+
+    /// Controllers no knob comes with and MIDI does not reserve, lowest first: what a test teaches
+    /// a knob, or moves to see that nothing listens.
+    static let freeControllers: [Int] = (0...127).filter { cc in
+        !Controllers.isReserved(cc) && !all.contains { Controllers.standard(for: $0) == cc }
+    }
+
+    /// The last program, which a test loads where it needs one that is not the first.
+    static var otherProgram: Int { Programs.names.count - 1 }
+
+    /// A knob that `otherProgram` sets to another value than the first program does.
+    static let programKnob: Parameter = {
+        guard let knob = all.first(where: { Programs.value(program: otherProgram, parameter: $0) != Programs.value(program: 0, parameter: $0) })
+        else { preconditionFailure("the last program sets no knob apart from the first") }
+        return knob
+    }()
 }

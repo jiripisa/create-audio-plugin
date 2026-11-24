@@ -1,11 +1,12 @@
-/// Where the panel puts the controls of a section: rows of cells in a number of columns, as the
-/// approved mockup draws them (`.planning/design/concepts/concept-1-keyboard.png`). A cell holds
-/// one control. A switch gets a row of its own, as wide as the section, its name beside it; a
-/// thin rule may part rows of another kind.
+/// Where the panel puts the controls of a section: rows of cells in a number of columns. A cell
+/// holds one control. A switch gets a row of its own, as wide as the section, its name beside it;
+/// a thin rule may part rows of another kind.
 ///
 /// The sections and their controls come from the engine (`ParameterSection`); this only places
-/// them. A control the engine adds later, or a section the panel does not know, still shows:
-/// knobs in reading order, switches in rows of their own.
+/// them. A section with a plan (`plans`, the instrument's, as its approved mockup draws them) is
+/// laid out by it; a control the plan leaves out, or a section without one, still shows: knobs in
+/// reading order, three to a row (two in Master, the narrow card on the right), switches in rows
+/// of their own.
 public struct SectionLayout: Sendable, Equatable {
 
     public enum Row: Sendable, Equatable {
@@ -21,7 +22,9 @@ public struct SectionLayout: Sendable, Equatable {
     public let rows: [Row]
 
     public static func of(_ section: ParameterSection) -> SectionLayout {
-        guard let plan = plans[section.title] else { return flowing(section.parameters, columns: 3) }
+        guard let plan = plans[section.title] else {
+            return flowing(section.parameters, columns: section.title == PanelLayout.sideTitle ? 2 : 3)
+        }
         let byIdentifier = Dictionary(uniqueKeysWithValues: section.parameters.map { ($0.identifier, $0) })
         var rows: [Row] = []
         for row in plan.rows {
@@ -70,25 +73,16 @@ public struct SectionLayout: Sendable, Equatable {
         }
     }
 
-    /// The friction drum's sections as the mockup draws them. Hands and Noise are one row,
-    /// centred in their cards; Body's Skin row has Track at its end. Master stacks its knobs in
-    /// pairs, then the two LFO shapes, then Drum and LFO Start, each part under a rule.
-    private static let plans: [String: (columns: Int, rows: [PlannedRow])] = [
-        "Stroke": (3, [.cells(["attack", "length", "release"]), .cells(["damp", "velsens", "vary"]), .wide("keyup")]),
-        "Hands": (2, [.cells(["alternate", "alttune"])]),
-        "Pitch": (4, [.cells(["scoop", "scooptime", "drift", "drop"]), .cells(["wobble", "jump", "jumpratio", "velpitch"])]),
-        "Friction": (3, [.cells(["stick", "stickvel", "split"]), .cells(["creak", "creakrate", "creakring"])]),
-        "Body": (4, [.cells(["pot", "potq", "potlevel"]), .cells(["skin", "skinq", "skinlevel", "track"])]),
-        "Noise": (3, [.cells(["rub", "scrape", "shimmer"])]),
-        "Master": (2, [.cells(["volume", "pan"]), .cells(["tune", "octave"]), .cells(["bendup", "benddown"]),
-                       .cells(["lfo1rate", "lfo2rate"]), .rule, .wide("lfo1shape"), .wide("lfo2shape"), .rule,
-                       .wide("drum"), .wide("lfostart")]),
-    ]
+    /// The instrument's plans, by section title: its columns and its rows of identifiers. None in
+    /// the template: every section flows. A run writes the plans of its sections here, as the
+    /// approved mockup draws them, for example
+    /// `"Envelope": (3, [.cells(["attack", "decay", "release"]), .rule, .wide("mode")])`.
+    private static let plans: [String: (columns: Int, rows: [PlannedRow])] = [:]
 }
 
-/// Where the panel puts its sections, as the approved mockup does: cards in two rows on the left
-/// (Stroke | Hands | Pitch over Friction | Body | Noise) and Master on the right, the full
-/// height of both rows. A section the panel does not know joins the last row.
+/// Where the panel puts its sections: the instrument's cards in rows on the left (`plannedRows`,
+/// as its approved mockup does) and Master on the right, the full height of the rows. A section
+/// no row names joins the last row; without rows, every section is one row.
 public struct PanelLayout: Sendable {
 
     /// The rows of cards on the left, top first.
@@ -96,18 +90,21 @@ public struct PanelLayout: Sendable {
     /// The card on the right; nil without a Master section.
     public let side: ParameterSection?
 
-    private static let plannedRows = [["Stroke", "Hands", "Pitch"], ["Friction", "Body", "Noise"]]
-    private static let plannedSide = "Master"
+    /// The instrument's rows of section titles, top first. None in the template; a run writes
+    /// them for its sections, for example `[["Exciter", "Body"], ["Envelope", "Filter"]]`.
+    private static let plannedRows: [[String]] = []
+    /// The platform's section, the card on the right.
+    public static let sideTitle = "Master"
 
     public static func of(_ sections: [ParameterSection]) -> PanelLayout {
         let byTitle = Dictionary(sections.map { ($0.title, $0) }, uniquingKeysWith: { first, _ in first })
         var rows = plannedRows.map { $0.compactMap { byTitle[$0] } }.filter { !$0.isEmpty }
-        let planned = Set(plannedRows.flatMap { $0 } + [plannedSide])
+        let planned = Set(plannedRows.flatMap { $0 } + [sideTitle])
         let rest = sections.filter { !planned.contains($0.title) }
         if !rest.isEmpty {
             if rows.isEmpty { rows.append(rest) } else { rows[rows.count - 1] += rest }
         }
-        return PanelLayout(rows: rows, side: byTitle[plannedSide])
+        return PanelLayout(rows: rows, side: byTitle[sideTitle])
     }
 
     /// The widths of a row's cards. `width` less the gaps between the cards (`spacing`) and each

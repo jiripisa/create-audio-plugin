@@ -1,9 +1,8 @@
 // {{APP}}DSP.h - C interface to the {{APP}} sound engine.
 //
-// One engine = a friction drum and its relatives: sixteen voices that the player's hands (the
-// keyboard) or the sixteen pads of a kit strike. A voice belongs to a drum; a stroke on a drum
-// that sounds continues its voice. The Audio Unit (C++) and the standalone app (Swift, through
-// {{APP}}Core) both drive it through these functions.
+// One engine = the instrument's voices, sixteen at most, that the keyboard or the sixteen pads of
+// a kit play. The Audio Unit (C++) and the standalone app (Swift, through {{APP}}Core) both drive
+// it through these functions.
 //
 // Threads:
 //   * {{APP_C}}_process() and {{APP_C}}_midi() belong to the audio thread.
@@ -51,12 +50,11 @@ void        {{APP_C}}_param_info(int index, {{APP}}ParamInfo* out);
 const char* {{APP_C}}_param_choice(int index, int choice);
 float       {{APP_C}}_param_to_plain(int index, float normalised);
 float       {{APP_C}}_param_to_normalised(int index, float plain);
-// Text for a plain value, without the unit ("4.00", "-24.0", "Alternate", "+1"). Returns buffer.
+// Text for a plain value, without the unit ("4.00", "-24.0", "Legato", "+1"). Returns buffer.
 const char* {{APP_C}}_param_display(int index, float plain, char* buffer, int bufferSize);
 
-// The sections the knobs are shown in ("Stroke", "Hands", "Pitch", "Friction", "Body", "Noise",
-// "Master") and the
-// knobs of each in the order they are shown: the app's panels and the Audio Unit's parameter
+// The sections the knobs are shown in (the instrument's, then "Master", the platform's knobs) and
+// the knobs of each in the order they are shown: the app's panels and the Audio Unit's parameter
 // groups. The amounts below are in no section.
 int         {{APP_C}}_num_sections(void);
 const char* {{APP_C}}_section_name(int s);
@@ -81,15 +79,16 @@ void          {{APP_C}}_destroy({{APP}}Engine*);
 // Sets the host sample rate and then resets the engine as {{APP_C}}_reset() does. A rate that is not
 // positive and finite is ignored, and nothing is reset.
 void          {{APP_C}}_prepare({{APP}}Engine*, double sampleRate);
-// Silences every voice, puts the wheels at rest, forgets the last note and starts every drum's
-// alternation again from its first hand. The knob sets, the pads (notes, groups) and the mode
-// stay as they are.
+// Silences every voice, puts the wheels at rest and forgets the last note. The knob sets, the
+// pads (notes, groups) and the mode stay as they are.
 void          {{APP_C}}_reset({{APP}}Engine*);
 // The same reset, done by the audio thread at the start of its next {{APP_C}}_process() call.
 void          {{APP_C}}_request_reset({{APP}}Engine*);
 // Host frames the output lags the MIDI: the decimator's delay below 88.2 kHz, where the voices run
 // at twice the rate, and 0 from 88.2 kHz up.
 int           {{APP_C}}_latency(const {{APP}}Engine*);
+// The longest a voice can sound once its key is let go, in seconds: the Audio Unit's tail.
+double        {{APP_C}}_tail_time(void);
 
 float {{APP_C}}_get_plain(const {{APP}}Engine*, int set, int index);
 float {{APP_C}}_get_normalised(const {{APP}}Engine*, int set, int index);
@@ -104,18 +103,17 @@ int   {{APP_C}}_get_program(const {{APP}}Engine*, int set);
 // state whose knob values come from elsewhere. A bad set or program is ignored.
 void  {{APP_C}}_set_program_index({{APP}}Engine*, int set, int program);
 
-// The mode: the keyboard plays the keyboard set at the pitch of each key, as one drum (Drum One)
-// or a drum per note (Drum Many); the pads play their own sets at the pitch of each pad, hit by
-// notes 36-51 (other notes are ignored). A voice already sounding when the mode changes sounds
-// on as it was.
+// The mode: the keyboard plays the keyboard set at the pitch of each key, a voice per key; the
+// pads play their own sets at the pitch of each pad, hit by notes 36-51 (other notes are
+// ignored). A voice already sounding when the mode changes sounds on as it was.
 void  {{APP_C}}_set_mode({{APP}}Engine*, int mode);
 int   {{APP_C}}_get_mode(const {{APP}}Engine*);
 
-// Pads: each has a pitch (a MIDI note) and a group. The pads of one group are one drum: a hit
-// continues the group's sounding voice with the new pad's set and pitch. A pad whose group is
-// 0 (Off) is a drum of its own, which a re-hit continues. Like the pitch, the group belongs to
-// the pad, not to its set. A pad's voice copies the pad's set at the hit and does not follow
-// later changes to it, nor the wheels.
+// Pads: each has a pitch (a MIDI note) and a group. The pads of one group share one voice: a hit
+// on it while it sounds continues it, or fades it out for a fresh one, as the instrument does
+// with a re-hit of a key, with the new pad's set and pitch. A pad whose group is 0 (Off) has a
+// voice of its own. Like the pitch, the group belongs to the pad, not to its set. A pad's voice
+// copies the pad's set at the hit and does not follow later changes to it, nor the wheels.
 int   {{APP_C}}_pad_note(const {{APP}}Engine*, int pad);
 void  {{APP_C}}_set_pad_note({{APP}}Engine*, int pad, int note);
 int   {{APP_C}}_pad_group(const {{APP}}Engine*, int pad);
@@ -128,8 +126,8 @@ int   {{APP_C}}_last_note(const {{APP}}Engine*);          // last keyboard-mode 
 // pad; its group is kept. The copy goes value by value with relaxed atomics, not as a whole: a pad
 // hit landing mid-copy freezes a mix of old and new values for that one hit.
 void  {{APP_C}}_send_to_pad({{APP}}Engine*, int pad);
-// A kit built from the programs at various pitches, so that pad mode sounds at once: what the
-// pads hold when the engine is created. Overwrites every pad's set, note and group, value by value
+// The instrument's kit, built from its programs, so that pad mode sounds at once: what the pads
+// hold when the engine is created. Overwrites every pad's set, note and group, value by value
 // with relaxed atomics like {{APP_C}}_send_to_pad: a pad hit landing mid-load freezes a mix of old and
 // new values for that one hit.
 void  {{APP_C}}_load_default_kit({{APP}}Engine*);
@@ -151,7 +149,8 @@ void  {{APP_C}}_midi({{APP}}Engine*, int status, int data1, int data2, int sampl
 // middle of a knob that has one (-100 ... 100 %). A choice takes the choice nearest to the value.
 // The pads' sets are never moved, not in pad mode either. A controller serves one knob, and the
 // amounts have none. The control change is applied at its sample offset, in the order of the
-// block's MIDI. Controllers 1 (the mod wheel), 120, 121 and 123 keep their meanings. All of these
+// block's MIDI. Controllers 1 (the mod wheel, which moves what the instrument maps it to), 120,
+// 121 and 123 keep their meanings. All of these
 // may be called from any thread while audio runs.
 int  {{APP_C}}_standard_controller(int param);               // what a knob comes with; -1 for none
 int  {{APP_C}}_controller_reserved(int cc);                  // 1 for one MIDI or the engine keeps for itself

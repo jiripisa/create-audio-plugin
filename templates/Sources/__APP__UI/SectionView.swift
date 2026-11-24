@@ -1,7 +1,7 @@
 import SwiftUI
 import {{APP}}Core
 
-/// One group of controls (Stroke, Hands, Pitch, Friction, Body, Noise, Master) on a glass
+/// One group of controls (one of the instrument's sections, or Master) on a glass
 /// card: its title in New York over a thin line, then its knobs and switches where
 /// `SectionLayout` puts them. A card taller than its controls (Hands, Noise beside their
 /// neighbours) centres them below the title, as the mockup does.
@@ -21,10 +21,10 @@ struct SectionView: View {
         VStack(alignment: .leading, spacing: 3) {
             Text(section.title)
                 .font(.system(size: 21, weight: .semibold, design: .serif))
-                .foregroundStyle(Artwork.cream)
+                .foregroundStyle(Artwork.ink)
                 .padding(.leading, 4)
             Rectangle()
-                .fill(Artwork.cream.opacity(0.2))
+                .fill(Artwork.ink.opacity(0.2))
                 .frame(height: 1)
             Grid(horizontalSpacing: 0, verticalSpacing: 0) {
                 ForEach(layout.rows.indices, id: \.self) { index in
@@ -40,7 +40,7 @@ struct SectionView: View {
                             .padding(.vertical, 2)
                     case .rule:
                         Rectangle()
-                            .fill(Artwork.cream.opacity(0.16))
+                            .fill(Artwork.ink.opacity(0.16))
                             .frame(height: 1)
                             .padding(.vertical, 3)
                     }
@@ -67,7 +67,7 @@ struct SectionView: View {
 }
 
 /// A switch: its name beside (`inline`, a row of its own) or above a glass
-/// segmented control with every choice (Key Up, Drum, LFO Start), or a glass
+/// segmented control with every choice (Voice Mode, LFO Start), or a glass
 /// menu where the choices are many (the LFO shapes). Velocity and the LFOs
 /// move no switch, so it steps back while their amounts are being set.
 ///
@@ -112,7 +112,7 @@ struct ChoiceView: View {
     private var name: some View {
         Text(parameter.name)
             .font(.system(size: 12, weight: .semibold))
-            .foregroundStyle(Artwork.cream)
+            .foregroundStyle(Artwork.ink)
             .lineLimit(1)
             .fixedSize()
     }
@@ -161,13 +161,13 @@ struct ChoiceView: View {
                                           learning: model.learning)
         return Text(caption)
             .font(.system(size: 12).monospacedDigit())
-            .foregroundStyle(listening ? Artwork.terracotta : Artwork.cream)
+            .foregroundStyle(listening ? Artwork.accent : Artwork.ink)
             .lineLimit(1)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .background(Artwork.indigo.opacity(0.5), in: Capsule())
+            .background(Artwork.deep.opacity(0.5), in: Capsule())
             .overlay {
                 if listening {
-                    Capsule().stroke(Artwork.terracotta, style: StrokeStyle(lineWidth: 1.5, dash: [4, 3]))
+                    Capsule().stroke(Artwork.accent, style: StrokeStyle(lineWidth: 1.5, dash: [4, 3]))
                 }
             }
             .contentShape(Capsule())
@@ -187,7 +187,7 @@ struct ChoiceView: View {
     }
 }
 
-/// Choices side by side in a glass capsule; the chosen one lit in terracotta.
+/// Choices side by side in a glass capsule; the chosen one lit in `Artwork.accent`.
 /// Drawn here rather than left to the system's segmented picker, so that it
 /// shows what is chosen in a window that is not in front (a plug-in's, in a
 /// host).
@@ -211,11 +211,11 @@ struct GlassSegments: View {
                         .font(.system(size: fontSize, weight: on ? .semibold : .regular))
                         .lineLimit(1)
                         .fixedSize()
-                        .foregroundStyle(on ? Artwork.indigo : Artwork.cream)
+                        .foregroundStyle(on ? Artwork.deep : Artwork.ink)
                         .padding(.horizontal, 6)
                         .frame(width: segmentWidth)
                         .padding(.vertical, 2)
-                        .background(on ? Artwork.terracotta : Color.clear, in: Capsule())
+                        .background(on ? Artwork.accent : Color.clear, in: Capsule())
                         .contentShape(Capsule())
                 }
                 .buttonStyle(.plain)
@@ -223,7 +223,7 @@ struct GlassSegments: View {
             }
         }
         .padding(2)
-        .glassEffect(.regular.tint(Artwork.indigo.opacity(0.4)).interactive(), in: .capsule)
+        .glassEffect(.regular.tint(Artwork.deep.opacity(0.4)).interactive(), in: .capsule)
         .accessibilityElement(children: .contain)
         .accessibilityLabel(label)
     }

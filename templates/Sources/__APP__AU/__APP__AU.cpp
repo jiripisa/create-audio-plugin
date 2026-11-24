@@ -50,22 +50,6 @@ const std::vector<AUPreset>& factoryPresets()
     return presets;
 }
 
-// The top of a knob's travel, plain.
-Float64 topOf(const char* identifier)
-{
-    for (int i = 0; i < {{APP_C}}_num_params(); ++i)
-    {
-        {{APP}}ParamInfo info{};
-        {{APP_C}}_param_info(i, &info);
-        if (!std::strcmp(info.identifier, identifier)) return info.maxValue;
-    }
-    return 0.0;
-}
-
-// The longest a stroke can sound, in seconds: the hand rubs for the top of Length (ms), and the
-// voice retires once the top of Release has passed three times over and 0.1 s more.
-Float64 longestStroke() { return topOf("length") / 1000.0 + 3.0 * topOf("release") + 0.1; }
-
 // The rate {{APP_C}}_create() prepares the engine for, before a host sets one.
 constexpr Float64 kStartRate = 44100.0;
 
@@ -222,7 +206,7 @@ class {{APP}}AU : public ausdk::MusicDeviceBase {
 
 public:
     explicit {{APP}}AU(AudioComponentInstance instance)
-        : Base{ instance, 0, 1 }, engine_({{APP_C}}_create()), knobs_(knobCount()), tail_(longestStroke())
+        : Base{ instance, 0, 1 }, engine_({{APP_C}}_create()), knobs_(knobCount()), tail_({{APP_C}}_tail_time())
     {
         CreateElements();
         const int count = {{APP_C}}_num_params();
