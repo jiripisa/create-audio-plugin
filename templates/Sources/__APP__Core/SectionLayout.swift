@@ -22,6 +22,11 @@ public struct SectionLayout: Sendable, Equatable {
     public let rows: [Row]
 
     public static func of(_ section: ParameterSection) -> SectionLayout {
+        of(section, plans: plans)
+    }
+
+    /// The layout of `section` by `plans` (the instrument's, or a test's).
+    static func of(_ section: ParameterSection, plans: [String: Plan]) -> SectionLayout {
         guard let plan = plans[section.title] else {
             return flowing(section.parameters, columns: section.title == PanelLayout.sideTitle ? 2 : 3)
         }
@@ -61,7 +66,10 @@ public struct SectionLayout: Sendable, Equatable {
         return kept
     }
 
-    private enum PlannedRow {
+    /// A section's plan: its columns and its rows of identifiers.
+    typealias Plan = (columns: Int, rows: [PlannedRow])
+
+    enum PlannedRow {
         case cells([String]), wide(String), rule
 
         var identifiers: [String] {
@@ -77,7 +85,9 @@ public struct SectionLayout: Sendable, Equatable {
     /// the template: every section flows. A run writes the plans of its sections here, as the
     /// approved mockup draws them, for example
     /// `"Envelope": (3, [.cells(["attack", "decay", "release"]), .rule, .wide("mode")])`.
-    private static let plans: [String: (columns: Int, rows: [PlannedRow])] = [:]
+    private static let plans: [String: Plan] = [:]
+
+    static var instrumentPlans: [String: Plan] { plans }
 }
 
 /// Where the panel puts its sections: the instrument's cards in rows on the left (`plannedRows`,
@@ -97,6 +107,11 @@ public struct PanelLayout: Sendable {
     public static let sideTitle = "Master"
 
     public static func of(_ sections: [ParameterSection]) -> PanelLayout {
+        of(sections, plannedRows: plannedRows)
+    }
+
+    /// The cards of `sections` in `plannedRows` (the instrument's, or a test's).
+    static func of(_ sections: [ParameterSection], plannedRows: [[String]]) -> PanelLayout {
         let byTitle = Dictionary(sections.map { ($0.title, $0) }, uniquingKeysWith: { first, _ in first })
         var rows = plannedRows.map { $0.compactMap { byTitle[$0] } }.filter { !$0.isEmpty }
         let planned = Set(plannedRows.flatMap { $0 } + [sideTitle])
@@ -111,8 +126,14 @@ public struct PanelLayout: Sendable {
     /// card's own padding (`inset`) is shared in proportion to the cards' columns, so that a
     /// knob gets about as much room in every card of the row.
     public static func widths(of row: [ParameterSection], in width: Double, spacing: Double, inset: Double) -> [Double] {
+        widths(of: row, in: width, spacing: spacing, inset: inset, plans: SectionLayout.instrumentPlans)
+    }
+
+    /// The same with the sections laid out by `plans` (the instrument's, or a test's).
+    static func widths(of row: [ParameterSection], in width: Double, spacing: Double, inset: Double,
+                       plans: [String: SectionLayout.Plan]) -> [Double] {
         guard !row.isEmpty else { return [] }
-        let columns = row.map { Double(SectionLayout.of($0).columns) }
+        let columns = row.map { Double(SectionLayout.of($0, plans: plans).columns) }
         let room = width - spacing * Double(row.count - 1) - inset * Double(row.count)
         let total = columns.reduce(0, +)
         return columns.map { inset + room * $0 / total }

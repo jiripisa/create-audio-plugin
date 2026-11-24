@@ -124,6 +124,13 @@ enum TestKnobs {
     /// The first of the instrument's knobs.
     static var first: Parameter { instrument[0] }
 
+    /// The first of the instrument's knobs that is continuous and has a VEL amount.
+    static let firstVelTarget: Parameter = {
+        guard let knob = instrument.first(where: { $0.kind == .continuous && Velocity.amount(of: $0) != nil })
+        else { preconditionFailure("the velocity moves no knob of the instrument") }
+        return knob
+    }()
+
     static func named(_ identifier: String) -> Parameter {
         guard let parameter = Parameters.named(identifier) else { preconditionFailure("unknown knob \(identifier)") }
         return parameter

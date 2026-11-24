@@ -208,12 +208,12 @@ struct PadTests: EngineHarness {
         #expect(noteOn0 != held)
     }
 
-    // The keyboard's VEL amount on the first instrument knob is 0, pad 4's +100 %, with Vel Sens
-    // 0 everywhere and the knob at the top of its travel: a soft hit on the pad moves the knob to
-    // the bottom, a soft key does not move it.
+    // The keyboard's VEL amount on the first continuous instrument knob that has one is 0, pad
+    // 4's +100 %, with Vel Sens 0 everywhere and the knob at the top of its travel: a soft hit on
+    // the pad moves the knob to the bottom, a soft key does not move it.
     @Test("A pad hit applies its own set's VEL amounts")
     func padVelAmounts() throws {
-        let first = TestKnobs.first
+        let first = TestKnobs.firstVelTarget
         let vel = try #require(Velocity.amount(of: first))
         func level(_ mode: Int32, velocity: Int32) -> Double {
             let engine = makeEngine()

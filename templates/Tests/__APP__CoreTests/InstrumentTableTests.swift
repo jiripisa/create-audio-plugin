@@ -93,9 +93,34 @@ struct InstrumentTableTests: EngineHarness {
         }
     }
 
-    @Test("The tail is the top of Release down 100 dB")
-    func tail() {
-        #expect(abs({{APP_C}}_tail_time() - 5 * 100 / 60.0) < 1e-9)
+    // The longest release: Release at its top, the note let go at full level. The voice is over
+    // within the tail, and not much sooner: the tail is no guess.
+    @Test("A note let go sounds no longer than the tail, and nearly as long")
+    func tail() throws {
+        let release = TestKnobs.named("release")
+        #expect(abs({{APP_C}}_tail_time() - Double(release.range.upperBound) * 100 / 60) < 1e-6)
+        let rate = 48_000.0
+        let engine = makeEngine(["release": release.range.upperBound, "decay": TestKnobs.named("decay").range.upperBound,
+                                 "velsens": 0], rate: rate)
+        defer { {{APP_C}}_destroy(engine) }
+        {{APP_C}}_midi(engine, 0x90, 60, 127, 0)
+        _ = render(engine, seconds: 0.1, at: rate)
+        {{APP_C}}_midi(engine, 0x80, 60, 0, 0)
+        var frames = 0
+        while {{APP_C}}_sounding_voices(engine) > 0 || frames == 0 {
+            _ = render(engine, frames: 128)
+            frames += 128
+            try #require(Double(frames) / rate < 2 * {{APP_C}}_tail_time(), "the voice does not end")
+        }
+        let lasted = Double(frames) / rate
+        #expect(lasted <= {{APP_C}}_tail_time() && lasted > 0.95 * {{APP_C}}_tail_time(), "\(lasted) s, tail \({{APP_C}}_tail_time()) s")
+    }
+
+    @Test("Tone's parameter IDs")
+    func parameterIDs() {
+        let ids: [String: UInt32] = ["attack": 14, "decay": 15, "release": 16, "brightness": 17, "lfo1brightness": 1_017,
+                                     "lfo2brightness": 2_017, "velattack": 3_014, "velbrightness": 3_017]
+        for (id, unitID) in ids { #expect(TestKnobs.named(id).unitID == unitID, "\(id)") }
     }
 
     @Test("The default note at full velocity peaks around -6 dBFS")

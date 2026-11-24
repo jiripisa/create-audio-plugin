@@ -716,6 +716,9 @@ void {{APP_C}}_param_info(int index, {{APP}}ParamInfo* out)
     out->section = sectionOf(index);
 }
 
+int {{APP_C}}_param_id(int index) { return validParam(index) ? stableId(index) : -1; }
+int {{APP_C}}_param_index(int id) { return paramOfStableId(id); }
+
 const char* {{APP_C}}_param_choice(int index, int choice) { return validParam(index) ? choiceName(index, choice) : ""; }
 
 float {{APP_C}}_param_to_plain(int index, float normalised) { return validParam(index) ? param(index).toPlain(normalised) : 0.0f; }

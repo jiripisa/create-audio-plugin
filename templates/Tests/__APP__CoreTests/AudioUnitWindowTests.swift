@@ -163,7 +163,7 @@ struct AudioUnitWindowTests {
             }
         } == noErr)
         let host = try #require(listener)
-        let address = AudioUnitParameter(mAudioUnit: unit, mParameterID: AudioUnitParameterID(parameter.index),
+        let address = AudioUnitParameter(mAudioUnit: unit, mParameterID: parameter.unitID,
                                          mScope: kAudioUnitScope_Global, mElement: 0)
         for type in [AudioUnitEventType.beginParameterChangeGesture, .parameterValueChange, .endParameterChangeGesture] {
             var event = AudioUnitEvent(mEventType: type, mArgument: .init(mParameter: address))

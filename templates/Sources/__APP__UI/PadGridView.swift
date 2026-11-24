@@ -49,7 +49,7 @@ struct PadGridView: View {
     }
 }
 
-/// One pad, a glass tile on the footer's card: "05 | Bright" over "B2  G4".
+/// One pad, a glass tile on the footer's card: "05 | Soft Tone" over "B2  G4".
 private struct PadTile: View {
 
     let pad: Int

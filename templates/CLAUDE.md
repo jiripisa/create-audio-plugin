@@ -17,9 +17,12 @@
 - **The Audio Unit's identity is permanent.** Its codes (`aumu` / `{{AU_SUBTYPE}}` /
   `JPis`, bundle id `{{BUNDLE_ID}}.audiounit`, the factory function
   `{{APP}}AUFactory`, the view class `{{APP}}AUViewFactory`) and its
-  parameter IDs (the engine's parameter index, from 0) never change: host
-  projects find the plug-in and their automation by them. The parameter
-  table only grows at its end. Validate every change of the Audio Unit with
+  parameter IDs never change: host projects find the plug-in and their
+  automation by them. An ID names a knob or an amount, not its place in the
+  engine's table (`{{APP_C}}_param_id`: knob k is k, LFO l's amount on knob k is
+  1000·(l + 1) + k, the velocity's 3000 + k). Knobs are only appended, at the
+  end of the instrument's; identifiers are never renamed; everything saved
+  names parameters by identifier or ID. Validate every change of the Audio Unit with
   `auval` (`development_workflow.md` §2.1).
 
 ## Releases

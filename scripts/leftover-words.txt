@@ -56,3 +56,19 @@ Buhai
 Modrotisk
 modrotisk
 terracotta
+keyup
+Key Up
+alttune
+Alt Tune
+scooptime
+\bScoop\b
+\bscoop\b
+jumpratio
+Jump Ratio
+velpitch
+Vel>Pitch
+\bwobble\b
+\bWobble\b
+\bshimmer\b
+\bShimmer\b
+horse hair

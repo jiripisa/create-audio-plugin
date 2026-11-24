@@ -100,13 +100,14 @@ final class Instrument {
 
     func setParameter(_ identifier: String, to value: Float) throws {
         let parameter = try #require(Parameters.named(identifier))
-        try #require(AudioUnitSetParameter(unit, AudioUnitParameterID(parameter.index), kAudioUnitScope_Global, 0, value, 0) == noErr)
+        try #require(AudioUnitSetParameter(unit, parameter.unitID, kAudioUnitScope_Global, 0, value, 0) == noErr)
     }
 
-    /// The unit's own value of a parameter, as a host reads it.
+    /// The unit's own value of a parameter (by its index in the engine's table), as a host reads it.
     func parameter(_ index: Int) throws -> Float {
         var value: AudioUnitParameterValue = 0
-        try #require(AudioUnitGetParameter(unit, AudioUnitParameterID(index), kAudioUnitScope_Global, 0, &value) == noErr)
+        let id = AudioUnitParameterID({{APP_C}}_param_id(Int32(index)))
+        try #require(AudioUnitGetParameter(unit, id, kAudioUnitScope_Global, 0, &value) == noErr)
         return value
     }
 
@@ -222,7 +223,7 @@ struct AudioUnitTests {
         var ids = [AudioUnitParameterID](repeating: 0, count: Int(size) / MemoryLayout<AudioUnitParameterID>.size)
         try #require(AudioUnitGetProperty(unit, kAudioUnitProperty_ParameterList, kAudioUnitScope_Global, 0, &ids, &size) == noErr)
         #expect(Parameters.all.count == Int({{APP_C}}_num_params()))
-        #expect(ids == (0..<Parameters.all.count).map { AudioUnitParameterID($0) })
+        #expect(ids == Parameters.all.map(\.unitID).sorted())
 
         var sectionOf: [Int: Int] = [:]
         for (section, group) in ParameterSection.all.enumerated() {
@@ -232,7 +233,7 @@ struct AudioUnitTests {
             var info = AudioUnitParameterInfo()
             var infoSize = UInt32(MemoryLayout<AudioUnitParameterInfo>.size)
             try #require(AudioUnitGetProperty(unit, kAudioUnitProperty_ParameterInfo, kAudioUnitScope_Global,
-                                              AudioUnitElement(parameter.index), &info, &infoSize) == noErr)
+                                              parameter.unitID, &info, &infoSize) == noErr)
             let name = info.flags.contains(.flag_CFNameRelease) ? info.cfNameString?.takeRetainedValue() : info.cfNameString?.takeUnretainedValue()
             #expect(name as String? == parameter.name)
             #expect(info.minValue == parameter.range.lowerBound && info.maxValue == parameter.range.upperBound, "\(parameter.identifier)")
@@ -248,7 +249,7 @@ struct AudioUnitTests {
                 var strings: Unmanaged<CFArray>?
                 var stringsSize = UInt32(MemoryLayout<Unmanaged<CFArray>?>.size)
                 try #require(AudioUnitGetProperty(unit, kAudioUnitProperty_ParameterValueStrings, kAudioUnitScope_Global,
-                                                  AudioUnitElement(parameter.index), &strings, &stringsSize) == noErr)
+                                                  parameter.unitID, &strings, &stringsSize) == noErr)
                 #expect(try #require(strings).takeRetainedValue() as? [String] == choices)
             }
         }
@@ -260,6 +261,35 @@ struct AudioUnitTests {
             try #require(AudioUnitGetProperty(unit, kAudioUnitProperty_ParameterClumpName, kAudioUnitScope_Global, 0, &clump, &clumpSize) == noErr)
             #expect(try #require(clump.outName).takeRetainedValue() as String == group.title)
         }
+    }
+
+    // The IDs hosts keep automation and projects by: a knob's place among the knobs, an amount's
+    // source and knob. The platform block's are fixed for every instrument.
+    @Test("Parameter IDs name the knob and the source, not the place in the table")
+    func stableParameterIDs() throws {
+        let knobIndex = Dictionary(uniqueKeysWithValues: TestKnobs.all.map { ($0.identifier, UInt32($0.index)) })
+        for parameter in Parameters.all {
+            let id = parameter.identifier
+            if let index = knobIndex[id], parameter.index < TestKnobs.all.count {
+                #expect(parameter.unitID == index, "\(id)")
+            } else if id.hasPrefix("lfo1") || id.hasPrefix("lfo2") {
+                let lfo: UInt32 = id.hasPrefix("lfo1") ? 1 : 2
+                let knob = try #require(knobIndex[String(id.dropFirst(4))], "\(id)")
+                #expect(parameter.unitID == 1_000 * lfo + knob, "\(id)")
+            } else {
+                let knob = try #require(knobIndex[String(id.dropFirst(3))], "\(id)")
+                #expect(id.hasPrefix("vel") && parameter.unitID == 3_000 + knob, "\(id)")
+            }
+            #expect(Int({{APP_C}}_param_index(Int32(parameter.unitID))) == parameter.index, "\(id)")
+        }
+        let fixed: [String: UInt32] = ["volume": 0, "pan": 1, "tune": 2, "octave": 3, "voicemode": 6, "glide": 7, "velsens": 13,
+                                       "lfo1volume": 1_000, "lfo1tune": 1_002, "lfo2pan": 2_001, "velvolume": 3_000,
+                                       "veltune": 3_002, "vellfo1rate": 3_009, "vellfo2rate": 3_011]
+        for (id, unitID) in fixed { #expect(Parameters.named(id)?.unitID == unitID, "\(id)") }
+        for id: Int32 in [-1, 14 + Int32(TestKnobs.instrument.count), 999, 1_999, 2_999, 3_013, 3_999, 4_000] {
+            #expect({{APP_C}}_param_index(id) == -1, "\(id)")
+        }
+        #expect({{APP_C}}_param_id(-1) == -1 && {{APP_C}}_param_id({{APP_C}}_num_params()) == -1)
     }
 
     @Test("A note sent by the host sounds in both channels within 100 ms at 48 kHz")
@@ -338,7 +368,7 @@ struct AudioUnitTests {
             told.add(value)
         } == noErr)
         let host = try #require(listener)
-        var address = AudioUnitParameter(mAudioUnit: unit, mParameterID: AudioUnitParameterID(parameter.index),
+        var address = AudioUnitParameter(mAudioUnit: unit, mParameterID: parameter.unitID,
                                          mScope: kAudioUnitScope_Global, mElement: 0)
         try #require(AUListenerAddParameter(host, nil, &address) == noErr)
         return host
@@ -438,40 +468,93 @@ struct AudioUnitTests {
         #expect(other.program(in: .pad(3)) == TestKnobs.otherProgram && abs(other.value(of: tune, in: .pad(3)) - 75) < 0.01)
     }
 
-    @Test("A pad's shorter list of values covers the first parameters; the later ones stay at their defaults")
-    func stateShorterValues() throws {
+    @Test("A pad's values are saved by identifier; one the state lacks keeps its value, one this version lacks is ignored")
+    func statePadValuesByIdentifier() throws {
         let saved = try Instrument()
         let synth = Synth(borrowing: try saved.engine())
-        let amount = try #require(Parameters.named("lfo1tune"))
-        let knobs = TestKnobs.all.count
-        #expect(amount.index >= knobs)
-        synth.setValue(75, of: try #require(Parameters.named("tune")), in: .pad(3))
+        let tune = try #require(Parameters.named("tune")), amount = try #require(Parameters.named("lfo1tune"))
+        synth.setValue(75, of: tune, in: .pad(3))
         synth.setValue(50, of: amount, in: .pad(3))
         let state = try #require(try saved.classInfo() as? [String: Any])
 
-        // The state as a version with only the knobs saved it.
+        // The state as another version saved it: without LFO 1's amount on Tune, and with a knob
+        // and an amount this version does not have.
         var pads = try #require(state["{{APP_LOWER}}-pads"] as? [String: Any])
         var list = try #require(pads["pads"] as? [[String: Any]])
         #expect(list.count == 16)
-        let values = try #require(list[3]["values"] as? Data)
-        #expect(values.count == Parameters.all.count * MemoryLayout<Float32>.size)
-        list[3]["values"] = values.prefix(knobs * MemoryLayout<Float32>.size)
+        var values = try #require(list[3]["values"] as? [String: Any])
+        #expect(Set(values.keys) == Set(Parameters.all.map(\.identifier)))
+        values["lfo1tune"] = nil
+        values["futureknob"] = 0.5
+        values["velfutureknob"] = 20
+        list[3]["values"] = values
         pads["pads"] = list
-        var older = state
-        older["{{APP_LOWER}}-pads"] = pads
+        var other = state
+        other["{{APP_LOWER}}-pads"] = pads
 
         let restored = try Instrument()
-        try restored.restore(older as CFDictionary)
-        let other = Synth(borrowing: try restored.engine())
+        let target = Synth(borrowing: try restored.engine())
+        target.setValue(-30, of: amount, in: .pad(3))                  // what the pad held before
+        try restored.restore(other as CFDictionary)
         // The engine keeps knobs as 0...1 positions: a plain value comes back a few ulps off.
-        for parameter in Parameters.all {
-            if parameter.index < knobs {
-                let value = synth.value(of: parameter, in: .pad(3))
-                #expect(abs(other.value(of: parameter, in: .pad(3)) - value) <= 1e-5 * max(1, abs(value)), "\(parameter.identifier)")
-            } else {
-                #expect(other.value(of: parameter, in: .pad(3)) == parameter.defaultValue, "\(parameter.identifier)")
-            }
+        for parameter in Parameters.all where parameter != amount {
+            let value = synth.value(of: parameter, in: .pad(3))
+            #expect(abs(target.value(of: parameter, in: .pad(3)) - value) <= 1e-5 * max(1, abs(value)), "\(parameter.identifier)")
         }
+        #expect(abs(target.value(of: amount, in: .pad(3)) + 30) < 1e-3)
+    }
+
+    // A later version may append an instrument knob or give an LFO or the velocity another
+    // target: every parameter's place in the table after it moves, its ID does not. A project
+    // saved by such a version (here: the parameters in another order, and IDs this table does
+    // not have, a knob 999 and amounts on it) restores every value it has onto the parameter of
+    // that ID, and adds none.
+    @Test("A project from a version with another table restores each parameter by its ID")
+    func stateFromAnotherTable() throws {
+        let saved = try Instrument()
+        var state = try #require(try saved.classInfo() as? [String: Any])
+        let parameters = Parameters.all
+        let values = parameters.map { $0.plain(Float(($0.index * 37) % 100) / 100) }
+        var entries: [(UInt32, Float)] = zip(parameters, values).map { ($0.unitID, $1) }.reversed()
+        entries.insert((999, 1), at: 3)
+        entries.append((1_999, 50))
+        entries.append((3_999, -50))
+        var data = Data()
+        func append(_ value: UInt32) { withUnsafeBytes(of: value.bigEndian) { data.append(contentsOf: $0) } }
+        append(kAudioUnitScope_Global); append(0); append(UInt32(entries.count))
+        for (id, value) in entries { append(id); append(value.bitPattern) }
+        state["data"] = data
+
+        let restored = try Instrument()
+        try restored.restore(state as CFDictionary)
+        for (parameter, value) in zip(parameters, values) {
+            #expect(abs(try restored.parameter(parameter.index) - value) <= 1e-6 * max(1, abs(value)), "\(parameter.identifier)")
+        }
+        // A host restores a project before it initialises the unit, too, when the base class
+        // would make a parameter of any ID it is handed: none is added.
+        var made: AudioUnit?
+        try #require(AudioComponentInstanceNew(PlugIn.component, &made) == noErr)
+        let fresh = try #require(made)
+        defer { AudioComponentInstanceDispose(fresh) }
+        var project = Unmanaged.passUnretained(state as CFDictionary)
+        try withExtendedLifetime(state as CFDictionary) {
+            try #require(AudioUnitSetProperty(fresh, kAudioUnitProperty_ClassInfo, kAudioUnitScope_Global, 0, &project,
+                                              UInt32(MemoryLayout<Unmanaged<CFDictionary>>.size)) == noErr)
+        }
+        for unit in [restored.unit, fresh] {
+            var size: UInt32 = 0
+            try #require(AudioUnitGetPropertyInfo(unit, kAudioUnitProperty_ParameterList, kAudioUnitScope_Global, 0, &size, nil) == noErr)
+            #expect(Int(size) / MemoryLayout<AudioUnitParameterID>.size == parameters.count)
+        }
+        var value: AudioUnitParameterValue = 0
+        #expect(AudioUnitGetParameter(fresh, 999, kAudioUnitScope_Global, 0, &value) != noErr)
+        #expect(AudioUnitGetParameter(fresh, parameters[1].unitID, kAudioUnitScope_Global, 0, &value) == noErr && abs(value - values[1]) < 1e-5)
+
+        // Data of the wrong shape restores no parameter and breaks nothing.
+        state["data"] = Data([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 9, 1, 2])
+        let broken = try Instrument()
+        try broken.restore(state as CFDictionary)
+        #expect(try broken.parameter(0) == parameters[0].defaultValue)
     }
 
     @Test("A reopened project keeps the keyboard's program, so a reset goes to that program's value")
@@ -557,8 +640,8 @@ struct AudioUnitTests {
 
         let dictionary = try #require(state as? [String: Any])
         #expect(dictionary.keys.filter { $0.hasPrefix("{{APP_LOWER}}-") }.sorted() == ["{{APP_LOWER}}-controllers", "{{APP_LOWER}}-pads"])
-        let controllers = try #require(dictionary["{{APP_LOWER}}-controllers"] as? Data)
-        #expect(controllers.count == TestKnobs.all.count * MemoryLayout<Int32>.size)
+        let controllers = try #require(dictionary["{{APP_LOWER}}-controllers"] as? [String: Int])
+        #expect(Set(controllers.keys) == Set(TestKnobs.all.map(\.identifier)))
         let pads = try #require(dictionary["{{APP_LOWER}}-pads"] as? [String: Any])
         #expect(Set(pads.keys) == ["mode", "keyboardProgram", "selectedPad", "keyboardPreset", "pads"])      // nothing of the learn
         #expect(pads["selectedPad"] as? Int == 5)
@@ -578,33 +661,38 @@ struct AudioUnitTests {
         #expect(try restored.presetNames() == names)
     }
 
-    @Test("Saved controllers are checked one by one; a shorter list covers the first knobs")
+    @Test("Saved controllers are checked one by one, by identifier; a knob the state does not name keeps its own")
     func stateControllersAreChecked() throws {
         let instrument = try Instrument()
         let synth = Synth(borrowing: try instrument.engine())
         var state = try #require(try instrument.classInfo() as? [String: Any])
-        let knobs = TestKnobs.all, last = knobs.count - 1, free = TestKnobs.freeControllers.map(Int32.init)
+        let knobs = TestKnobs.all, last = knobs.count - 1, free = TestKnobs.freeControllers
         // The first knob a free controller, the second one out of range, the third the sustain
-        // pedal (reserved), the fourth below zero, the fifth none, the sixth another free one; the
-        // knobs after the sixth are not in the list.
-        let saved: [Int32] = [free[0], 300, 64, -7, -1, free[1]]
-        state["{{APP_LOWER}}-controllers"] = saved.withUnsafeBufferPointer { Data(buffer: $0) }
-        synth.setController(Int(free[2]), of: knobs[last])
+        // pedal (reserved), the fourth below zero, the fifth none, the sixth another free one and
+        // the seventh one of the wrong type; a knob this version lacks; the other knobs are not
+        // named.
+        var saved: [String: Any] = [:]
+        for (index, value) in [free[0], 300, 64, -7, -1, free[1]].enumerated() { saved[knobs[index].identifier] = value }
+        saved[knobs[6].identifier] = "40"
+        saved["futureknob"] = free[3]
+        state["{{APP_LOWER}}-controllers"] = saved
+        synth.setController(free[2], of: knobs[last])
         try instrument.restore(state as CFDictionary)
 
-        #expect(synth.controller(of: knobs[0]) == Int(free[0]))
+        #expect(synth.controller(of: knobs[0]) == free[0])
         for index in 1...4 { #expect(synth.controller(of: knobs[index]) == nil, "\(knobs[index].identifier)") }
-        #expect(synth.controller(of: knobs[5]) == Int(free[1]))
-        #expect(synth.controller(of: knobs[last]) == Int(free[2]))            // after the list: left alone
+        #expect(synth.controller(of: knobs[5]) == free[1])
+        #expect(synth.controller(of: knobs[last]) == free[2])            // not named: left alone
         for knob in knobs.dropFirst(6) where knob.index != last {
             #expect(synth.controller(of: knob) == Controllers.standard(for: knob), "\(knob.identifier)")
         }
+        #expect(!knobs.contains { synth.controller(of: $0) == free[3] })
 
-        // The wrong type, or a list too short for one value, leaves them all alone.
+        // The wrong type leaves them all alone.
         for wrong: Any in ["40", [40, 41], Data([1, 2, 3])] {
             state["{{APP_LOWER}}-controllers"] = wrong
             try instrument.restore(state as CFDictionary)
-            #expect(synth.controller(of: knobs[0]) == Int(free[0]) && synth.controller(of: knobs[last]) == Int(free[2]))
+            #expect(synth.controller(of: knobs[0]) == free[0] && synth.controller(of: knobs[last]) == free[2])
         }
     }
 

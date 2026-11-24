@@ -80,7 +80,7 @@ extension PadGrid {
 
 extension PadLabel {
 
-    /// A pad's name: the program last loaded into it ("Bright"), or "Custom" for a sound that came
+    /// A pad's name: the program last loaded into it ("Soft Tone"), or "Custom" for a sound that came
     /// from no built-in program.
     public static func name(program: Int) -> String {
         Programs.names.indices.contains(program) ? Programs.names[program] : "Custom"

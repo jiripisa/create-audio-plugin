@@ -3,8 +3,8 @@ import {{APP}}Core
 
 /// One group of controls (one of the instrument's sections, or Master) on a glass
 /// card: its title in New York over a thin line, then its knobs and switches where
-/// `SectionLayout` puts them. A card taller than its controls (Hands, Noise beside their
-/// neighbours) centres them below the title, as the mockup does.
+/// `SectionLayout` puts them. A card taller than its controls (a short section beside a
+/// taller one) centres them below the title.
 struct SectionView: View {
 
     let section: ParameterSection
@@ -193,7 +193,7 @@ struct ChoiceView: View {
 /// host).
 struct GlassSegments: View {
 
-    /// What the choice is, for VoiceOver ("Key Up", "Mode").
+    /// What the choice is, for VoiceOver ("Voice Mode", "Mode").
     let label: String
     let titles: [String]
     let selected: Int

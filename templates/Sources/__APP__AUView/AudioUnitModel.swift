@@ -6,7 +6,7 @@ import Observation
 /// The panel's model in a host, over the Audio Unit and its engine.
 ///
 /// - The keyboard's set is the unit's parameters (their values are the engine's plain values, a
-///   parameter's ID is its index). Knobs set them with `AUParameterSet` and gesture events, so
+///   parameter's ID is its stable `unitID`). Knobs set them with `AUParameterSet` and gesture events, so
 ///   that a host records automation; its programs are the unit's factory presets.
 /// - Everything else is no parameter: the pads' sets, notes and groups, the mode, the MIDI
 ///   controllers and learning, and the keys and pads played on screen go straight to the unit's
@@ -606,7 +606,7 @@ public final class AudioUnitModel: InstrumentModel {
     }
 
     private func address(of parameter: Parameter) -> AudioUnitParameter {
-        AudioUnitParameter(mAudioUnit: unit, mParameterID: AudioUnitParameterID(parameter.index),
+        AudioUnitParameter(mAudioUnit: unit, mParameterID: parameter.unitID,
                            mScope: kAudioUnitScope_Global, mElement: 0)
     }
 
@@ -622,7 +622,7 @@ public final class AudioUnitModel: InstrumentModel {
     /// A parameter's plain value in the unit.
     private static func value(of parameter: Parameter, in unit: AudioUnit) -> Float {
         var plain: AudioUnitParameterValue = 0
-        guard AudioUnitGetParameter(unit, AudioUnitParameterID(parameter.index), kAudioUnitScope_Global, 0, &plain) == noErr else {
+        guard AudioUnitGetParameter(unit, parameter.unitID, kAudioUnitScope_Global, 0, &plain) == noErr else {
             return parameter.defaultValue
         }
         return plain

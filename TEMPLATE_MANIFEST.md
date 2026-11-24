@@ -164,9 +164,19 @@ Behaviour stays the same; where the new API differs it does not show:
 The engine is the platform; an instrument is three files a run writes from its spec and its
 approved prototype: `Sources/__APP__DSP/Params.h` (its knobs and tables), `Voice.h` (its voice)
 and `Tests/__APP__Reference/*` with the instrument test files (table above). Everything else
-stays as it is, and `ParamTable.h` checks the contract below at compile time.
+stays as it is. The contract below is checked at compile time by `static_assert`s in
+`ParamTable.h` (identifiers lowercase ASCII and unique; a controller per knob, unreserved and
+unique; LFO targets continuous, once each, with Volume, Pan and Tune; VEL targets continuous, once
+each, with Volume, Pan, Tune and both LFO rates and without Vel Sens; wheel targets continuous
+with depths in (0, 1]; every instrument knob in exactly one section; programs and kit in range;
+fewer than 1000 knobs and at most two LFOs; every stable ID round-trips), and at test time by
+`ParameterTableTests` (the platform block's identifiers, order, ranges, defaults, choices and
+units; knobs, then LFO 1's, LFO 2's and the VEL amounts; amounts at -100 … 100 %, 0; Master last
+with the platform block; every continuous instrument knob a VEL target; at least two programs,
+none setting Octave) and `AudioUnitTests.stableParameterIDs` (the IDs below).
 
-**The parameter table** (permanent, IDs are the Audio Unit's and saved state's):
+**The parameter table** (the engine's index; the Audio Unit's IDs and saved state do not depend
+on it, see "Stable IDs" below):
 
 1. The platform block, IDs 0-13, the same for every instrument (`PlatformParams.h`):
 
@@ -198,11 +208,34 @@ log, 5, CC 73), 15 `decay` (0.05 … 20 s, log, 2, CC 75), 16 `release` (0.01 �
 VEL amounts 26-34 on attack, decay, release, brightness, volume, pan, tune, lfo1rate, lfo2rate:
 35 parameters.
 
+**Stable IDs.** A parameter's index in the table moves when a knob is appended (every amount
+after it moves on) or an LFO or VEL target is added; what hosts and saved state hold does not:
+
+- The Audio Unit's parameter ID (`{{APP_C}}_param_id`, `Parameter.unitID`): knob k → k (its index
+  among the knobs, platform block first); LFO l's amount on knob k → 1000·(l + 1) + k; the VEL
+  amount on knob k → 3000 + k. The unit keeps its parameters by these IDs (not as an indexed
+  run), maps them to the engine's index (`{{APP_C}}_param_index`), and restores only the IDs it has
+  from a project's saved parameters (`copyKnownParameters`), so that one from another version adds
+  none. Tone: knobs 0-17, LFO 1 1000-1017, LFO 2 2000-2017, VEL 3000-3017 (only the targets').
+- Everything else that is saved names parameters by identifier: the AU state's pads
+  (`"values": { identifier: value }`) and controllers (`{ identifier: controller }`), the app's
+  state, presets and kits (`SetState.values`), the MIDI controller map (`ControllerMap`). A value
+  for an identifier this version lacks is ignored; a parameter the saved state lacks keeps its
+  value (AU pads, controllers) or takes its program's (presets, kits).
+
+After a first release a run **may**: append instrument knobs at the end of the instrument block
+(new IDs `kNumKnobs`, …), add LFO or VEL targets (new amounts, new IDs), add sections, programs
+(at the end of `kPrograms`, whose index presets and projects keep) and change defaults, ranges or
+the kit. It **may never**: rename an identifier, remove or reorder knobs, change the platform
+block, or change what an ID names. Tests `AudioUnitTests.stableParameterIDs`,
+`.stateFromAnotherTable`, `.statePadValuesByIdentifier`, `.stateControllersAreChecked` and
+`KitTests.kitFromAnotherTable` hold this.
+
 **What a run writes in `Params.h`** (the shapes are in `PlatformParams.h`):
 
 | Name | What it is | The contract |
 |---|---|---|
-| `enum InstrumentKnob` | the knobs, the first `= kNumPlatformKnobs`, then `kNumKnobs` | only ever appended to after a release |
+| `enum InstrumentKnob` | the knobs, the first `= kNumPlatformKnobs`, then `kNumKnobs` | only ever appended to after a release; fewer than 1000 knobs in all |
 | `kInstrumentKnobs[]` | one `Param` per knob, made with `floatKnob`, `logKnob`, `levelKnob`, `intKnob`, `choiceKnob` | identifiers lowercase ASCII letters and digits, unique; every knob a controller of its own, unreserved, none the platform's (5, 7, 10, 102-112): General MIDI's for the thing, else 14-31, 85-90, 113-119 |
 | `kLfoTargets[]` | the knobs an LFO may move | continuous knobs, each once; must hold `kVolume`, `kPan`, `kTune` |
 | `kVelTargets[]` | the knobs the velocity may move | every continuous instrument knob, and `kVolume`, `kPan`, `kTune`, `kLfo1Rate`, `kLfo2Rate`; never `kVelSens` |
@@ -212,7 +245,7 @@ VEL amounts 26-34 on attack, decay, release, brightness, volume, pan, tune, lfo1
 | `kDefaultKit[16]` | `{ program, note, group, { overrides… } }` per pad | valid programs, notes 0-127, groups 0-16 (0 = Off) |
 | `kRehitContinues` | a note-on on a sounding voice (same key, or a pad of the same group): `true` continues it (`start(…, continuing = true)`), `false` fades it out in 3 ms and starts a fresh one | |
 | `kOutputLevel` | the voice's units to the engine's | the default note at full velocity peaks around 0.5 (-6 dBFS), under the limiter's 0.6 |
-| `kTailSeconds` | the longest a voice sounds after its note-off | the Audio Unit's tail time (`{{APP_C}}_tail_time`) |
+| `kTailSeconds` | the longest a voice sounds after its note-off, worked out from the knobs' ranges (Tone: Release's top × 100/60) | the Audio Unit's tail time (`{{APP_C}}_tail_time`); `InstrumentTableTests.tail` measures it |
 
 **What a run writes in `Voice.h`**: `struct Voice`, default-constructible, with exactly the four
 calls the engine makes (no allocation, lock or I/O in any):
@@ -336,7 +369,7 @@ and uses `std::exp2` for powers of two, so that debug and release builds render 
 | `Tests/__APP__CoreTests/ParameterTableTests.swift` | platform | table invariants: the platform block, order, amounts, sections |
 | `Tests/__APP__CoreTests/ModulationTests.swift`, `ControllerTests.swift`, `PadTests.swift` | platform | LFO/VEL, controllers, pads (the pad VEL test included) |
 | `Tests/__APP__CoreTests/AudioUnitTests.swift`, `AudioUnitWindowTests.swift` | platform | the AU in-process, its window model |
-| `Tests/__APP__CoreTests/SectionLayoutTests.swift` | platform | placement without plans |
+| `Tests/__APP__CoreTests/SectionLayoutTests.swift` | platform | placement with made-up plans over the platform block (through the internal `SectionLayout.of(_:plans:)`, `PanelLayout.of(_:plannedRows:)`, `PanelLayout.widths(…plans:)`) and without plans |
 | `Tests/__APP__CoreTests/ThreadTests.swift` | platform | audio-thread rules |
 | `Tests/__APP__CoreTests/` `__APP__CoreTests`, `AppModelLogicTests`, `KeyboardLayoutTests`, `KeyStripTests`, `KitTests`, `KnobEditTests`, `LibraryMenuTests`, `NotesTests`, `PadPanelTests`, `PresetFileTests`, `PresetLibraryTests`, `PresetShelvesTests`, `StandaloneSettingsTests`, `SynthStateTests`, `SynthTests` | platform | the platform's logic |
 
@@ -344,9 +377,10 @@ The platform tests address knobs by identifier from the platform block or by pos
 instrument's (`TestKnobs.first`, the first instrument knob; `TestKnobs.programKnob`, a knob the
 last program sets apart from the first; `TestKnobs.freeControllers`), never by an instrument
 knob's name. What they assume of every instrument: at least two programs; a voice that sounds
-at the note's pitch (`Knobs::hz`) and is released by its note-off; a first instrument knob that,
-moved over its whole travel by VEL, changes a note's level over its first 0.3 s by more than
-6 dB (the pad VEL test; Tone's Attack does); no velocity in the voice's level besides Vel Sens
+at the note's pitch (`Knobs::hz`) and is released by its note-off; a first continuous instrument
+knob with a VEL amount (`TestKnobs.firstVelTarget`) that, moved over its whole travel by VEL,
+changes a note's level over its first 0.3 s by more than 6 dB (the pad VEL test; Tone's Attack
+does); no velocity in the voice's level besides Vel Sens
 and VEL>Volume (the VEL>Volume and Vel Sens tests).
 
 ### Website (`docs/`)

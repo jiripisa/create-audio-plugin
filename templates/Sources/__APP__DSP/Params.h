@@ -79,8 +79,9 @@ constexpr bool kRehitContinues = false;
 // (sin + 0.3 sin 2x peaks at 1.14) comes out at 0.50, -6 dBFS, under the limiter's 0.6.
 constexpr float kOutputLevel = 0.44f;
 
-// The longest a voice can sound once its key is let go, in seconds: the top of Release takes the
-// tone 100 dB down (where Voice::finished says it is over) in 100/60 of it. The Audio Unit's tail.
-constexpr double kTailSeconds = 5.0 * 100.0 / 60.0;
+// The longest a voice can sound once its key is let go, in seconds: the top of Release (a T60)
+// takes the tone the 100 dB down where Voice::finished says it is over in 100/60 of it. The Audio
+// Unit's tail.
+constexpr double kTailSeconds = (double)kInstrumentKnobs[kRelease - kNumPlatformKnobs].max * 100.0 / 60.0;
 
 } // namespace {{APP_LOWER}}

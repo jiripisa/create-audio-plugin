@@ -84,7 +84,7 @@ struct SendToPadView: View {
         .accessibilityAddTraits(chosen ? .isSelected : [])
     }
 
-    /// "Replace pad 05 · Bright with the keyboard's sound at C3?" [Cancel] [Replace]
+    /// "Replace pad 05 · Soft Tone with the keyboard's sound at C3?" [Cancel] [Replace]
     private func question(_ pad: Int) -> some View {
         VStack(alignment: .leading, spacing: 8) {
             Text(PadLabel.sendQuestion(pad: pad, name: model.padName(pad), lastNote: model.lastNote))

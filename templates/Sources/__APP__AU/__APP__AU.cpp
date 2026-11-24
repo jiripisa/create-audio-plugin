@@ -3,7 +3,8 @@
 // A thin layer over the sound engine ({{APP}}DSP): it publishes the keyboard set's parameters and
 // the built-in programs to the host, forwards MIDI and renders. Audio Unit parameter values are
 // the engine's "plain" values (s, Hz, ms, dB, %, an index), so automation and saved host projects
-// read naturally. The pads, their notes and groups and the mode are no parameters: the plug-in's
+// read naturally. A parameter's ID is its stable ID ({{APP_C}}_param_id), not its place in the
+// engine's table, so that a later version that appends a knob or an amount moves no ID. The pads, their notes and groups and the mode are no parameters: the plug-in's
 // window sets them on the engine directly (k{{APP}}Property_Engine), and they are saved with the
 // unit's state, as are the MIDI controllers, the pad the window shows and the presets the sets came
 // from. Built on Apple's AudioUnitSDK.
@@ -15,6 +16,7 @@
 
 #include <algorithm>
 #include <atomic>
+#include <cstdint>
 #include <cstring>
 #include <mutex>
 #include <vector>
@@ -61,6 +63,85 @@ int knobCount()
     return knobs;
 }
 
+AudioUnitParameterID idOf(int index) { return static_cast<AudioUnitParameterID>({{APP_C}}_param_id(index)); }
+
+// The engine's index of a parameter ID; -1 for an ID the unit has no parameter for.
+int indexOf(AudioUnitParameterID id)
+{
+    return id > static_cast<AudioUnitParameterID>(INT32_MAX) ? -1 : {{APP_C}}_param_index(static_cast<int>(id));
+}
+
+// Every parameter's identifier as a CFString, in table order, for the lifetime of the process:
+// what the pads' values and the controllers are saved under.
+const std::vector<CFStringRef>& identifiers()
+{
+    static const std::vector<CFStringRef> names = [] {
+        std::vector<CFStringRef> v;
+        for (int i = 0; i < {{APP_C}}_num_params(); ++i)
+        {
+            {{APP}}ParamInfo info{};
+            {{APP_C}}_param_info(i, &info);
+            v.push_back(CFStringCreateWithCString(nullptr, info.identifier, kCFStringEncodingUTF8));
+        }
+        return v;
+    }();
+    return names;
+}
+
+// The float under `key`; false if there is none.
+bool getFloat(CFDictionaryRef dict, CFStringRef key, Float32& out)
+{
+    const void* value = CFDictionaryGetValue(dict, key);
+    if (!value || CFGetTypeID(value) != CFNumberGetTypeID()) return false;
+    return CFNumberGetValue(static_cast<CFNumberRef>(value), kCFNumberFloat32Type, &out);
+}
+
+// The base class's saved parameters ("data": per scope and element, a count and then ID, value
+// pairs, big-endian) with every global parameter this unit does not have taken out, so that a
+// project from another version does not make the base class add a parameter of that ID. nullptr
+// for data that is not of that shape: none of it is restored.
+CFDataRef copyKnownParameters(CFDataRef data)
+{
+    const UInt8* p = CFDataGetBytePtr(data);
+    const CFIndex length = CFDataGetLength(data);
+    CFIndex at = 0;
+    const auto read = [&](UInt32& out) {
+        if (length - at < 4) return false;
+        UInt32 big = 0;
+        std::memcpy(&big, p + at, 4);
+        out = CFSwapInt32BigToHost(big);
+        at += 4;
+        return true;
+    };
+    const auto append = [](CFMutableDataRef to, UInt32 value) {
+        const UInt32 big = CFSwapInt32HostToBig(value);
+        CFDataAppendBytes(to, reinterpret_cast<const UInt8*>(&big), 4);
+    };
+    CFMutableDataRef out = CFDataCreateMutable(nullptr, 0);
+    while (at < length)
+    {
+        UInt32 scope = 0, element = 0, count = 0;
+        if (!read(scope) || !read(element) || !read(count) || static_cast<UInt64>(count) * 8 > static_cast<UInt64>(length - at))
+        {
+            CFRelease(out);
+            return nullptr;
+        }
+        std::vector<std::pair<UInt32, UInt32>> kept;
+        for (UInt32 i = 0; i < count; ++i)
+        {
+            UInt32 id = 0, value = 0;
+            read(id);
+            read(value);
+            if (scope != kAudioUnitScope_Global || indexOf(id) >= 0) kept.emplace_back(id, value);
+        }
+        append(out, scope);
+        append(out, element);
+        append(out, static_cast<UInt32>(kept.size()));
+        for (const auto& [id, value] : kept) { append(out, id); append(out, value); }
+    }
+    return out;
+}
+
 // ----- the pads in the saved state ----------------------------------------------------------
 // The base class saves the unit's parameters (the keyboard set). The program the keyboard set
 // last loaded, the pads, the mode, the pad the window shows and the presets in use ride along
@@ -69,9 +150,11 @@ int knobCount()
 //                    "keyboardPreset": string ("" for none),
 //                    "pads": [ 16 × { "note": int, "group": int (0 = Off), "program": int,
 //                                     "preset": string ("" for none),
-//                                     "values": data: Float32 plain values by parameter index } ] }
+//                                     "values": { identifier: plain value (float) } } ] }
 // The MIDI controllers of the knobs under another:
-//   "{{APP_LOWER}}-controllers": data: SInt32 per knob in table order, -1 for none
+//   "{{APP_LOWER}}-controllers": { identifier: int, the controller or -1 for none }
+// Everything is saved under the parameters' identifiers, so that a version with knobs or
+// amounts added finds every value where it was; one this version does not know is left out.
 
 CFStringRef padsKey() { return CFSTR("{{APP_LOWER}}-pads"); }
 CFStringRef controllersKey() { return CFSTR("{{APP_LOWER}}-controllers"); }
@@ -157,17 +240,21 @@ CFDictionaryRef copyPad({{APP}}Engine* engine, int pad, CFStringRef preset)
     setInt(dict, CFSTR("note"), {{APP_C}}_pad_note(engine, pad));
     setInt(dict, CFSTR("group"), {{APP_C}}_pad_group(engine, pad));
     setInt(dict, CFSTR("program"), {{APP_C}}_get_program(engine, set));
-    std::vector<Float32> values(static_cast<size_t>({{APP_C}}_num_params()));
-    for (size_t i = 0; i < values.size(); ++i) values[i] = {{APP_C}}_get_plain(engine, set, static_cast<int>(i));
-    CFDataRef data = CFDataCreate(nullptr, reinterpret_cast<const UInt8*>(values.data()),
-                                  static_cast<CFIndex>(values.size() * sizeof(Float32)));
-    CFDictionarySetValue(dict, CFSTR("values"), data);
-    CFRelease(data);
+    CFMutableDictionaryRef values = CFDictionaryCreateMutable(nullptr, 0, &kCFTypeDictionaryKeyCallBacks, &kCFTypeDictionaryValueCallBacks);
+    for (int i = 0; i < {{APP_C}}_num_params(); ++i)
+    {
+        const Float32 value = {{APP_C}}_get_plain(engine, set, i);
+        CFNumberRef number = CFNumberCreate(nullptr, kCFNumberFloat32Type, &value);
+        CFDictionarySetValue(values, identifiers()[static_cast<size_t>(i)], number);
+        CFRelease(number);
+    }
+    CFDictionarySetValue(dict, CFSTR("values"), values);
+    CFRelease(values);
     return dict;
 }
 
-// What is missing from a saved pad stays as it is. A list of values from a version with fewer
-// parameters covers the first of them; the table only ever grows at its end.
+// What is missing from a saved pad stays as it is: a knob or an amount the state has no value
+// for (a version without it) keeps its own, and a value for one this version lacks is ignored.
 void restorePad({{APP}}Engine* engine, int pad, CFDictionaryRef dict)
 {
     const int set = pad + 1;
@@ -177,8 +264,11 @@ void restorePad({{APP}}Engine* engine, int pad, CFDictionaryRef dict)
 
     const int count = {{APP_C}}_num_params();
     const void* stored = CFDictionaryGetValue(dict, CFSTR("values"));
-    CFDataRef data = stored && CFGetTypeID(stored) == CFDataGetTypeID() ? static_cast<CFDataRef>(stored) : nullptr;
-    const int saved = data ? std::min(count, static_cast<int>(CFDataGetLength(data) / static_cast<CFIndex>(sizeof(Float32)))) : 0;
+    const auto values = stored && CFGetTypeID(stored) == CFDictionaryGetTypeID() ? static_cast<CFDictionaryRef>(stored) : nullptr;
+    std::vector<Float32> saved(static_cast<size_t>(count));
+    std::vector<bool> has(static_cast<size_t>(count), false);
+    for (int i = 0; values && i < count; ++i)
+        has[static_cast<size_t>(i)] = getFloat(values, identifiers()[static_cast<size_t>(i)], saved[static_cast<size_t>(i)]);
 
     // Loading a program overwrites the whole set: the knobs the state has no value for are
     // taken away first and put back after.
@@ -186,17 +276,11 @@ void restorePad({{APP}}Engine* engine, int pad, CFDictionaryRef dict)
     if (getInt(dict, CFSTR("program"), program) && program != {{APP_C}}_get_program(engine, set))
     {
         std::vector<float> kept(static_cast<size_t>(count));
-        for (int i = saved; i < count; ++i) kept[static_cast<size_t>(i)] = {{APP_C}}_get_normalised(engine, set, i);
+        for (int i = 0; i < count; ++i) kept[static_cast<size_t>(i)] = {{APP_C}}_get_normalised(engine, set, i);
         {{APP_C}}_set_program(engine, set, program);
-        for (int i = saved; i < count; ++i) {{APP_C}}_set_normalised(engine, set, i, kept[static_cast<size_t>(i)]);
+        for (int i = 0; i < count; ++i) if (!has[static_cast<size_t>(i)]) {{APP_C}}_set_normalised(engine, set, i, kept[static_cast<size_t>(i)]);
     }
-    const UInt8* bytes = data ? CFDataGetBytePtr(data) : nullptr;
-    for (int i = 0; i < saved; ++i)
-    {
-        Float32 value = 0;
-        std::memcpy(&value, bytes + static_cast<size_t>(i) * sizeof(Float32), sizeof value);   // CFData need not be aligned
-        {{APP_C}}_set_plain(engine, set, i, value);
-    }
+    for (int i = 0; i < count; ++i) if (has[static_cast<size_t>(i)]) {{APP_C}}_set_plain(engine, set, i, saved[static_cast<size_t>(i)]);
 }
 
 } // namespace
@@ -209,15 +293,18 @@ public:
         : Base{ instance, 0, 1 }, engine_({{APP_C}}_create()), knobs_(knobCount()), tail_({{APP_C}}_tail_time())
     {
         CreateElements();
+        // The parameters by their stable IDs, which are not a run of 0 ... n - 1: the base class
+        // keeps them in a map, made here, before the unit is initialised.
         const int count = {{APP_C}}_num_params();
-        Globals()->UseIndexedParameters(static_cast<UInt32>(count));
+        ids_.resize(static_cast<size_t>(count));
         applied_.resize(static_cast<size_t>(count));
         heard_.resize(static_cast<size_t>(count));
         for (int i = 0; i < count; ++i)
         {
             {{APP}}ParamInfo info{};
             {{APP_C}}_param_info(i, &info);
-            Globals()->SetParameter(static_cast<AudioUnitParameterID>(i), info.defaultValue);
+            ids_[static_cast<size_t>(i)] = idOf(i);
+            Globals()->SetParameter(ids_[static_cast<size_t>(i)], info.defaultValue);
             applied_[static_cast<size_t>(i)] = info.defaultValue;
             heard_[static_cast<size_t>(i)] = {{APP_C}}_get_plain(engine_, {{APP_UPPER}}_KEYBOARD_SET, i);
         }
@@ -405,12 +492,10 @@ public:
         CFRelease(pads);
 
         // The controllers only: a learn in progress is not saved.
-        std::vector<SInt32> controllers(static_cast<size_t>(knobs_));
-        for (int i = 0; i < knobs_; ++i) controllers[static_cast<size_t>(i)] = {{APP_C}}_get_controller(engine_, i);
-        CFDataRef data = CFDataCreate(nullptr, reinterpret_cast<const UInt8*>(controllers.data()),
-                                      static_cast<CFIndex>(controllers.size() * sizeof(SInt32)));
-        CFDictionarySetValue(state, controllersKey(), data);
-        CFRelease(data);
+        CFMutableDictionaryRef controllers = CFDictionaryCreateMutable(nullptr, 0, &kCFTypeDictionaryKeyCallBacks, &kCFTypeDictionaryValueCallBacks);
+        for (int i = 0; i < knobs_; ++i) setInt(controllers, identifiers()[static_cast<size_t>(i)], {{APP_C}}_get_controller(engine_, i));
+        CFDictionarySetValue(state, controllersKey(), controllers);
+        CFRelease(controllers);
         return noErr;
     }
 
@@ -422,7 +507,7 @@ public:
     // value finds the right program. State without controllers leaves them alone.
     OSStatus RestoreState(CFPropertyListRef plist) override
     {
-        const OSStatus status = Base::RestoreState(plist);
+        const OSStatus status = restoreKnownParameters(plist);
         if (status != noErr || !plist || CFGetTypeID(plist) != CFDictionaryGetTypeID()) return status;
         const auto state = static_cast<CFDictionaryRef>(plist);
         restoreControllers(state);
@@ -444,9 +529,10 @@ public:
     OSStatus GetParameterInfo(AudioUnitScope scope, AudioUnitParameterID id, AudioUnitParameterInfo& out) override
     {
         if (scope != kAudioUnitScope_Global) return kAudioUnitErr_InvalidScope;
-        if (id >= static_cast<AudioUnitParameterID>({{APP_C}}_num_params())) return kAudioUnitErr_InvalidParameter;
+        const int index = indexOf(id);
+        if (index < 0) return kAudioUnitErr_InvalidParameter;
         {{APP}}ParamInfo info{};
-        {{APP_C}}_param_info(static_cast<int>(id), &info);
+        {{APP_C}}_param_info(index, &info);
 
         out.flags = kAudioUnitParameterFlag_IsReadable | kAudioUnitParameterFlag_IsWritable;
         FillInParameterName(out, CFStringCreateWithCString(nullptr, info.name, kCFStringEncodingUTF8), true);
@@ -462,15 +548,16 @@ public:
     OSStatus GetParameterValueStrings(AudioUnitScope scope, AudioUnitParameterID id, CFArrayRef* outStrings) override
     {
         if (scope != kAudioUnitScope_Global) return kAudioUnitErr_InvalidScope;
-        if (id >= static_cast<AudioUnitParameterID>({{APP_C}}_num_params())) return kAudioUnitErr_InvalidParameter;
+        const int index = indexOf(id);
+        if (index < 0) return kAudioUnitErr_InvalidParameter;
         {{APP}}ParamInfo info{};
-        {{APP_C}}_param_info(static_cast<int>(id), &info);
+        {{APP_C}}_param_info(index, &info);
         if (info.numChoices <= 0) return kAudioUnitErr_InvalidProperty;
         if (!outStrings) return noErr;                       // the host only asked whether there are any
         CFMutableArrayRef names = CFArrayCreateMutable(nullptr, info.numChoices, &kCFTypeArrayCallBacks);
         for (int c = 0; c < info.numChoices; ++c)
         {
-            CFStringRef name = CFStringCreateWithCString(nullptr, {{APP_C}}_param_choice(static_cast<int>(id), c), kCFStringEncodingUTF8);
+            CFStringRef name = CFStringCreateWithCString(nullptr, {{APP_C}}_param_choice(index, c), kCFStringEncodingUTF8);
             CFArrayAppendValue(names, name);
             CFRelease(name);
         }
@@ -510,7 +597,7 @@ public:
         for (int i = 0; i < {{APP_C}}_num_params(); ++i)
         {
             if (!{{APP_C}}_program_sets(i)) continue;           // Octave stays where the player put it
-            Globals()->SetParameter(static_cast<AudioUnitParameterID>(i), {{APP_C}}_program_value(number, i));
+            Globals()->SetParameter(ids_[static_cast<size_t>(i)], {{APP_C}}_program_value(number, i));
         }
         SetAFactoryPresetAsCurrent(factoryPresets()[static_cast<size_t>(number)]);
         return noErr;
@@ -532,7 +619,7 @@ public:
         const int count = static_cast<int>(applied_.size());
         for (int i = 0; i < count; ++i)
         {
-            const float value = Globals()->GetParameter(static_cast<AudioUnitParameterID>(i));
+            const float value = Globals()->GetParameter(ids_[static_cast<size_t>(i)]);
             if (value != applied_[static_cast<size_t>(i)])
             {
                 applied_[static_cast<size_t>(i)] = value;
@@ -558,8 +645,8 @@ public:
                 if (value == heard_[static_cast<size_t>(i)]) continue;
                 heard_[static_cast<size_t>(i)] = value;
                 applied_[static_cast<size_t>(i)] = value;           // or the next block would hand the host's value back
-                Globals()->SetParameterRT(static_cast<AudioUnitParameterID>(i), value, true);
-                const AudioUnitParameter parameter{ GetComponentInstance(), static_cast<AudioUnitParameterID>(i), kAudioUnitScope_Global, 0 };
+                Globals()->SetParameterRT(ids_[static_cast<size_t>(i)], value, true);
+                const AudioUnitParameter parameter{ GetComponentInstance(), ids_[static_cast<size_t>(i)], kAudioUnitScope_Global, 0 };
                 AUParameterListenerNotify(nullptr, nullptr, &parameter);
             }
         }
@@ -591,22 +678,39 @@ private:
         return noErr;
     }
 
+    // The base class's restore, given only the saved parameters this unit has (copyKnownParameters).
+    OSStatus restoreKnownParameters(CFPropertyListRef plist)
+    {
+        if (!plist || CFGetTypeID(plist) != CFDictionaryGetTypeID()) return Base::RestoreState(plist);
+        const auto dict = static_cast<CFDictionaryRef>(plist);
+        const void* data = CFDictionaryGetValue(dict, CFSTR(kAUPresetDataKey));
+        if (!data || CFGetTypeID(data) != CFDataGetTypeID()) return Base::RestoreState(plist);
+        CFMutableDictionaryRef copy = CFDictionaryCreateMutableCopy(nullptr, 0, dict);
+        CFDataRef known = copyKnownParameters(static_cast<CFDataRef>(data));
+        if (known) { CFDictionarySetValue(copy, CFSTR(kAUPresetDataKey), known); CFRelease(known); }
+        else CFDictionaryRemoveValue(copy, CFSTR(kAUPresetDataKey));
+        const OSStatus status = Base::RestoreState(copy);
+        CFRelease(copy);
+        return status;
+    }
+
     // First the knobs that are to have none, then the others: giving a controller takes it from
-    // whoever has it. A list from a version with fewer knobs covers the first of them; a value
-    // that is no controller a knob can have means none.
+    // whoever has it. A knob the state does not name (a version without it) keeps its own; a
+    // value that is no controller a knob can have means none.
     void restoreControllers(CFDictionaryRef state)
     {
         const void* stored = CFDictionaryGetValue(state, controllersKey());
-        if (!stored || CFGetTypeID(stored) != CFDataGetTypeID()) return;
-        const auto data = static_cast<CFDataRef>(stored);
-        const int count = std::min(knobs_, static_cast<int>(CFDataGetLength(data) / static_cast<CFIndex>(sizeof(SInt32))));
-        if (count <= 0) return;
-        std::vector<SInt32> controllers(static_cast<size_t>(count));
-        std::memcpy(controllers.data(), CFDataGetBytePtr(data), controllers.size() * sizeof(SInt32));   // CFData need not be aligned
-        for (SInt32& cc : controllers)
-            if (cc < 0 || cc > 127 || {{APP_C}}_controller_reserved(cc)) cc = -1;
-        for (int i = 0; i < count; ++i) if (controllers[static_cast<size_t>(i)] < 0) {{APP_C}}_set_controller(engine_, i, -1);
-        for (int i = 0; i < count; ++i) if (controllers[static_cast<size_t>(i)] >= 0) {{APP_C}}_set_controller(engine_, i, controllers[static_cast<size_t>(i)]);
+        if (!stored || CFGetTypeID(stored) != CFDictionaryGetTypeID()) return;
+        const auto saved = static_cast<CFDictionaryRef>(stored);
+        std::vector<int> controllers(static_cast<size_t>(knobs_), -2);      // -2: not in the state
+        for (int i = 0; i < knobs_; ++i)
+        {
+            int cc = 0;
+            if (!getInt(saved, identifiers()[static_cast<size_t>(i)], cc)) continue;
+            controllers[static_cast<size_t>(i)] = cc < 0 || cc > 127 || {{APP_C}}_controller_reserved(cc) ? -1 : cc;
+        }
+        for (int i = 0; i < knobs_; ++i) if (controllers[static_cast<size_t>(i)] == -1) {{APP_C}}_set_controller(engine_, i, -1);
+        for (int i = 0; i < knobs_; ++i) if (controllers[static_cast<size_t>(i)] >= 0) {{APP_C}}_set_controller(engine_, i, controllers[static_cast<size_t>(i)]);
     }
 
     // The presets in use, retained (+1), and a new list of them (taken over, made with a Create
@@ -669,6 +773,7 @@ private:
 
     {{APP}}Engine* engine_;
     const int knobs_;                     // the parameters that can have a controller
+    std::vector<AudioUnitParameterID> ids_; // each parameter's stable ID, by engine index
     std::vector<float> applied_;          // the plain value last handed to the engine, per parameter
     std::vector<float> heard_;            // the engine's plain value as the unit's parameter last matched it
     unsigned seenChanges_ = 0;            // the engine's count of what MIDI changed, as of the last block

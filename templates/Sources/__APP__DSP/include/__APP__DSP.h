@@ -53,6 +53,14 @@ float       {{APP_C}}_param_to_normalised(int index, float plain);
 // Text for a plain value, without the unit ("4.00", "-24.0", "Legato", "+1"). Returns buffer.
 const char* {{APP_C}}_param_display(int index, float plain, char* buffer, int bufferSize);
 
+// The Audio Unit's parameter ID of a parameter, and the parameter of an ID (-1 for none). An ID
+// names a knob, or a source's amount on a knob, and never changes: knob k (its index, the knobs
+// only grow at their end) is k, LFO l's amount on knob k is 1000 * (l + 1) + k, the velocity's
+// 3000 + k. A parameter's index can move in a later version (an appended knob moves the amounts
+// after it), its ID cannot. Saved state names parameters by ID or identifier, never by index.
+int         {{APP_C}}_param_id(int index);
+int         {{APP_C}}_param_index(int id);
+
 // The sections the knobs are shown in (the instrument's, then "Master", the platform's knobs) and
 // the knobs of each in the order they are shown: the app's panels and the Audio Unit's parameter
 // groups. The amounts below are in no section.

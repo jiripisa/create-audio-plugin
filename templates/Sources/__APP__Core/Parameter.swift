@@ -10,8 +10,8 @@ public struct Parameter: Identifiable, Sendable, Equatable {
         case choice([String])    // one of a list
     }
 
-    /// Position in the engine's table. Permanent: saved state relies on `identifier`,
-    /// hosts rely on the index.
+    /// Position in the engine's table. Saved state relies on `identifier`, hosts on `unitID`;
+    /// the index itself may move in a later version.
     public let index: Int
     /// Stable name used in saved state ("volume", "velattack").
     public let identifier: String
@@ -25,6 +25,10 @@ public struct Parameter: Identifiable, Sendable, Equatable {
     public let defaultValue: Float
 
     public var id: Int { index }
+
+    /// The Audio Unit's ID of the parameter: stable across versions, unlike `index`, which a
+    /// knob or an amount appended later can move (`{{APP_C}}_param_id`).
+    public var unitID: UInt32 { UInt32({{APP_C}}_param_id(Int32(index))) }
 
     /// True when zero sits in the middle of the range (a signed amount).
     public var isBipolar: Bool { range.upperBound > 0 && range.lowerBound == -range.upperBound }

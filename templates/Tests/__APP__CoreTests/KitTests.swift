@@ -98,6 +98,38 @@ struct KitTests {
         #expect(throws: PresetError.unreadable("Wrong")) { try library.load("Wrong") }
     }
 
+    // A later version may add a knob or an amount: a kit keeps its values by identifier, so that
+    // each lands on its own parameter whatever its place in the table; a value this version does
+    // not know is ignored, and a parameter the kit lacks takes its program's value.
+    @Test("A kit from a version with another table puts every value it has on the parameter it names")
+    func kitFromAnotherTable() throws {
+        let source = Synth(sampleRate: 48_000)
+        for parameter in Parameters.all {
+            source.setValue(parameter.plain(Float((parameter.index * 37) % 100) / 100), of: parameter, in: .pad(2))
+        }
+        var object = try #require(try JSONSerialization.jsonObject(with: try JSONEncoder().encode(source.kit)) as? [String: Any])
+        var pads = try #require(object["pads"] as? [[String: Any]])
+        var set = try #require(pads[2]["set"] as? [String: Any])
+        var values = try #require(set["values"] as? [String: Any])
+        values["lfo1tune"] = nil
+        values["futureknob"] = 0.5
+        values["velfutureknob"] = 20
+        set["values"] = values
+        pads[2]["set"] = set
+        object["pads"] = pads
+        let kit = try JSONDecoder().decode(Kit.self, from: try JSONSerialization.data(withJSONObject: object))
+
+        let target = Synth(sampleRate: 48_000)
+        target.apply(kit)
+        let amount = try #require(Parameters.named("lfo1tune"))
+        for parameter in Parameters.all where parameter != amount {
+            let value = source.value(of: parameter, in: .pad(2))
+            #expect(abs(target.value(of: parameter, in: .pad(2)) - value) <= 1e-4 * max(1, abs(value)), "\(parameter.identifier)")
+        }
+        let program = target.program(in: .pad(2))
+        #expect(target.value(of: amount, in: .pad(2)) == Programs.value(program: program, parameter: amount))
+    }
+
     @Test("A pad is named by its preset, else its program, else Custom")
     func padNames() {
         #expect(PadLabel.name(program: 0, preset: "Mine") == "Mine")

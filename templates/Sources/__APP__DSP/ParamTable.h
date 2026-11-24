@@ -51,6 +51,48 @@ constexpr int velAmountOf(int param)
 
 constexpr int standardController(int param) { return isKnob(param) ? knob(param).controller : kNoController; }
 
+// ----- stable parameter IDs ------------------------------------------------------------------
+// The Audio Unit's parameter IDs, which hosts save automation and projects by. A parameter's
+// place in the table moves when a later version appends an instrument knob (the amounts after
+// it move on) or gives an LFO or the velocity another target; its ID does not, since it names
+// the knob and the source, not the place:
+//   knob k (its place in the knobs, which only ever grow at their end)   -> k
+//   LFO l's amount on knob k                                              -> 1000 * (l + 1) + k
+//   the velocity's amount on knob k                                       -> 3000 + k
+constexpr int kLfoIdBase = 1000, kVelIdBase = 3000;
+static_assert(kNumKnobs < 1000 && kNumLfos <= 2, "the stable IDs leave room for 999 knobs and two LFOs");
+
+constexpr int stableId(int param)
+{
+    if (isKnob(param)) return param;
+    const int amount = param - kNumKnobs;
+    if (amount >= 0 && amount < kNumLfoAmounts)
+        return kLfoIdBase * (amount / kNumLfoTargets + 1) + kLfoTargets[amount % kNumLfoTargets];
+    const int vel = amount - kNumLfoAmounts;
+    if (vel >= 0 && vel < kNumVelAmounts) return kVelIdBase + kVelTargets[vel];
+    return -1;
+}
+
+// The parameter a stable ID names; -1 for an ID no parameter of this table has.
+constexpr int paramOfStableId(int id)
+{
+    if (id >= 0 && id < kNumKnobs) return id;
+    if (id >= kVelIdBase && id < kVelIdBase + 1000) return velAmountOf(id - kVelIdBase);
+    for (int lfo = 0; lfo < kNumLfos; ++lfo)
+        if (id >= kLfoIdBase * (lfo + 1) && id < kLfoIdBase * (lfo + 2)) return amountOf(lfo, id - kLfoIdBase * (lfo + 1));
+    return -1;
+}
+
+namespace check {
+constexpr bool stableIdsRoundTrip()
+{
+    for (int i = 0; i < kNumKnobs + kNumLfoAmounts + kNumVelAmounts; ++i)
+        if (paramOfStableId(stableId(i)) != i) return false;
+    return true;
+}
+} // namespace check
+static_assert(check::stableIdsRoundTrip(), "a stable ID names another parameter");
+
 // ----- the contract ------------------------------------------------------------------------
 namespace check {
 
