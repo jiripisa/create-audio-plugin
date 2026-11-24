@@ -60,10 +60,45 @@ dummy_domains() {
 }
 HELPER_DOMAINS="swiftpm-testing-helper xctest ${NAME}PackageTests"
 
+CAPTURE_PID=""
+CAPTURE_REMOVE=()
+CAPTURE_PREEXISTING=()
+
+# Quits the launched app (kill, wait up to 5 s, kill -9 only if still alive) and removes what the
+# run created next to it: caches, saved state and HTTP storage that did not exist before.
+stop_capture_app() {
+    local was_set=$-
+    set +e
+    if [ -n "$CAPTURE_PID" ]; then
+        kill "$CAPTURE_PID" 2>/dev/null
+        for _ in $(seq 1 50); do
+            kill -0 "$CAPTURE_PID" 2>/dev/null || break
+            sleep 0.1
+        done
+        kill -0 "$CAPTURE_PID" 2>/dev/null && kill -9 "$CAPTURE_PID" 2>/dev/null
+        wait "$CAPTURE_PID" 2>/dev/null
+        echo "cleanup: quit the app (pid $CAPTURE_PID)"
+        CAPTURE_PID=""
+        local path pre skip
+        if [ -n "${CAPTURE_BUNDLE_ID:-}" ] && [ "$CAPTURE_BUNDLE_ID" != "null" ]; then
+            for path in ${CAPTURE_REMOVE[@]+"${CAPTURE_REMOVE[@]}"} "$HOME/Library/HTTPStorages/$CAPTURE_BUNDLE_ID"*; do
+                [ -e "$path" ] || continue
+                skip=false
+                for pre in ${CAPTURE_PREEXISTING[@]+"${CAPTURE_PREEXISTING[@]}"}; do [ "$pre" = "$path" ] && skip=true; done
+                [ "$skip" = true ] && continue
+                rm -rf "$path"
+                echo "cleanup: removed $path"
+            done
+        fi
+    fi
+    case "$was_set" in *e*) set -e ;; esac
+}
+
 CLEANED=false
 clean_up() {
     [ "$CLEANED" = true ] && return
     CLEANED=true
+    stop_capture_app
     set +e
     if [ -n "$INSTALLED_COMPONENT" ] && [ -e "$INSTALLED_COMPONENT" ]; then
         rm -rf "$INSTALLED_COMPONENT"
@@ -200,41 +235,56 @@ if [ "$AUVAL" = true ]; then
 fi
 
 # --- capture: the app's window, found by the PID we launched ---
+# Reads `system_profiler SPAudioDataType` text on stdin; prints "<name>|<transport>" of the device
+# marked "Default Output Device: Yes" (nothing when there is none).
 default_output() {
-    system_profiler SPAudioDataType 2>/dev/null | awk '
-        /^        [^ ].*:$/ { name = $0; sub(/^ +/, "", name); sub(/:$/, "", name) }
-        /Default Output Device: Yes/ { print name; exit }'
+    awk '
+        function flush() { if (isdefault) { print name "|" transport; found = 1; exit } }
+        /^        [^ ].*:$/ { flush(); name = $0; sub(/^ +/, "", name); sub(/:$/, "", name)
+                             transport = ""; isdefault = 0 }
+        /Default Output Device: Yes/ { isdefault = 1 }
+        /^ +Transport: / { transport = $0; sub(/^ +Transport: /, "", transport) }
+        END { if (!found) flush() }'
 }
 
 if [ "$CAPTURE" = true ]; then
-    OUTPUT_DEVICE=$(default_output)
-    case "$OUTPUT_DEVICE" in
-        *MacBook*|*Built-in*|*Speakers*|*Headphones*)
-            echo "== capture (default output: $OUTPUT_DEVICE)"
+    OUTPUT_DEVICE=$(system_profiler SPAudioDataType 2>/dev/null | default_output || true)
+    case "${OUTPUT_DEVICE##*|}" in
+        "Built-in")
+            echo "== capture (default output: ${OUTPUT_DEVICE%|*})"
             APP="$PROJ/build/release/$NAME.app"
-            "$APP/Contents/MacOS/$NAME" > "$LOGS/app.log" 2>&1 &
-            APP_PID=$!
-            set +e
-            swift "$SKILL_DIR/scripts/capture_window.swift" "$APP_PID" "$LOGS/window.png" --wait 15
-            CAPTURE_STATUS=$?
-            kill "$APP_PID" 2>/dev/null
-            for _ in $(seq 1 50); do
-                kill -0 "$APP_PID" 2>/dev/null || break
-                sleep 0.1
+            CAPTURE_BUNDLE_ID=$(jq -r .BUNDLE_ID "$OUT/config.json")
+            # Compile the capture tool first, so the app runs only for the capture itself.
+            step "compile capture_window" swiftc -O "$SKILL_DIR/scripts/capture_window.swift" \
+                -o "$LOGS/capture_window"
+            case "$CAPTURE_BUNDLE_ID" in ""|null) echo "FAILED: no BUNDLE_ID in config"; exit 1 ;; esac
+            for leftover in "Library/Caches/$CAPTURE_BUNDLE_ID" \
+                            "Library/Saved Application State/$CAPTURE_BUNDLE_ID.savedState"; do
+                [ -e "$HOME/$leftover" ] && continue
+                CAPTURE_REMOVE+=("$HOME/$leftover")
             done
-            if kill -0 "$APP_PID" 2>/dev/null; then kill -9 "$APP_PID" 2>/dev/null; fi
-            wait "$APP_PID" 2>/dev/null
-            BUNDLE_ID=$(jq -r .BUNDLE_ID "$OUT/config.json")
-            rm -rf "$HOME/Library/Caches/$BUNDLE_ID" "$HOME/Library/HTTPStorages/$BUNDLE_ID"*
+            for leftover in "$HOME/Library/HTTPStorages/$CAPTURE_BUNDLE_ID"*; do
+                [ -e "$leftover" ] && CAPTURE_PREEXISTING+=("$leftover")
+            done
+            "$APP/Contents/MacOS/$NAME" > "$LOGS/app.log" 2>&1 &
+            CAPTURE_PID=$!
+            set +e
+            "$LOGS/capture_window" "$CAPTURE_PID" "$LOGS/window.png" --wait 15
+            CAPTURE_STATUS=$?
             set -e
+            stop_capture_app
             if [ "$CAPTURE_STATUS" -eq 0 ]; then
                 echo "   $LOGS/window.png"
             else
-                echo "capture: no image (capture_window.swift exit $CAPTURE_STATUS); continuing"
+                echo "capture: no image (capture_window exit $CAPTURE_STATUS); continuing"
             fi
             ;;
         *)
-            echo "capture skipped: default output is ${OUTPUT_DEVICE:-unknown}, not a built-in device"
+            if [ -n "$OUTPUT_DEVICE" ]; then
+                echo "capture skipped: default output is ${OUTPUT_DEVICE%|*} (transport ${OUTPUT_DEVICE##*|}), not a built-in device"
+            else
+                echo "capture skipped: no default output device found"
+            fi
             ;;
     esac
 fi
