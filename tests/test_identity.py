@@ -1,4 +1,5 @@
 """Tests for scripts/identity.py of the create-audio-plugin skill."""
+import importlib.util
 import json
 import subprocess
 import tempfile
@@ -7,6 +8,10 @@ from pathlib import Path
 
 IDENTITY = Path(__file__).parent.parent / "scripts" / "identity.py"
 BUILT_IN_TAKEN = {"Brml", "Fanf", "Didg"}
+
+_spec = importlib.util.spec_from_file_location("identity", IDENTITY)
+identity_mod = importlib.util.module_from_spec(_spec)
+_spec.loader.exec_module(identity_mod)
 
 
 def run(name: str, *args: str) -> subprocess.CompletedProcess:
@@ -71,6 +76,19 @@ class IdentityTest(unittest.TestCase):
         result = run("123")
         self.assertEqual(result.returncode, 2)
         self.assertTrue(result.stderr.strip())
+
+    def test_leading_digit_exits_2(self):
+        for name in ("808 Drum", "3rd Wave"):
+            result = run(name)
+            self.assertEqual(result.returncode, 2, name)
+            self.assertIn("must start with a letter", result.stderr)
+
+    def test_taken_entries_are_stripped(self):
+        self.assertEqual(identity("Strunobijec", "--taken", "Brml, Stru")["AU_SUBTYPE"], "Strn")
+
+    def test_parse_auval(self):
+        text = "aumu Fanf JPis  -  JPis: Fanfrnoch\nno match here\nAU Validation Tool\n"
+        self.assertEqual(identity_mod.parse_auval(text), {"Fanf"})
 
 
 if __name__ == "__main__":

@@ -4,7 +4,7 @@
 Usage: identity.py <dir-path> [--taken Brml,Fanf] [--no-auval] [--owner <login>]
 
 Prints JSON: APP_NAME, APP, APP_LOWER, APP_C, APP_UPPER, BUNDLE_ID, AU_SUBTYPE, OWNER.
-Exits 2 with a message on stderr when the name has no ASCII letter left.
+Exits 2 with a message on stderr when the ASCII form of the name does not start with a letter.
 
 APP is the name with diacritics stripped, split into words on anything that is not an ASCII
 letter or digit, each word capitalised on its first letter and joined ("Tape Loop 2" -> "TapeLoop2").
@@ -64,18 +64,26 @@ def candidates(app: str):
         yield f"{first}{n:03d}"
 
 
-def auval_subtypes() -> set:
-    try:
-        out = subprocess.run(["auval", "-a"], capture_output=True, text=True, timeout=60).stdout
-    except (OSError, subprocess.SubprocessError) as e:
-        print(f"warning: could not run auval ({e}); installed components not checked", file=sys.stderr)
-        return set()
+def parse_auval(text: str) -> set:
+    """Subtypes (second column) of the `auval -a` lines whose first column is a 4-char type."""
     found = set()
-    for line in out.splitlines():
+    for line in text.splitlines():
         parts = line.split()
         if len(parts) >= 3 and len(parts[0]) == 4 and len(parts[1]) == 4:
             found.add(parts[1])
     return found
+
+
+def auval_subtypes() -> set:
+    try:
+        result = subprocess.run(["auval", "-a"], capture_output=True, text=True, timeout=60)
+    except (OSError, subprocess.SubprocessError) as e:
+        print(f"warning: could not run auval ({e}); installed components not checked", file=sys.stderr)
+        return set()
+    if result.returncode != 0:
+        print(f"warning: auval exited with {result.returncode}; installed components may not be fully checked",
+              file=sys.stderr)
+    return parse_auval(result.stdout)
 
 
 def github_login() -> str:
@@ -99,11 +107,12 @@ def main() -> None:
 
     name = Path(args.directory).resolve().name
     app = derive_app(name)
-    if not re.search(r"[A-Za-z]", app):
-        print(f"error: directory name {name!r} has no ASCII letter", file=sys.stderr)
+    if not app or not app[0].isalpha():
+        print(f"error: directory name {name!r} gives {app!r}: the name must start with a letter "
+              "(Swift targets and the AU subtype need a leading letter)", file=sys.stderr)
         sys.exit(2)
 
-    taken = set(BUILT_IN_TAKEN) | {t for t in args.taken.split(",") if t}
+    taken = set(BUILT_IN_TAKEN) | {t.strip() for t in args.taken.split(",") if t.strip()}
     if not args.no_auval:
         taken |= auval_subtypes()
     subtype = next(c for c in candidates(app) if c not in taken)
