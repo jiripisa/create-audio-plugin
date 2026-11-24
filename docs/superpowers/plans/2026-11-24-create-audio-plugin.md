@@ -119,7 +119,7 @@ engine, and it renders and builds. This isolates the rename from later changes.
 
 **Files:**
 - Create: `templates/**` (from `git archive v1.0.0`), `scripts/check_leftovers.sh`,
-  `scripts/verify_template.sh`, `templates/MANIFEST.md`
+  `scripts/verify_template.sh`, `TEMPLATE_MANIFEST.md`
 - Test: `scripts/verify_template.sh` itself (it is the test)
 
 **Interfaces:**
@@ -131,7 +131,7 @@ engine, and it renders and builds. This isolates the rename from later changes.
 - Produces: `scripts/check_leftovers.sh <dir> [words-file]` → lists matches, exit 1 if any.
   Default words: `fanfrnoch Fanfrnoch FANFRNOCH Fanf Brumle brumle Didgeridoo` plus (after Task 4)
   the placeholder engine's own words and `FILL`.
-- Produces: `templates/MANIFEST.md` — every template file classified **platform** (kept as is per
+- Produces: `TEMPLATE_MANIFEST.md` — every template file classified **platform** (kept as is per
   run) or **instrument** (replaced per run: `Params.h/.cpp`, `Voice.h`, `SectionLayout.plans`,
   `Artwork.swift`, `Resources/Art/*`, `Tests/__APP__Reference/*`, `PrototypeScores.swift`,
   `SoundRegressionTests.swift`, `PrototypeEquivalenceTests.swift`, `ListeningRenders.swift`,
@@ -162,7 +162,7 @@ engine, and it renders and builds. This isolates the rename from later changes.
 - [ ] **Step 2:** `verify_template.sh --quick` and collect every warning (deprecations included).
 - [ ] **Step 3:** For each SwiftUI / AppKit / Liquid Glass API the template uses, check the 27.2 SDK
   swiftinterface (`$(xcrun --show-sdk-path)/System/Library/Frameworks/SwiftUI.framework/Modules/`)
-  for a newer replacement; adopt it. List each replacement in `templates/MANIFEST.md` §"macOS 27".
+  for a newer replacement; adopt it. List each replacement in `TEMPLATE_MANIFEST.md` §"macOS 27".
 - [ ] **Step 4:** `verify_template.sh --capture` → `TEMPLATE OK`, zero warnings
   (`swift build 2>&1 | grep -c warning:` = 0); look at the capture.
 - [ ] **Step 5:** Commit `feat(template): macOS 27, newest Sparkle and SwiftUI APIs`.
