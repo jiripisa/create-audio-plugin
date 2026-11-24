@@ -3,7 +3,8 @@
 #
 #   scripts/verify_template.sh [--quick] [--auval] [--capture]
 #
-#   (default)  render, swift build, swift test, swift test -c release, ./build.sh release
+#   (default)  render, swift build, swift test, swift test -c release, ./build.sh release; any
+#              `warning:` line in one of the build logs fails the run
 #   --quick    render and swift build only
 #   --auval    also install the component for this run only, run `auval -v aumu Zkus JPis`,
 #              and remove the component again (also when something fails); builds the bundle
@@ -149,10 +150,16 @@ step() {
     LAST_LOG="$log"
 }
 
+# The template builds without warnings: any `warning:` line in a build step's log stops the run.
 warnings() {
     local count
     count=$(grep -c 'warning:' "$1" || true)
     echo "   $count warning lines"
+    if [ "$count" -ne 0 ]; then
+        echo "FAILED: warnings (full log: $1)"
+        grep 'warning:' "$1" | head -n 20
+        exit 1
+    fi
 }
 
 tests_summary() {
@@ -174,14 +181,12 @@ echo "$ID" | jq '. + {
     LICENSE_KEY: "mit",
     LICENSE_LABEL: "MIT License",
     PUBLIC: true, WEBSITE: true, MANUAL: true, CS: true, SPARKLE: true, PLANNING: true,
-    MIN_MACOS: "26.0"
+    MIN_MACOS: "27.0"
 }' > "$OUT/config.json"
 
 # --- Render ---
 step "render" python3 -I "$SCAFFOLD" --config "$OUT/config.json" --out "$PROJ" \
     --templates "$SKILL_DIR/templates"
-# The manifest is the skill's map of the template (it names the source project), not the project's.
-rm -f "$PROJ/MANIFEST.md"
 step "leftovers" "$SKILL_DIR/scripts/check_leftovers.sh" "$PROJ"
 if grep -rIn -E '\{\{[#^/]?[A-Z_]+\}\}|__APP__' "$PROJ" > "$LOGS/placeholders.log"; then
     echo "FAILED: unrendered placeholders (full list: $LOGS/placeholders.log)"
@@ -196,17 +201,19 @@ step "swift build" swift build
 warnings "$LAST_LOG"
 if [ "$QUICK" = false ]; then
     step "swift test" swift test
+    warnings "$LAST_LOG"
     tests_summary "$LAST_LOG"
     step "swift test -c release" swift test -c release
+    warnings "$LAST_LOG"
     tests_summary "$LAST_LOG"
 fi
 if [ "$QUICK" = false ] || [ "$AUVAL" = true ] || [ "$CAPTURE" = true ]; then
     step "build.sh release" ./build.sh release
+    warnings "$LAST_LOG"
 fi
 
 # --- auval: the component is installed only for this run ---
 if [ "$AUVAL" = true ]; then
-    case "$NAME" in Fanfrnoch|Brumle|Didgeridoo) echo "refusing to touch $NAME"; exit 1 ;; esac
     SOURCE="$PROJ/build/release/$NAME.app/Contents/PlugIns/$NAME.component"
     TARGET="$COMPONENTS/$NAME.component"
     if [ -e "$TARGET" ]; then

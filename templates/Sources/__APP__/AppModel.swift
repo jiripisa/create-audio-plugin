@@ -507,20 +507,20 @@ final class AppModel: InstrumentModel {
     // MARK: Audio Unit
 
     private var bundledAudioUnit: URL {
-        Bundle.main.bundleURL.appendingPathComponent("Contents/PlugIns/{{APP}}.component")
+        Bundle.main.bundleURL.appending(path: "Contents/PlugIns/{{APP}}.component")
     }
 
     private var installedAudioUnit: URL {
         FileManager.default.homeDirectoryForCurrentUser
-            .appendingPathComponent("Library/Audio/Plug-Ins/Components/{{APP}}.component")
+            .appending(path: "Library/Audio/Plug-Ins/Components/{{APP}}.component")
     }
 
     private func version(of component: URL) -> String? {
-        let plist = component.appendingPathComponent("Contents/Info.plist")
+        let plist = component.appending(path: "Contents/Info.plist")
         return (NSDictionary(contentsOf: plist)?["CFBundleShortVersionString"]) as? String
     }
 
-    var canInstallAudioUnit: Bool { FileManager.default.fileExists(atPath: bundledAudioUnit.path) }
+    var canInstallAudioUnit: Bool { FileManager.default.fileExists(atPath: bundledAudioUnit.path(percentEncoded: false)) }
 
     func refreshAudioUnitStatus() {
         guard canInstallAudioUnit else {
@@ -544,7 +544,7 @@ final class AppModel: InstrumentModel {
         let files = FileManager.default
         do {
             try files.createDirectory(at: installedAudioUnit.deletingLastPathComponent(), withIntermediateDirectories: true)
-            if files.fileExists(atPath: installedAudioUnit.path) {
+            if files.fileExists(atPath: installedAudioUnit.path(percentEncoded: false)) {
                 try files.removeItem(at: installedAudioUnit)
             }
             try files.copyItem(at: bundledAudioUnit, to: installedAudioUnit)

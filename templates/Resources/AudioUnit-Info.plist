@@ -21,7 +21,7 @@
     <key>CFBundleVersion</key>
     <string>0.0.0</string>
     <key>LSMinimumSystemVersion</key>
-    <string>26.0</string>
+    <string>27.0</string>
     <!-- type / subtype / manufacturer are the plug-in's permanent identity
          (Sources/{{APP}}AU/include/{{APP}}AU.h). Hosts find saved
          projects by them: never change them. -->

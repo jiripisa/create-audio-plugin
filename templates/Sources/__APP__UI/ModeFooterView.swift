@@ -85,7 +85,7 @@ public struct ModeFooterView: View {
                 .foregroundStyle(Artwork.cream)
                 .frame(width: 76, height: 34)
                 .background(Artwork.indigo.opacity(0.6), in: .rect(cornerRadius: 8))
-                .overlay(RoundedRectangle(cornerRadius: 8).strokeBorder(Artwork.cream.opacity(0.25), lineWidth: 1))
+                .overlay { RoundedRectangle(cornerRadius: 8).strokeBorder(Artwork.cream.opacity(0.25), lineWidth: 1) }
         }
         .accessibilityElement(children: .combine)
         .help("The pitch Send to pad gives a pad: the last note played, C2 before any")

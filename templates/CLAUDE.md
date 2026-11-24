@@ -4,7 +4,7 @@
 
 ## Code
 
-- Native macOS app, SwiftUI, macOS 26+. Swift Package Manager plus shell
+- Native macOS app, SwiftUI, macOS 27+. Swift Package Manager plus shell
   scripts; there is no Xcode project, so never add one.
 - `Sources/{{APP}}Core` holds logic without UI (no SwiftUI/AppKit) and is
   covered by `swift test` (Swift Testing). `Sources/{{APP}}` is the SwiftUI

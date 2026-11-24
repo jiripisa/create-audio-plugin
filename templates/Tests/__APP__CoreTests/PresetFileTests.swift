@@ -10,7 +10,7 @@ struct PresetFileTests {
 
     private func write(_ text: String, as name: String, in library: PresetLibrary, extension ext: String = "{{APP_LOWER}}") throws {
         try FileManager.default.createDirectory(at: library.folder, withIntermediateDirectories: true)
-        try Data(text.utf8).write(to: library.folder.appendingPathComponent("\(name).\(ext)"))
+        try Data(text.utf8).write(to: library.folder.appending(path: "\(name).\(ext)"))
     }
 
     private func remove(_ library: PresetLibrary) {

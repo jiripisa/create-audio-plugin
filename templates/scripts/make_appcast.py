@@ -15,7 +15,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 SIGN_UPDATE = ".build/artifacts/sparkle/Sparkle/bin/sign_update"
-MIN_SYSTEM = "26.0"
+MIN_SYSTEM = "27.0"
 
 
 def changelog_section(version: str) -> str:

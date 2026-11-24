@@ -4,8 +4,10 @@
 #
 #   scripts/check_leftovers.sh <dir> [words-file]
 #
-# Words are fixed strings, matched case-sensitively; lines starting with # and empty lines in the
-# words file are ignored. Build output (.build, build, .swiftpm) and .git are skipped.
+# Words are fixed strings, matched case-sensitively anywhere in a line or a path; a word written
+# \bword\b matches only as a whole word (letters, digits and _ around it do not count, so
+# \bFanf\b finds 'Fanf' but not Fanfare). Lines starting with # and empty lines in the words file
+# are ignored. Build output (.build, build, .swiftpm) and .git are skipped.
 
 set -euo pipefail
 
@@ -20,25 +22,35 @@ if [ ! -f "$WORDS" ]; then
     exit 2
 fi
 
-PATTERNS=$(mktemp)
-trap 'rm -f "$PATTERNS"' EXIT
-grep -v '^[[:space:]]*#' "$WORDS" | grep -v '^[[:space:]]*$' > "$PATTERNS" || true
-if [ ! -s "$PATTERNS" ]; then
+ALL=$(mktemp)
+ANYWHERE=$(mktemp)
+WHOLE=$(mktemp)
+trap 'rm -f "$ALL" "$ANYWHERE" "$WHOLE"' EXIT
+grep -v '^[[:space:]]*#' "$WORDS" | grep -v '^[[:space:]]*$' > "$ALL" || true
+if [ ! -s "$ALL" ]; then
     echo "the words file has no words: $WORDS" >&2
     exit 2
 fi
+# \bword\b lines go to the whole-word list without the \b, the others to the anywhere list.
+sed -n 's/^\\b\(.*\)\\b$/\1/p' "$ALL" > "$WHOLE"
+grep -v '^\\b.*\\b$' "$ALL" > "$ANYWHERE" || true
 
 FOUND=0
-if grep -rIn -F -f "$PATTERNS" \
-        --exclude-dir=.build --exclude-dir=build --exclude-dir=.swiftpm --exclude-dir=.git \
-        "$DIR"; then
-    FOUND=1
-fi
-# Paths relative to <dir>, so that a word in <dir>'s own location does not count.
-if (cd "$DIR" && find . \( -name .build -o -name build -o -name .swiftpm -o -name .git \) -prune -o -print) \
-        | grep -F -f "$PATTERNS" | sed "s|^\.|path: $DIR|"; then
-    FOUND=1
-fi
+# Lines, then paths relative to <dir> (so that a word in <dir>'s own location does not count),
+# once for the words matched anywhere and once for the whole words.
+for mode in anywhere whole; do
+    if [ "$mode" = anywhere ]; then list="$ANYWHERE"; flags=(-F); else list="$WHOLE"; flags=(-F -w); fi
+    [ -s "$list" ] || continue
+    if grep -rIn "${flags[@]}" -f "$list" \
+            --exclude-dir=.build --exclude-dir=build --exclude-dir=.swiftpm --exclude-dir=.git \
+            "$DIR"; then
+        FOUND=1
+    fi
+    if (cd "$DIR" && find . \( -name .build -o -name build -o -name .swiftpm -o -name .git \) -prune -o -print) \
+            | grep "${flags[@]}" -f "$list" | sed "s|^\.|path: $DIR|"; then
+        FOUND=1
+    fi
+done
 
 if [ "$FOUND" -eq 1 ]; then
     echo "leftovers found in $DIR (words: $WORDS)" >&2

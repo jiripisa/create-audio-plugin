@@ -65,10 +65,10 @@ final class AudioOutput {
         var onChosenDevice = false
         if let chosen {
             var id = chosen.id
-            var status = kAudioUnitErr_Uninitialized
-            if let unit = output.audioUnit {
-                status = AudioUnitSetProperty(unit, kAudioOutputUnitProperty_CurrentDevice, kAudioUnitScope_Global, 0,
-                                              &id, UInt32(MemoryLayout<AudioDeviceID>.size))
+            let status = output.withAudioUnit { unit in
+                guard let unit = copy unit else { return kAudioUnitErr_Uninitialized }
+                return AudioUnitSetProperty(unit, kAudioOutputUnitProperty_CurrentDevice, kAudioUnitScope_Global, 0,
+                                            &id, UInt32(MemoryLayout<AudioDeviceID>.size))
             }
             onChosenDevice = status == noErr
             if !onChosenDevice { problem = "Could not switch to \(chosen.name) (error \(status)); using the system default output." }
@@ -86,7 +86,12 @@ final class AudioOutput {
 
         let source = Self.makeSource(synth: synth, format: format)
         engine.attach(source)
-        engine.connect(source, to: engine.mainMixerNode, format: format)
+        do {
+            try engine.connectNode(source, to: engine.mainMixerNode, format: format)
+        } catch {
+            problem = "Audio did not start: \(error.localizedDescription)"
+            return
+        }
         if onChosenDevice {
             applyChannelMap(to: output, firstChannel: firstChannel, deviceChannels: Int(deviceFormat.channelCount))
         }
@@ -130,10 +135,13 @@ final class AudioOutput {
 
     /// Routes the stereo signal to the chosen pair of a multi-channel device.
     private func applyChannelMap(to output: AVAudioOutputNode, firstChannel: Int, deviceChannels: Int) {
-        guard deviceChannels > 2, let unit = output.audioUnit else { return }
+        guard deviceChannels > 2 else { return }
         var map = OutputChannels.map(firstChannel: firstChannel, deviceChannels: deviceChannels)
-        let status = AudioUnitSetProperty(unit, kAudioOutputUnitProperty_ChannelMap, kAudioUnitScope_Output, 0,
-                                          &map, UInt32(MemoryLayout<Int32>.size * map.count))
+        let status = output.withAudioUnit { unit in
+            guard let unit = copy unit else { return noErr }
+            return AudioUnitSetProperty(unit, kAudioOutputUnitProperty_ChannelMap, kAudioUnitScope_Output, 0,
+                                        &map, UInt32(MemoryLayout<Int32>.size * map.count))
+        }
         if status != noErr { problem = "Could not choose the output channels (error \(status)); using the first two." }
     }
 

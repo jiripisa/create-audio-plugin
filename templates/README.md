@@ -2,7 +2,7 @@
 
 {{TAGLINE}}
 
-Native macOS app (SwiftUI, macOS 26 or later), built with Swift Package
+Native macOS app (SwiftUI, macOS 27 or later), built with Swift Package
 Manager and shell scripts; no Xcode project.
 
 Website and manual: {{PAGES_URL}}

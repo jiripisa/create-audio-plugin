@@ -42,8 +42,8 @@ public struct FileLibrary<Content: Codable & Sendable>: Sendable {
     static func standardFolder(_ subfolder: String) -> URL {
         let files = FileManager.default
         let support = files.urls(for: .applicationSupportDirectory, in: .userDomainMask).first
-            ?? files.homeDirectoryForCurrentUser.appendingPathComponent("Library/Application Support", isDirectory: true)
-        return support.appendingPathComponent("{{APP}}/\(subfolder)", isDirectory: true)
+            ?? files.homeDirectoryForCurrentUser.appending(path: "Library/Application Support", directoryHint: .isDirectory)
+        return support.appending(path: "{{APP}}/\(subfolder)", directoryHint: .isDirectory)
     }
 
     /// The names in the folder, as the Finder sorts them (capitals do not matter). Empty while
@@ -134,7 +134,7 @@ public struct FileLibrary<Content: Codable & Sendable>: Sendable {
     }
 
     private func file(of name: String) -> URL {
-        folder.appendingPathComponent(name).appendingPathExtension(fileExtension)
+        folder.appending(path: name).appendingPathExtension(fileExtension)
     }
 }
 

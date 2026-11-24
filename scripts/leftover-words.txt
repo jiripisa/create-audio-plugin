@@ -1,10 +1,11 @@
 # Words that must not survive in the template or in a rendered project (check_leftovers.sh).
-# One fixed string per line, matched case-sensitively anywhere in a line or a path.
+# One fixed string per line, matched case-sensitively anywhere in a line or a path; \bword\b
+# matches only as a whole word (see check_leftovers.sh).
 # Identity of the source project and of its siblings:
 fanfrnoch
 Fanfrnoch
 FANFRNOCH
-Fanf
+\bFanf\b
 Brumle
 brumle
 BRUMLE

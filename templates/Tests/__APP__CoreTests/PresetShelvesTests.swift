@@ -11,10 +11,10 @@ struct PresetShelvesTests {
     /// Deleting removes for good: the tests have no business in anybody's Trash (or in
     /// ~/Library/Application Support/{{APP}}).
     static func libraries(in root: URL? = nil) -> (presets: PresetLibrary, kits: KitLibrary) {
-        let root = root ?? FileManager.default.temporaryDirectory.appendingPathComponent("{{APP_LOWER}}-shelves-\(UUID().uuidString)")
-        return (PresetLibrary(folder: root.appendingPathComponent("Presets"), fileExtension: PresetLibrary.fileExtension,
+        let root = root ?? FileManager.default.temporaryDirectory.appending(path: "{{APP_LOWER}}-shelves-\(UUID().uuidString)")
+        return (PresetLibrary(folder: root.appending(path: "Presets"), fileExtension: PresetLibrary.fileExtension,
                               deletesForGood: true),
-                KitLibrary(folder: root.appendingPathComponent("Kits"), fileExtension: KitLibrary.fileExtension,
+                KitLibrary(folder: root.appending(path: "Kits"), fileExtension: KitLibrary.fileExtension,
                            deletesForGood: true))
     }
 

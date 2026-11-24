@@ -8,7 +8,7 @@ struct KitTests {
 
     private func library() -> KitLibrary {
         let folder = FileManager.default.temporaryDirectory
-            .appendingPathComponent("{{APP_LOWER}}-kits-\(UUID().uuidString)").appendingPathComponent("Kits")
+            .appending(path: "{{APP_LOWER}}-kits-\(UUID().uuidString)").appending(path: "Kits")
         return KitLibrary(folder: folder, fileExtension: KitLibrary.fileExtension, deletesForGood: true)
     }
 
@@ -34,7 +34,7 @@ struct KitTests {
         #expect(kit.pads.count == 16)
         try library.save(kit, as: "Mine")
         #expect(library.names() == ["Mine"])
-        #expect(FileManager.default.fileExists(atPath: library.folder.appendingPathComponent("Mine.{{APP_LOWER}}kit").path))
+        #expect(FileManager.default.fileExists(atPath: library.folder.appending(path: "Mine.{{APP_LOWER}}kit").path(percentEncoded: false)))
 
         let loaded = try library.load("Mine")
         #expect(loaded == kit)
@@ -83,7 +83,7 @@ struct KitTests {
         defer { remove(library) }
         try library.makeFolder()
         func write(_ text: String, _ name: String) throws {
-            try Data(text.utf8).write(to: library.folder.appendingPathComponent("\(name).{{APP_LOWER}}kit"))
+            try Data(text.utf8).write(to: library.folder.appending(path: "\(name).{{APP_LOWER}}kit"))
         }
         try write("{}", "Empty")
         try write(#"{"name":"Hi","pads":[{"set":{}},{"note":50,"group":2,"extra":1}],"future":true}"#, "Part")

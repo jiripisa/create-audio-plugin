@@ -96,7 +96,7 @@ constexpr int kSendNoteIfNone = 36;
 constexpr float kRubPerModWheel = 0.5f;
 constexpr float kStickPerPressure = 0.07f / 0.45f;
 
-// A tanh: a Padé approximant, exact enough for a limiter and cheap.
+// tanh as a Padé approximant, exact enough for a limiter and cheap.
 inline float fastTanh(float x)
 {
     if (x > 4.97f) return 1.0f;

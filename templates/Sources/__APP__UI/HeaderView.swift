@@ -193,7 +193,7 @@ struct ErrorLine: View {
             .padding(.horizontal, 10)
             .padding(.vertical, 4)
             .background(Artwork.indigo.opacity(0.92), in: Capsule())
-            .overlay(Capsule().stroke(Artwork.terracotta.opacity(0.6), lineWidth: 1))
+            .overlay { Capsule().stroke(Artwork.terracotta.opacity(0.6), lineWidth: 1) }
             .fixedSize()
             .allowsHitTesting(false)            // it hangs over the controls below
             .accessibilityElement()

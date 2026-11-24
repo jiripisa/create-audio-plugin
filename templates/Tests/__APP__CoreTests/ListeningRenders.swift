@@ -183,13 +183,13 @@ struct ListeningRenders {
 
     @Test("Writes the listening renders", .enabled(if: ListeningRenders.directory != nil))
     func writeRenders() throws {
-        let directory = URL(fileURLWithPath: try #require(Self.directory), isDirectory: true)
+        let directory = URL(filePath: try #require(Self.directory), directoryHint: .isDirectory)
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
         let specs = Self.renders
         #expect(specs.count == PrototypeScores.renders.count + 9)
         for spec in specs {
             let audio = Self.render(spec)
-            let url = directory.appendingPathComponent(spec.name + ".wav")
+            let url = directory.appending(path: spec.name + ".wav")
             try Self.wav(audio, sampleRate: Int(spec.sampleRate)).write(to: url)
             print(String(format: "%@  %.1f s  peak %.2f dBFS", spec.name, Double(audio.left.count) / spec.sampleRate, audio.peakDb))
             #expect(audio.peakDb <= Self.peakLimitDb, "\(spec.name) peaks at \(audio.peakDb) dBFS")

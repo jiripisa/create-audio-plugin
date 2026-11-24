@@ -1,10 +1,10 @@
-// swift-tools-version: 6.2
+// swift-tools-version: 6.4
 import PackageDescription
 
 let package = Package(
     name: "{{APP}}",
     platforms: [
-        .macOS(.v26)
+        .macOS(.v27)
     ],
     products: [
         // The macOS app (bundle assembled by build.sh — see development_workflow.md §2).
@@ -17,7 +17,7 @@ let package = Package(
     dependencies: [
         // Auto-update: the standard updater for apps outside the App Store;
         // EdDSA-signed appcast on GitHub Pages.
-        .package(url: "https://github.com/sparkle-project/Sparkle", from: "2.6.4"),
+        .package(url: "https://github.com/sparkle-project/Sparkle", from: "2.10.1"),
     ],
     targets: [
         // The sound engine: C++ with a C interface (include/{{APP}}DSP.h).

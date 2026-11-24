@@ -10,7 +10,7 @@ struct PresetLibraryTests {
     /// the tests have no business in anybody's Trash (or in ~/Library/Application Support/{{APP}}).
     static func library(folder: URL? = nil) -> PresetLibrary {
         let folder = folder ?? FileManager.default.temporaryDirectory
-            .appendingPathComponent("{{APP_LOWER}}-presets-\(UUID().uuidString)").appendingPathComponent("Presets")
+            .appending(path: "{{APP_LOWER}}-presets-\(UUID().uuidString)").appending(path: "Presets")
         return PresetLibrary(folder: folder, fileExtension: PresetLibrary.fileExtension, deletesForGood: true)
     }
 
@@ -34,14 +34,14 @@ struct PresetLibraryTests {
         #expect(library.names().isEmpty)
         try library.save(try sound(), as: "First")
         #expect(library.names() == ["First"])
-        #expect(FileManager.default.fileExists(atPath: library.folder.appendingPathComponent("First.{{APP_LOWER}}").path))
+        #expect(FileManager.default.fileExists(atPath: library.folder.appending(path: "First.{{APP_LOWER}}").path(percentEncoded: false)))
     }
 
     @Test("The standard libraries live in {{APP}}'s folder under Application Support, with their extensions")
     func standardPlaces() {
-        #expect(PresetLibrary.standard.folder.path.hasSuffix("Application Support/{{APP}}/Presets"))
+        #expect(PresetLibrary.standard.folder.path(percentEncoded: false).hasSuffix("Application Support/{{APP}}/Presets/"))
         #expect(PresetLibrary.standard.fileExtension == "{{APP_LOWER}}")
-        #expect(KitLibrary.standard.folder.path.hasSuffix("Application Support/{{APP}}/Kits"))
+        #expect(KitLibrary.standard.folder.path(percentEncoded: false).hasSuffix("Application Support/{{APP}}/Kits/"))
         #expect(KitLibrary.standard.fileExtension == "{{APP_LOWER}}kit")
     }
 
@@ -61,8 +61,8 @@ struct PresetLibraryTests {
         defer { remove(library) }
         let set = try sound()
         for name in ["b 10", "b 2", "Ábel", "a", "B 1"] { try library.save(set, as: name) }
-        try Data("notes".utf8).write(to: library.folder.appendingPathComponent("read me.txt"))
-        try Data("{}".utf8).write(to: library.folder.appendingPathComponent("Kit.{{APP_LOWER}}kit"))
+        try Data("notes".utf8).write(to: library.folder.appending(path: "read me.txt"))
+        try Data("{}".utf8).write(to: library.folder.appending(path: "Kit.{{APP_LOWER}}kit"))
         #expect(library.names() == ["a", "Ábel", "B 1", "b 2", "b 10"])
     }
 
@@ -105,7 +105,7 @@ struct PresetLibraryTests {
         #expect(throws: CocoaError(.fileWriteNoPermission)) { try library.save(sound, as: "growl") }
         #expect(library.names() == ["Growl"])
         #expect(try library.load("Growl").values["pot"] == 777)
-        #expect(try FileManager.default.contentsOfDirectory(atPath: library.folder.path) == ["Growl.{{APP_LOWER}}"])   // nothing left aside
+        #expect(try FileManager.default.contentsOfDirectory(atPath: library.folder.path(percentEncoded: false)) == ["Growl.{{APP_LOWER}}"])   // nothing left aside
     }
 
     @Test("Deleting takes the preset out of the folder; one that is not there cannot be deleted or read")

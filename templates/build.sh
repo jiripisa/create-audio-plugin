@@ -138,7 +138,7 @@ if ! ACTOOL_LOG=$(xcrun actool "$ICON_DIR/AppIcon.icon" \
     --output-format human-readable-text --notices --warnings --errors \
     --output-partial-info-plist "$ICON_DIR/partial.plist" \
     --app-icon AppIcon --include-all-app-icons --enable-on-demand-resources NO \
-    --development-region en --target-device mac --minimum-deployment-target 26.0 \
+    --development-region en --target-device mac --minimum-deployment-target 27.0 \
     --platform macosx 2>&1); then
     echo "$ACTOOL_LOG"
     if echo "$ACTOOL_LOG" | grep -qiE "command line tools|requires Xcode|unable to find utility"; then

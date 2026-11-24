@@ -1,54 +1,49 @@
 # Template manifest
 
-This tree is the source instrument of design spec §7 at its tag `v1.0.0` with its identity
-replaced by placeholders. It still carries the friction-drum engine; the placeholder engine and
-the platform/instrument seam come later. `scaffold.py --templates` renders it (double-brace
-variables, flag blocks, `__APP__` in paths).
+`templates/` is Fanfrnoch, the source instrument of design spec §7, at its tag `v1.0.0` with its
+identity replaced by placeholders, moved to macOS 27 (§"macOS 27" below). It still carries the
+friction-drum engine; the placeholder engine and the platform/instrument seam come later.
+`scaffold.py --templates` renders it (double-brace variables, flag blocks, `__APP__` in paths).
 
-This file is the skill's map of the template, not part of a project: scaffold renders it like any
-other file, and `scripts/verify_template.sh` (as every run of the skill) deletes it from the
-rendered project right away. It must stay renderable (no double-brace tag here may name anything
-but a config variable, and no flag block may open) and free of the words of
-`scripts/leftover-words.txt`, which is why the source's name is written `Src` below.
+This file is the skill's map of the template. It lives at the repo root, outside `templates/`, so
+it is never rendered into a project and may name the source and its siblings plainly.
 
 Every file is **platform** (rendered as it is on every run) or **instrument** (a run replaces its
 content with the new instrument's; the line says with what).
 
 ## How it was made
 
-`Src`, `SRC` and `src` stand for the source's name in its PascalCase, upper and lower case
-spellings, `Sub` for its 4-character AU subtype.
-
-1. `git -C <source repo> archive v1.0.0`, everything except `.planning/`, `Resources/Art/`,
+1. `git -C <Fanfrnoch repo> archive v1.0.0`, everything except `.planning/`, `Resources/Art/`,
    `Resources/AppIcon.png`, `docs/assets/*.png|*.jpg`, `docs/assets/manual/` and `LICENSE`
    (scaffold writes it from `LICENSE_KEY`).
-2. Paths renamed deepest-first, `Src` → `__APP__`.
+2. Paths renamed deepest-first, `Fanfrnoch` → `__APP__`.
 3. Text, with `LC_ALL=C sed`, in this order (earlier rules win):
 
    | Source | Template |
    |---|---|
-   | `https://jiripisa.github.io/src/` | `{{PAGES_URL}}` |
-   | `https://github.com/jiripisa/src` | `{{REPO_URL}}` |
-   | `jiripisa/src` (gh commands) | `{{OWNER}}/{{APP_LOWER}}` |
+   | `https://jiripisa.github.io/fanfrnoch/` | `{{PAGES_URL}}` |
+   | `https://github.com/jiripisa/fanfrnoch` | `{{REPO_URL}}` |
+   | `jiripisa/fanfrnoch` (gh commands) | `{{OWNER}}/{{APP_LOWER}}` |
    | `jiripisa/jiripisa.github.io`, `https://jiripisa.github.io/` (catalog) | `{{OWNER}}/{{OWNER}}.github.io`, `https://{{OWNER}}.github.io/` |
-   | `io.jp4.src` (app; `.audiounit` for the component) | `{{BUNDLE_ID}}` |
+   | `io.jp4.fanfrnoch` (app; `.audiounit` for the component) | `{{BUNDLE_ID}}` |
    | `1.0.0` in `Resources/Info.plist` and `docs/**/*.html` | `{{VERSION}}` (0.1.0) |
-   | `Src` | `{{APP}}` |
-   | `SRC` | `{{APP_UPPER}}` |
-   | `src_` | `{{APP_C}}_` |
-   | `src` | `{{APP_LOWER}}` |
-   | `'Sub'`, `<string>Sub</string>`, `aumu Sub JPis`, `` `Sub` `` | `{{AU_SUBTYPE}}` |
+   | `Fanfrnoch` | `{{APP}}` |
+   | `FANFRNOCH` | `{{APP_UPPER}}` |
+   | `fanfrnoch_` | `{{APP_C}}_` |
+   | `fanfrnoch` | `{{APP_LOWER}}` |
+   | `'Fanf'`, `<string>Fanf</string>`, `aumu Fanf JPis`, `` `Fanf` `` | `{{AU_SUBTYPE}}` |
 
 4. By hand: `CHANGELOG.md` reset to `## Unreleased` / `- First version.`; `docs/appcast.xml`
    emptied to its channel (no `<item>`); the tagline in `README.md`, `CLAUDE.md` and the site's
    meta/lede → `{{TAGLINE}}` / `{{TAGLINE_CS}}`; footers' `Jiří Píša. MIT License.` →
    `{{AUTHOR}}. {{LICENSE_LABEL}}.` (`{{LICENSE_LABEL_CS}}` in `docs/cs/`); README's licence line
    in LICENSE / not-LICENSE flag blocks as in `new-macos-app`; the release skill's "first release
-   was 1.0.0" → "first release is 0.1.0"; comments naming a sibling instrument rewritten without
-   it (`Lfo.h`, `MidiQueue.h`, `__APP__Engine.cpp`).
+   was 1.0.0" → "first release is 0.1.0"; comments naming a sibling instrument (Brumle,
+   Didgeridoo) rewritten without it (`Lfo.h`, `MidiQueue.h`, `__APP__Engine.cpp`).
 
 `scripts/check_leftovers.sh templates` (words: `scripts/leftover-words.txt`) finds no identity
-token. Content words of the friction drum (drum, friction, stick, horsehair, the programs'
+token; the subtype `Fanf` is matched as a whole word only, so that words such as `Fanfare` stay
+allowed. Content words of the friction drum (drum, friction, stick, horsehair, the programs'
 instrument names, …) are still here on purpose.
 
 ## What resisted a plain rename
@@ -70,13 +65,83 @@ instrument names, …) are still here on purpose.
   the kit extension `.{{APP_LOWER}}kit`, Czech declensions such as `{{APP}}u` in `docs/cs/`. They
   render to valid code and text; the instrument files that hold them are replaced per run.
 - **Kept as they are**: the manufacturer code `JPis` and its name `Jiri Pisa` (the AU's `name` is
-  `Jiri Pisa: {{APP}}`), the shared Sparkle `SUPublicEDKey`, `Package.resolved`, and macOS 26
-  (`.macOS(.v26)`, tools 6.2, `LSMinimumSystemVersion`, actool's deployment target) until the
-  move to macOS 27.
+  `Jiri Pisa: {{APP}}`) and the shared Sparkle `SUPublicEDKey`.
 - **Display names use `{{APP}}`**, as the mechanical rename gives them (window title, bundle
   names, the site). For a name with spaces or diacritics `{{APP_NAME}}` would read better there.
 - **Feature flags are not wired**: the template always renders the site, manual, Czech pages,
   Sparkle and the release skill (the verification config sets every flag true).
+
+## macOS 27
+
+A plug-in made by the skill is always for macOS 27, with the newest libraries. The version is
+written into the template, not taken from the config's `MIN_MACOS`: the code uses APIs that
+macOS 27 introduced, so a project for an older system would not build. (The verification config
+still says `MIN_MACOS: "27.0"`, so that the derived `SWIFT_TOOLS` agrees.) Checked with macOS
+27.2.1, Xcode 27.2 (SDK 27.2), Swift 6.4.2.
+
+- `Package.swift`: `// swift-tools-version: 6.4`, `.macOS(.v27)`; Sparkle `from: "2.10.1"`, the
+  newest 2.x release (`gh api repos/sparkle-project/Sparkle/releases/latest` on 2026-11-24;
+  2.11.0-beta.1 is a pre-release and not taken). `Package.resolved` already pinned 2.10.1.
+- `LSMinimumSystemVersion` `27.0` in `Resources/Info.plist` and `Resources/AudioUnit-Info.plist`;
+  actool's `--minimum-deployment-target 27.0` in `build.sh` (and its copy in
+  `development_workflow.md`); `MIN_SYSTEM = "27.0"` (the appcast's
+  `sparkle:minimumSystemVersion`) in `scripts/make_appcast.py`.
+- Text: "macOS 27 or later" in `README.md`, `docs/index.html`, `docs/cs/index.html` (both
+  places each); "macOS 27+" in `CLAUDE.md`; "Xcode 27 (Swift 6.4), macOS 27+" and the icon note in
+  `development_workflow.md`.
+- **No warnings.** `swift build`, `swift test`, `swift test -c release` and `./build.sh release`
+  of the rendered project print no `warning:` line; `scripts/verify_template.sh` fails when one
+  appears.
+
+### API replacements
+
+The SDK marks an API either deprecated in a version (the compiler warns at deployment target 27)
+or "to be deprecated" (`deprecated: 100000`, no warning yet, the replacement named). Both kinds
+were replaced where the template used them:
+
+| Old | New | File | SDK mark |
+|---|---|---|---|
+| `AVAudioIONode.audioUnit` | `withAudioUnit { unit in … }` (the optional unit copied out inside the closure) | `Sources/__APP__/AudioOutput.swift` (device, channel map) | deprecated 27.0, "in favor of withAudioUnit" |
+| `AVAudioEngine.connect(_:to:format:)` | `try connectNode(_:to:format:)` | `Sources/__APP__/AudioOutput.swift` | deprecated 27.0, replacement `connect:to:format:error:` |
+| `overlay(_:alignment:)` with a view | `overlay { … }` | `Sources/__APP__UI/HeaderView.swift`, `ModeFooterView.swift` | to be deprecated, "Use `overlay(alignment:content:)`" |
+| `URL.appendingPathComponent(_:)`, `(_:isDirectory: true)` | `appending(path:)`, `appending(path:directoryHint: .isDirectory)` | `Sources/__APP__Core/Presets.swift`, `Sources/__APP__/AppModel.swift`; tests `KitTests`, `PresetLibraryTests`, `PresetFileTests`, `PresetShelvesTests`, `ListeningRenders` | to be deprecated |
+| `URL.path` | `path(percentEncoded: false)` | `Sources/__APP__/AppModel.swift`; tests `KitTests`, `PresetLibraryTests` | to be deprecated |
+| `URL(fileURLWithPath:isDirectory: true)` | `URL(filePath:directoryHint: .isDirectory)` | `Tests/__APP__CoreTests/ListeningRenders.swift` | to be deprecated |
+
+Behaviour stays the same; where the new API differs it does not show:
+
+- `connectNode` reports a failure as a thrown error where `connect` raised an Objective-C
+  exception (the app died). The error now becomes the settings window's "Audio did not start: …"
+  problem and audio stays off until the next hardware change, as for an unusable format.
+- `appendingPathComponent(_:)` without `isDirectory` asked the file system whether the path is a
+  directory and then added a trailing slash; `appending(path:)` infers it from the path. Every such
+  URL is a file, a folder that does not exist yet, or a bundle path handed to `FileManager`,
+  which ignores the slash.
+- `path(percentEncoded: false)` keeps a directory URL's trailing slash, `path` dropped it. The two
+  tests on the standard folders (`PresetLibraryTests`) now expect `…/{{APP}}/Presets/` and
+  `…/{{APP}}/Kits/`.
+
+### Checked and current
+
+- Compiler: no deprecation warning left in Swift or C++ (`__APP__AU.cpp`, the vendored
+  AudioUnitSDK, the DSP).
+- The SDK's Swift interfaces of SwiftUI, SwiftUICore, AppKit, AVFAudio, AVFoundation,
+  Foundation, CoreMIDI, AudioToolbox, CoreAudio, Observation, Synchronization and os, scanned for
+  declarations marked deprecated (in a version or "to be deprecated") whose name the template's
+  Swift code uses, and the Objective-C/C headers of AppKit, AudioToolbox, CoreMIDI, CoreAudio,
+  AVFAudio, CoreFoundation and vecLib for the functions it calls. Current, nothing to replace:
+  `Font.system(size:weight:design:)` (the calls resolve to the optional-parameter overload; the
+  deprecated one is disfavoured),
+  `onChange(of:)` with two parameters, `onTapGesture(count:)` without a coordinate space,
+  `background(_:in:)`, `DragGesture`, `GeometryReader`, `Image(nsImage:)`, `NSHostingView`,
+  `AUCocoaUIBase`; CoreMIDI's `MIDIClientCreateWithBlock`, `MIDIInputPortCreateWithProtocol`,
+  `MIDIDestinationCreateWithProtocol`, `MIDIEventList`; the `AudioUnit…`, `AudioComponent…` and
+  `AudioObject…` C functions; `Mutex`, `OSAllocatedUnfairLock`; vDSP's FFT and window functions;
+  Sparkle 2.10.1's `SPUStandardUpdaterController`.
+- Not adopted, because the SDK does not mark the old way deprecated and this step does not
+  change the UI: Foundation's typed notification messages (`NSApplication.WillTerminateMessage`,
+  `DidResignActiveMessage`) in place of the name-based observers, and Liquid Glass
+  (`glassEffect`) for the panel.
 
 ## Placeholder art
 
@@ -93,7 +158,7 @@ instrument names, …) are still here on purpose.
 
 | File | Kind | What it is / what a run puts there |
 |---|---|---|
-| `MANIFEST.md` | platform | this map |
+| `TEMPLATE_MANIFEST.md` (repo root, not in `templates/`) | skill only | this map; never rendered |
 | `.gitignore` | platform | build output, local Claude files, spike renders |
 | `Package.swift` | platform | targets DSP, AudioUnitSDK, AU, AUView, AUExports, Core, UI, app, Reference, tests |
 | `Package.resolved` | platform | Sparkle pin |

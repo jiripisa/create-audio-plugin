@@ -2,7 +2,7 @@
 
 ## 1. Toolchain & Project Layout
 
-- Xcode (Swift 6.2), macOS 26+. The Command Line Tools alone are not enough,
+- Xcode 27 (Swift 6.4), macOS 27+. The Command Line Tools alone are not enough,
   because `actool`, which compiles the app icon, comes with Xcode. No Xcode
   project: Swift Package Manager builds the code, `build.sh` assembles the
   `.app` bundle.
@@ -69,7 +69,7 @@ auval -v aumu {{AU_SUBTYPE}} JPis        # must end with AU VALIDATION SUCCEEDED
 ### 2.1.1 App icon (actool)
 
 - `Resources/AppIcon.png` is the master: 1024 px, full bleed and opaque (no
-  transparent corners, no own squircle). macOS 26 masks it to the icon shape.
+  transparent corners, no own squircle). macOS 27 masks it to the icon shape.
   A plain `.icns` that does not fill the shape is put small on a light tile,
   which is why the icon is not built with `sips` + `iconutil`.
 - `Resources/AppIcon.icon` is an Icon Composer document (`icon.json`: one
@@ -85,7 +85,7 @@ auval -v aumu {{AU_SUBTYPE}} JPis        # must end with AU VALIDATION SUCCEEDED
     --output-format human-readable-text --notices --warnings --errors \
     --output-partial-info-plist <tmp>/partial.plist \
     --app-icon AppIcon --include-all-app-icons --enable-on-demand-resources NO \
-    --development-region en --target-device mac --minimum-deployment-target 26.0 \
+    --development-region en --target-device mac --minimum-deployment-target 27.0 \
     --platform macosx
   ```
   `Info.plist` carries what the partial plist asks for: `CFBundleIconName`
