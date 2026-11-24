@@ -248,6 +248,12 @@ in-PID screenshots, release skill), into `templates/` of the skill **[call]**:
   `__APP__Reference`; `build.sh`, `run.sh`, `development_workflow.md`, `CLAUDE.md`, the project
   `release` skill, `.planning` skeleton, `docs/` (site, manual, CS), `Resources/` (Info.plists,
   entitlements, an `AppIcon.icon` document).
+- **The instrument's parameters are individual to each instrument** **[user]**: the run's agent
+  decides from the research and the approved prototype which knobs the instrument has (names,
+  ranges, defaults, sections, which ones LFO and VEL may move) and fixes them in the spec. The
+  template prescribes none of them; only the small platform block (volume, pan, tune, octave,
+  bend, voice mode, glide, LFO rates/shapes, velocity sensitivity) is common, because presets,
+  pads, MIDI learn and the AU depend on it.
 - **The seam between platform and instrument** is the engine's parameter table, its sections,
   programs, default kit, and the `Voice` (strike/note-on, process, release). The template ships
   a **placeholder engine** (a simple decaying oscillator, a handful of parameters, two programs)
