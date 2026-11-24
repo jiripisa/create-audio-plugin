@@ -4,7 +4,10 @@
 Usage: identity.py <dir-path> [--taken Brml,Fanf] [--no-auval] [--owner <login>]
 
 Prints JSON: APP_NAME, APP, APP_LOWER, APP_C, APP_UPPER, BUNDLE_ID, AU_SUBTYPE, OWNER.
-Exits 2 with a message on stderr when the ASCII form of the name does not start with a letter.
+Exits 2 with a message on stderr when the name holds anything but letters, digits, spaces and
+hyphens, starts or ends with a space or a hyphen, or its ASCII form does not start with a letter.
+APP_NAME goes unescaped into Swift strings, plists, XML, HTML and shell lines, so quotes,
+backslashes, &, $, <, >, :, # and the like are refused instead of escaped.
 
 APP is the name with diacritics stripped, split into words on anything that is not an ASCII
 letter or digit, each word capitalised on its first letter and joined ("Tape Loop 2" -> "TapeLoop2").
@@ -38,6 +41,17 @@ VOWELS = set("aeiouAEIOU")
 def to_ascii(text: str) -> str:
     decomposed = unicodedata.normalize("NFKD", text)
     return "".join(c for c in decomposed if not unicodedata.combining(c))
+
+
+def name_problem(name: str):
+    """Why `name` cannot be a display name, or None when it can."""
+    bad = sorted({c for c in name if not (c.isalpha() or c.isdigit() or c in " -")})
+    if bad:
+        return (f"directory name {name!r} holds {' '.join(repr(c) for c in bad)}: the name may hold only "
+                "letters, digits, spaces and hyphens (it is written unescaped into code, plists and pages)")
+    if name[:1] in " -" or name[-1:] in " -":
+        return f"directory name {name!r}: the name must not start or end with a space or a hyphen"
+    return None
 
 
 def derive_app(name: str) -> str:
@@ -105,7 +119,12 @@ def main() -> None:
     parser.add_argument("--owner", help="GitHub login (default: gh api user)")
     args = parser.parse_args()
 
-    name = Path(args.directory).resolve().name
+    # NFC: a name typed or stored decomposed ("C" + combining caron) is the same name.
+    name = unicodedata.normalize("NFC", Path(args.directory).resolve().name)
+    problem = name_problem(name)
+    if problem:
+        print(f"error: {problem}", file=sys.stderr)
+        sys.exit(2)
     app = derive_app(name)
     if not app or not app[0].isalpha():
         print(f"error: directory name {name!r} gives {app!r}: the name must start with a letter "

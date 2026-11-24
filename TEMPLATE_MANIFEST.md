@@ -72,7 +72,10 @@ gone from everything: `check_leftovers.sh templates` finds nothing, with no dire
   {{APP_NAME}}", "plugin {{APP_NAME}}" or leave it out.
 - **Kept as they are**: the manufacturer code `JPis` and its name `Jiri Pisa` (the AU's `name` is
   `Jiri Pisa: {{APP}}`) and the shared Sparkle `SUPublicEDKey`.
-- **Display names use `{{APP_NAME}}`** (it may hold diacritics and spaces, e.g. "Čimbál"),
+- **Display names use `{{APP_NAME}}`** (it may hold diacritics, digits, spaces and hyphens, e.g.
+  "Čimbál", "Tape Loop 2"; `identity.py` refuses any other character, and a space or hyphen at
+  either end, because the name is written unescaped into Swift strings, plists, XML, HTML and
+  shell lines; it composes the name to NFC),
   `{{APP}}` stays where a file, a folder, a target or a code name is meant. `{{APP_NAME}}`:
   `CFBundleName` and `CFBundleDisplayName` of the app (so the app menu, About and Quit), the
   component's `CFBundleName`, its `AudioComponents` `name` (`Jiri Pisa: {{APP_NAME}}`, the
@@ -474,15 +477,17 @@ the same tags in the same order as the English ones, their FILL comments include
 the English page's content in Czech). The figures keep their marks with placeholder coordinates;
 the FILL above each says what the screenshot shows and that the marks are measured on it. A
 release has none left (`CLAUDE.md`; the release skill's step 1 checks `grep -rn "FILL:" docs
-.planning`).
+.planning/ROADMAP.md .planning/STATE.md`; plans and specs are the run's own and are not checked).
+The standing rules of `ROADMAP.md` and `STATE.md` (status marks, what an entry holds) are plain
+text, not FILL, so they stay.
 
 | File | FILL comments | What they ask for |
 |---|---|---|
 | `docs/index.html`, `docs/cs/index.html` | 6 each | the page's images (one comment), the first and third feature cards, what "synthesized" lets the instrument do |
 | `docs/manual.html`, `docs/cs/manual.html` | 35 each | the contents' and the panel's section names, what the instrument is, the programs, each section of knobs, re-hit and start-only knobs, the wheels, groups and the default kit, the LFO/VEL target lists, the knobs centred on 0, the standard and free controllers, the Audio Unit's parameter counts, each figure's screenshot and caption |
 | `docs/assets/site.css` | 1 | the approved site look's palette, display font and button (the template's is a neutral dark one) |
-| `.planning/ROADMAP.md` | 7 | file names of the report and the spec, the status rule, what phases 02–05 made |
-| `.planning/STATE.md` | 5 | one entry per phase; the research, prototype and spec entry |
+| `.planning/ROADMAP.md` | 6 | file names of the report and the spec, what phases 02–05 made |
+| `.planning/STATE.md` | 4 | the research, prototype and spec entry (date, file names, approval date) |
 
 Checked by rendering (`Zkušebník Test`) and opening the four pages in headless Chrome
 (Playwright 1.65.1, its Chromium 1255) at 1440 and 400 px: no page is wider than its viewport, the
@@ -501,5 +506,14 @@ that no `FILL:` is left; `auval` runs on the component that ships; the catalog i
 the push question, and the `update-catalog` build check and push run after publishing and the live
 checks. The one bold push question names every outward action of the first release in order
 (create the public repo, push the tag, the GitHub Release with the DMG, `curl` the DMG for 200,
-push `main`, turn on Pages, push the catalog); a later release names only what is not so already.
+push `main`, turn on Pages, push the catalog entry or, when it is unchanged, start the catalog's
+rebuild); a later release names only what is not so already. The catalog step stops and asks when
+the repo is in the catalog's `exclude` list; publishing adds `origin` when the repo exists but the
+clone has none.
 
+## Taglines
+
+`TAGLINE` and `TAGLINE_CS` are written unescaped into HTML attributes (`content="{{TAGLINE}}"`),
+Markdown and a shell line (`gh repo create … --description "{{TAGLINE}}"` in the release skill),
+and a run may put them into YAML, where `": "` breaks a plain value. They must not contain `"`,
+`\`, `$`, a backtick or the sequence `": "` (colon and space); the skill's intake enforces it.

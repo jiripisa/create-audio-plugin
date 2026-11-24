@@ -23,7 +23,9 @@ that is all of them:
 4. check with `curl` that the DMG downloads (`200`);
 5. push `main`;
 6. turn on GitHub Pages (`main`, `/docs`);
-7. push the catalog entry to `{{OWNER}}/{{OWNER}}.github.io`.
+7. push the catalog entry to `{{OWNER}}/{{OWNER}}.github.io` — or, when the entry is
+   unchanged, start the catalog's rebuild
+   (`gh workflow run pages.yml -R {{OWNER}}/{{OWNER}}.github.io`).
 
 For a later release, leave out what is already so (step 7.0 says how to tell)
 and say that it is. The question is asked once; a yes covers exactly the
@@ -49,8 +51,9 @@ actions it named.
 
 Check: `swift test` green (redirect the output to a file, read the summary line);
 `grep -rn "<old version>" docs/*.html docs/cs/*.html` finds nothing;
-`grep -rn "FILL:" docs .planning` finds nothing (every template placeholder of
-the site and the manual is written).
+`grep -rn "FILL:" docs .planning/ROADMAP.md .planning/STATE.md` finds nothing
+(every template placeholder of the site, the manual and the planning files is
+written; plans and specs are not templates and are not checked).
 
 ## 2. Build the DMG
 
@@ -99,7 +102,9 @@ need the public repo, the Release and Pages. This step is its local part (its
 
 1. Clone the catalog fresh into the session's scratchpad (never into the
    project): `gh repo clone {{OWNER}}/{{OWNER}}.github.io "<scratchpad>/catalog" -- --depth 1`.
-   Read its `README.md` and `projects.json`.
+   Read its `README.md` and `projects.json`. If `{{APP_LOWER}}` is in its `exclude`
+   list, the user hid it on purpose: stop and ask before removing it from there
+   (and leave the catalog out of the push question until they answer).
 2. Write the entry `projects.{{APP_LOWER}}` (the repo name, exact case) as
    `update-catalog` §3 says: `section` (`music` for an instrument), `order` (after
    the last of its section), `title` (`{{APP_NAME}}`, as the website's `<h1>`), a
@@ -129,7 +134,9 @@ report what is ready locally (the tag, the DMG, the catalog commit).
      (no `--push`); `PRIVATE` →
      `gh repo edit {{OWNER}}/{{APP_LOWER}} --visibility public --accept-visibility-change-consequences`;
      `PUBLIC` → nothing to do.
-   - `git remote get-url origin` is `{{REPO_URL}}.git` (or its SSH form).
+   - `git remote get-url origin` is `{{REPO_URL}}.git` (or its SSH form). When the
+     repo exists but this clone has no `origin` (`gh repo create` was not run here),
+     add it: `git remote add origin {{REPO_URL}}.git`.
 1. `git push origin vX.Y.Z`
 2. Copy `build/{{APP}}.dmg` to a scratch folder as `{{APP}}-X.Y.Z.dmg` and run
    `gh release create vX.Y.Z <that file> --title "{{APP_NAME}} X.Y.Z" --notes-file <CHANGELOG section>`.

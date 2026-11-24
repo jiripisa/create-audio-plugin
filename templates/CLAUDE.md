@@ -51,9 +51,10 @@
 - **The site is bilingual.** Every change to `docs/index.html` or
   `docs/manual.html` must also go into `docs/cs/` (and the other way
   round): the same tags in the same order. Shared styles live in `docs/assets/`.
-- The pages were made from templates that mark what is the instrument's with
-  `<!-- FILL: … -->` comments, saying what goes there and from where. A release
-  has none left: `grep -rn 'FILL:' docs .planning` finds nothing.
+- The pages, `.planning/ROADMAP.md` and `.planning/STATE.md` were made from
+  templates that mark what is the instrument's with `<!-- FILL: … -->`
+  comments, saying what goes there and from where. A release has none left:
+  `grep -rn 'FILL:' docs .planning/ROADMAP.md .planning/STATE.md` finds nothing.
 
 ## Planning
 

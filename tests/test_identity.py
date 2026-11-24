@@ -3,6 +3,7 @@ import importlib.util
 import json
 import subprocess
 import tempfile
+import unicodedata
 import unittest
 from pathlib import Path
 
@@ -82,6 +83,27 @@ class IdentityTest(unittest.TestCase):
             result = run(name)
             self.assertEqual(result.returncode, 2, name)
             self.assertIn("must start with a letter", result.stderr)
+
+    def test_unsafe_characters_exit_2(self):
+        # The display name goes into Swift strings, plists, XML, HTML and shell lines unescaped.
+        for name in ('A"b', "Tom & Jerry", "a\\b", "Cash$", "A<b>", "Re: Mix", "Jim's", "No#1", "A.b"):
+            result = run(name)
+            self.assertEqual(result.returncode, 2, name)
+            self.assertIn("letters, digits, spaces and hyphens", result.stderr, name)
+
+    def test_space_or_hyphen_at_an_end_exits_2(self):
+        for name in ("Bass-", "Bass ", "-Bass"):
+            result = run(name)
+            self.assertEqual(result.returncode, 2, repr(name))
+            self.assertIn("start or end", result.stderr, repr(name))
+
+    def test_safe_display_names_pass(self):
+        for name in ("Čimbál", "Tape Loop 2", "Zkušebník Test", "a-b", "Ťuk-ťuk"):
+            self.assertEqual(identity(name)["APP_NAME"], name)
+
+    def test_decomposed_name_is_composed(self):
+        decomposed = unicodedata.normalize("NFD", "Čimbál")
+        self.assertEqual(identity(decomposed)["APP_NAME"], "Čimbál")
 
     def test_taken_entries_are_stripped(self):
         self.assertEqual(identity("Strunobijec", "--taken", "Brml, Stru")["AU_SUBTYPE"], "Strn")

@@ -4,10 +4,9 @@ Phases, newest first. One phase = one folder in `phases/`, one branch, one
 `--no-ff` merge. Research: `research/reports/<!-- FILL: the research report's file name -->`.
 Design: `specs/<!-- FILL: the spec's file name, <date>-instrument-design.md -->`.
 
-<!-- FILL: at the end of each phase, set its status to ✅ and end its goal with " — <date>"
-     (or " — built on `feature/NN-slug` <date>, not merged yet" while it waits); write what was
-     made in the instrument's own words, as the rows below have it for the platform's part.
-     Planned phases are ⬜, the open one ▶️. -->
+Planned phases are ⬜, the open one ▶️. At the end of a phase its status becomes ✅ and its
+goal ends with " — <date>" (or " — built on `feature/NN-slug` <date>, not merged yet" while it
+waits for the merge), and says what was made in the instrument's own words.
 
 | Phase | Goal | Status |
 |---|---|---|
