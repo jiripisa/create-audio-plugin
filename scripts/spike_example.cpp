@@ -11,7 +11,8 @@
 //
 // Renders 48 kHz / 24-bit mono WAV files, peak-normalised to -1 dBFS:
 //   00_check_*   renders with a known answer, for checking the analysis chain (not for the ear):
-//                the score helpers' tone, noise in a tail, a weak fundamental, weak odd partials
+//                the score helpers' tone, noise in a tail, a weak fundamental, weak odd partials,
+//                a low short stroke, a groove and one of its strokes, a hum an octave under
 //   01..06       one group per question, decisive question first, each with a long tail
 //   P01_*        one render per planned program
 //
@@ -133,6 +134,17 @@ static Params checkTone()
     return p;
 }
 
+// Known answers for the segmentation: one decay rate for every partial, so that the slope of a
+// stroke cut short by the next one says its decay exactly.
+static Params singleRate()
+{
+    Params p;
+    p.damping = 0;
+    p.stretch = 0;
+    p.vary = 0;
+    return p;
+}
+
 static Renders renders()
 {
     const Params D;
@@ -162,6 +174,24 @@ static Renders renders()
                      x[i] += float(dbToGain(k == 1 ? -20 : k % 2 ? -40 : -6.0 * std::log2(k / 2.0)) *
                                    std::sin(2 * kPi * 220.0 * k * double(i) / kRate));
              normalize(x);
+             return x;
+         }},
+        {"00_check_E_low_short_stroke", [=] {
+             // E1 (41 Hz) dying in 0.25 s: the window holds two periods (fewPeriods).
+             return render(stroke(kLead, 28, 0.9f), with([](Params& p) { p.ring = 0.25f; p.fundamentalDb = -10; }));
+         }},
+        {"00_check_F_groove", [=] {
+             // 16 C3 strokes every 150 ms, accents on the beats: 16 onsets, 6.67 strokes per s.
+             Score s;
+             for (int i = 0; i < 16; ++i) s = s + stroke(kLead + 0.15 * i, 48, i % 4 == 0 ? 0.95f : 0.75f);
+             return render(s, singleRate());
+         }},
+        {"00_check_G_one_stroke", [=] { return render(stroke(kLead, 48, 0.95f), singleRate()); }},
+        {"00_check_H_hum_an_octave_under", [=] {
+             // G2 with a 49 Hz hum at -45 dBFS: the pitch is still 98 Hz.
+             Samples x = render(held(43, 1.0f, 1.5).withTail(1.0), checkTone());
+             for (size_t i = 0; i < x.size(); ++i)
+                 x[i] += float(dbToGain(-45) * std::sin(2 * kPi * 49.0 * double(i) / kRate));
              return x;
          }},
 

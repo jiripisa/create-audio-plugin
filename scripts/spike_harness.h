@@ -16,10 +16,11 @@
 //   ./<slug>_spike --list                prints the render names
 //
 // --analyze is a built-in check while tuning, so that no file has to be written and nothing but
-// this header is needed. It uses the same rules as scripts/analyze.swift (steady window, pitch
-// first by normalised autocorrelation with the octave guard, then H1..H10 read at that pitch),
-// with a direct DFT instead of an FFT. analyze.swift on the written WAVs is the measurement that
-// goes into reports and is compared with the recordings.
+// this header is needed. For one note it uses the same rules as scripts/analyze.swift (steady
+// window, pitch first by normalised autocorrelation with the octave guard, then H1..H10 read at
+// that pitch, the few-periods note), with a direct DFT instead of an FFT; it does not find
+// onsets, so in a phrase its window may run into the next stroke. analyze.swift on the written
+// WAVs is the measurement that goes into reports and is compared with the recordings.
 //
 // Conventions:
 //   - mono, float samples, default 48 kHz (kRate); every helper takes the rate where it matters
@@ -407,8 +408,9 @@ inline int quickAnalyze(const std::string& name, const Samples& x, double rate, 
     const size_t n = seg.size();
 
     // Pitch first: normalised autocorrelation over 30..2000 Hz; the first peak within 90 % of the
-    // highest (no octave too low), halved when twice the lag fits better and the spectrum has a
-    // component at half the pitch (no octave too high).
+    // highest (no octave too low). Octave guard (no octave too high): halved when the peak near
+    // twice the lag closes half the gap to 1 and the halved pitch's odd harmonics (0.5, 1.5 ...
+    // 4.5 f) together come within 25 dB of the strongest harmonic.
     std::vector<double> cum(n + 1, 0.0);
     for (size_t i = 0; i < n; ++i) cum[i + 1] = cum[i] + seg[i] * seg[i];
     auto r = [&](size_t lag) {
@@ -419,6 +421,7 @@ inline int quickAnalyze(const std::string& name, const Samples& x, double rate, 
         return e > 0 ? dot / e : 0.0;
     };
     const size_t minLag = size_t(rate / 2000.0), maxLag = std::min(size_t(rate / 30.0) + 1, n / 2);
+    if (maxLag < minLag + 3) { std::printf("f0 none (window too short)\n"); return 1; }
     std::vector<double> rs(maxLag + 2, 0.0);
     for (size_t l = minLag; l <= maxLag + 1 && l < n; ++l) rs[l] = r(l);
     double top = -1;
@@ -428,35 +431,45 @@ inline int quickAnalyze(const std::string& name, const Samples& x, double rate, 
     size_t lag = 0;
     for (size_t l = minLag + 1; l <= maxLag; ++l)
         if (rs[l] > rs[l - 1] && rs[l] >= rs[l + 1] && rs[l] >= 0.9 * top) { lag = l; break; }
-    // The top of a parabola through the lags l - 1, l, l + 1: the period and the NCCF there.
-    auto refine = [&](size_t l, double a, double b, double c, double* value) {
+    // The top of a parabola through a, b, c (offset kept within +-0.5; none when b is no maximum).
+    auto refine = [](double a, double b, double c, double* value) {
         const double den = a - 2 * b + c;
-        const double d = den < 0 ? 0.5 * (a - c) / den : 0.0;
+        const double d = den < 0 ? std::clamp(0.5 * (a - c) / den, -0.5, 0.5) : 0.0;
         *value = std::min(1.0, b - 0.25 * (a - c) * d);
-        return double(l) + d;
+        return d;
     };
     double periodicity = 0;
-    double period = refine(lag, rs[lag - 1], rs[lag], rs[lag + 1], &periodicity);
+    double period = double(lag) + refine(rs[lag - 1], rs[lag], rs[lag + 1], &periodicity);
     std::vector<double> w(n);
     for (size_t i = 0; i < n; ++i) w[i] = 0.5 - 0.5 * std::cos(2 * kPi * double(i) / double(n - 1));
     const size_t lag2 = size_t(std::lround(2 * period));
-    if (lag2 + 1 < n * 2 / 3 && rate / (2 * period) >= 30.0)
+    if (lag2 + 3 < n * 2 / 3 && rate / (2 * period) >= 30.0)
     {
-        const double a = r(lag2 - 1), b = r(lag2), c = r(lag2 + 1);
-        double strongest = 0;
-        for (int k = 1; k <= 10; ++k) strongest = std::max(strongest, levelNear(w, seg, rate, k * rate / period));
-        const double half = levelNear(w, seg, rate, rate / (2 * period));
-        double top2 = 0;
-        const double period2 = refine(lag2, a, b, c, &top2);
-        if (top2 > periodicity && top2 - periodicity >= 0.5 * (1 - periodicity) && half > strongest * 0.01)
+        double around[5];
+        size_t j = 0;
+        for (size_t i = 0; i < 5; ++i)
         {
-            period = period2;
+            around[i] = r(lag2 - 2 + i);
+            if (around[i] > around[j]) j = i;
+        }
+        double top2 = around[j], offset2 = 0;
+        if (j > 0 && j < 4) offset2 = refine(around[j - 1], around[j], around[j + 1], &top2);
+        const double f = rate / period;
+        double strongest = 0, odd = 0;
+        for (int k = 1; k <= 10; ++k) strongest = std::max(strongest, levelNear(w, seg, rate, k * f));
+        for (int k = 1; k <= 9; k += 2) odd += std::pow(levelNear(w, seg, rate, k * f / 2), 2);
+        if (top2 > periodicity && top2 - periodicity >= 0.5 * (1 - periodicity) &&
+            odd >= strongest * strongest * std::pow(10.0, -2.5))
+        {
+            period = double(lag2 - 2 + j) + offset2;
             periodicity = top2;
             std::printf("octave guard: halved\n");
         }
     }
     const double f0 = rate / period;
     std::printf("f0 %.3f Hz  periodicity %.4f\n", f0, periodicity);
+    const double periods = double(n) / rate * f0;
+    if (periods < 4) std::printf("few periods: the window holds %.1f (under 4), levels are rough\n", periods);
     double h1 = 0;
     for (int k = 1; k <= 10; ++k)
     {

@@ -1,6 +1,7 @@
 #!/bin/bash
 # Check the spike harness (scripts/spike_harness.h, through scripts/spike_example.cpp) and the
-# analysis tool (scripts/analyze.swift) against renders whose answer is known.
+# analysis tool (scripts/analyze.swift) against renders whose answer is known (the example's
+# 00_check_* renders: tones, a tail with noise, octave traps, a low short stroke, a groove).
 #
 #   tests/test_spike_analyze.sh
 #
@@ -31,12 +32,13 @@ COUNT=$(find "$WORK/renders" -name '*.wav' | wc -l | tr -d ' ')
 [ ! -e "$WORK/renders/references" ] || fail "the example created a references folder"
 ok "$COUNT renders written, no references folder created"
 
-"$WORK/spike" "$WORK/again" 00_check > /dev/null
-for f in "$WORK"/again/*.wav; do
-    cmp -s "$f" "$WORK/renders/$(basename "$f")" || fail "$(basename "$f") differs between two runs"
+"$WORK/spike" "$WORK/again" > /dev/null
+for f in "$WORK"/renders/*.wav; do
+    cmp -s "$f" "$WORK/again/$(basename "$f")" || fail "$(basename "$f") differs between two runs"
 done
-[ "$(find "$WORK/again" -name '*.wav' | wc -l | tr -d ' ')" -eq 4 ] || fail "prefix 00_check did not select 4 renders"
-ok "renders are deterministic; a name prefix selects renders"
+"$WORK/spike" "$WORK/checks" 00_check > /dev/null
+[ "$(find "$WORK/checks" -name '*.wav' | wc -l | tr -d ' ')" -eq 8 ] || fail "prefix 00_check did not select 8 renders"
+ok "all $COUNT renders are the same in two runs; a name prefix selects renders"
 
 TONE="$WORK/renders/00_check_A_tone_220Hz.wav"
 NOISE="$WORK/renders/00_check_B_noise_tail.wav"
@@ -87,6 +89,60 @@ within "$EF0" 220 0.5 || fail "weak odd partials: f0 $EF0 Hz, want 220 (octave e
 [ "$(field '.files[0].octaveGuard')" = none ] || fail "the plain tone was halved"
 ok "weak odd partials: f0 $EF0 Hz, guard $EG; the plain tone is not halved"
 
+# --- phrases: onsets, strokes, the file-level note stops at the next onset ------------------
+
+GROOVE="$WORK/renders/00_check_F_groove.wav"
+ONE="$WORK/renders/00_check_G_one_stroke.wav"
+G=$("$ANALYZE" --json "$GROOVE" "$ONE") || fail "analyze failed on the groove"
+gf() { echo "$G" | jq -r "$1"; }
+[ "$(gf '.files[0].onsets | length')" -eq 16 ] || fail "groove: $(gf '.files[0].onsets | length') onsets, want 16"
+for i in $(seq 0 15); do
+    T=$(gf ".files[0].onsets[$i]")
+    within "$T" "$(awk -v i="$i" 'BEGIN { print 0.2 + 0.15 * i }')" 0.005 || fail "groove onset $i at $T s, want $(awk -v i="$i" 'BEGIN { print 0.2 + 0.15 * i }') +- 5 ms"
+done
+SR=$(gf '.files[0].strokeRate')
+within "$SR" 6.667 0.133 || fail "groove: strokeRate $SR, want 6.67 +- 2 %"
+[ "$(gf '.files[0].strokes.count')" -eq 16 ] || fail "groove: strokes.count $(gf '.files[0].strokes.count')"
+DG=$(gf '.files[0].strokes.median.decayMs'); D1=$(gf '.files[1].decayMs')
+within "$DG" "$D1" "$(awk -v d="$D1" 'BEGIN { print d * 0.1 }')" || fail "groove: stroke decay median $DG ms, one stroke $D1 ms (want within 10 %)"
+ok "groove: 16 onsets within 5 ms, $SR strokes/s, stroke decay median $DG ms (one stroke: $D1 ms)"
+[ "$(gf '.files[0].decayMs')" = null ] || fail "groove: the file-level decay $(gf '.files[0].decayMs') ran past the next onset"
+WEND=$(gf '.files[0].windowS[1]'); O2=$(gf '.files[0].onsets[1]')
+awk -v w="$WEND" -v o="$O2" 'BEGIN { exit !(w <= o) }' || fail "groove: the steady window ends at $WEND s, after the next onset $O2 s"
+GF0=$(gf '.files[0].f0Hz'); OF0=$(gf '.files[1].f0Hz')
+within "$GF0" "$OF0" 0.5 || fail "groove: f0 $GF0 Hz, one stroke $OF0 Hz"
+GH=$(gf '.files[0].hnrDb'); OH=$(gf '.files[1].hnrDb')
+within "$GH" "$OH" 6 || fail "groove: HNR $GH dB, one stroke $OH dB"
+ok "groove: file-level decay null, window ends $WEND s before the next onset $O2 s, f0 $GF0 Hz, HNR $GH dB (one stroke $OF0 Hz, $OH dB)"
+for f in 00_check_A_tone_220Hz 00_check_H_hum_an_octave_under 03_tilt_C_-12dB_dark 05_range_C2_C3_C4_C5_C6; do
+    N=$("$ANALYZE" --json "$WORK/renders/$f.wav" | jq -r '.files[0].onsets | length')
+    WANT=$(case $f in 00_*) echo 1 ;; 03_*) echo 8 ;; 05_*) echo 5 ;; esac)
+    [ "$N" -eq "$WANT" ] || fail "$f: $N onsets, want $WANT (note-offs, releases and steady tones are no onsets)"
+done
+ok "no onsets from note-offs, releases or a steady tone with a hum"
+
+# --- harmonics stay in their bands; the octave guard ignores a hum ----------------------------
+
+LOW="$WORK/renders/00_check_E_low_short_stroke.wav"
+LQ=$("$WORK/spike" --analyze 00_check_E) || fail "--analyze failed on the low stroke"
+LWIN=$(echo "$LQ" | awk '$1 == "window" { print $2 }')
+L=$("$ANALYZE" --json --window "$LWIN" "$LOW" | jq -c '.files[0]')
+[ "$(echo "$L" | jq -r .fewPeriods)" = true ] || fail "low stroke: fewPeriods not set"
+"$ANALYZE" "$LOW" | grep -q "periods (under 4)" || fail "low stroke: no few-periods note in the plain output"
+echo "$L" | jq -e '.f0Hz as $f | [.harmonicsHz | to_entries[] | select(.value != null)
+    | (.value / ((.key + 1) * $f))] | all(. >= 0.97 and . <= 1.03)' > /dev/null \
+    || fail "low stroke: a harmonic outside its +-3 % band: $(echo "$L" | jq -c .harmonicsHz)"
+for k in $(seq 2 10); do
+    A=$(echo "$L" | jq -r ".harmonicsDb[$((k - 1))]"); Q=$(echo "$LQ" | awk -v h="H$k" '$1 == h { print $2 }')
+    within "$A" "$Q" 1 || fail "low stroke: H$k $A dB here, $Q dB from --analyze"
+done
+ok "low stroke: fewPeriods, harmonics inside their bands and within 1 dB of --analyze (window $LWIN s)"
+HUM=$("$ANALYZE" --json "$WORK/renders/00_check_H_hum_an_octave_under.wav" | jq -r '.files[0].f0Hz')
+within "$HUM" 98 0.5 || fail "a hum an octave under G2 halved the pitch: $HUM Hz"
+HQ=$("$WORK/spike" --analyze 00_check_H | awk '$1 == "f0" { print $2 }')
+within "$HQ" 98 0.5 || fail "--analyze: a hum an octave under G2 halved the pitch: $HQ Hz"
+ok "a 49 Hz hum at -45 dBFS under G2: f0 $HUM Hz (--analyze $HQ Hz)"
+
 INSIDE=$("$ANALYZE" --json --tail 0.5-1.0 "$TONE" | jq -r '.files[0].tail.floorDb')
 below -30 "$INSIDE" || fail "--tail 0.5-1.0 inside the tone gave floor $INSIDE dBFS"
 ok "--tail moves the window: floor $INSIDE dBFS inside the tone"
@@ -109,6 +165,25 @@ AF0=$("$ANALYZE" --json "$WORK/aiff/tone.aiff" | jq -r '.files[0].f0Hz')
 within "$AF0" 220 0.5 || fail "AIFF input: f0 $AF0 Hz"
 [ "$(ls "$WORK/aiff")" = "tone.aiff" ] || fail "the conversion wrote next to the input"
 ok "a non-WAV input is converted elsewhere and measured: f0 $AF0 Hz"
+
+# A killed run leaves no temporary folder: many conversions, then SIGTERM while they run.
+mkdir "$WORK/sig"
+MANY=()
+for _ in $(seq 1 400); do MANY+=("$WORK/aiff/tone.aiff"); done
+TMPDIR="$WORK/sig/" "$ANALYZE" "${MANY[@]}" > /dev/null 2>&1 &
+PID=$!
+for _ in $(seq 1 200); do
+    [ -n "$(find "$WORK/sig" -maxdepth 1 -name 'analyze-*' 2>/dev/null)" ] && break
+    sleep 0.05
+done
+[ -n "$(find "$WORK/sig" -maxdepth 1 -name 'analyze-*')" ] || fail "no temporary folder appeared under the test's TMPDIR"
+kill -TERM "$PID"
+set +e
+wait "$PID"; KILLED=$?
+set -e
+[ "$KILLED" -eq 143 ] || fail "the killed run exited $KILLED, want 143"
+[ -z "$(find "$WORK/sig" -mindepth 1)" ] || fail "a killed run left $(find "$WORK/sig" -mindepth 1 | head -1)"
+ok "SIGTERM during conversions: exit 143, temporary folder removed"
 
 set +e
 "$ANALYZE" "$WORK/missing.wav" > /dev/null 2>&1; MISSING=$?
