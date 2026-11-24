@@ -62,11 +62,11 @@ def main() -> None:
     Path(out).write_text(f"""<?xml version="1.0" encoding="utf-8"?>
 <rss version="2.0" xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle">
   <channel>
-    <title>{{APP}}</title>
+    <title>{{APP_NAME}}</title>
     <link>{{PAGES_URL}}</link>
-    <description>{{APP}} updates</description>
+    <description>{{APP_NAME}} updates</description>
     <item>
-      <title>{{APP}} {version}</title>
+      <title>{{APP_NAME}} {version}</title>
       <sparkle:version>{version}</sparkle:version>
       <sparkle:shortVersionString>{version}</sparkle:shortVersionString>
       <sparkle:minimumSystemVersion>{MIN_SYSTEM}</sparkle:minimumSystemVersion>

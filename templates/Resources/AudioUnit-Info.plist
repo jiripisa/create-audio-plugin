@@ -11,7 +11,7 @@
     <key>CFBundleInfoDictionaryVersion</key>
     <string>6.0</string>
     <key>CFBundleName</key>
-    <string>{{APP}}</string>
+    <string>{{APP_NAME}}</string>
     <key>CFBundlePackageType</key>
     <string>BNDL</string>
     <!-- build.sh copies both version strings and the numeric AudioComponents
@@ -35,9 +35,9 @@
             <key>manufacturer</key>
             <string>JPis</string>
             <key>name</key>
-            <string>Jiri Pisa: {{APP}}</string>
+            <string>Jiri Pisa: {{APP_NAME}}</string>
             <key>description</key>
-            <string>{{APP}}</string>
+            <string>{{APP_NAME}}</string>
             <key>factoryFunction</key>
             <string>{{APP}}AUFactory</string>
             <key>version</key>

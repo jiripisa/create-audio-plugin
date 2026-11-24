@@ -10,7 +10,7 @@ public enum PresetError: Error, Equatable, LocalizedError {
         switch self {
         case .noName: "A name is needed."
         case .missing(let name): "There is no “\(name)” in the folder any more."
-        case .unreadable(let name): "“\(name)” is not a {{APP}} file, or it is damaged."
+        case .unreadable(let name): "“\(name)” is not a {{APP_NAME}} file, or it is damaged."
         }
     }
 }

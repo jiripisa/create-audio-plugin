@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>{{APP}} – manuál</title>
-<meta name="description" content="Manuál aplikace {{APP}}: všechny ovládací prvky s označenými snímky obrazovky.">
+<title>{{APP_NAME}} – manuál</title>
+<meta name="description" content="Manuál aplikace {{APP_NAME}}: všechny ovládací prvky s označenými snímky obrazovky.">
 <link rel="alternate" hreflang="en" href="{{PAGES_URL}}manual.html">
 <link rel="alternate" hreflang="cs" href="{{PAGES_URL}}cs/manual.html">
 <link rel="alternate" hreflang="x-default" href="{{PAGES_URL}}manual.html">
@@ -13,9 +13,14 @@
 <link rel="stylesheet" href="../assets/manual.css">
 </head>
 <body>
+<!-- FILL: This page is a template, the Czech twin of docs/manual.html: the same tags in the same
+     order, the same FILL comments in the same places. Every FILL comment says what goes in its
+     place and where it comes from; write it in Czech, then delete the comment. Text outside FILL
+     comments describes the platform and stays as it is, unless the instrument changes what it
+     describes. The screenshots are the English page's (the app's UI is English). -->
 
 <header class="wrap masthead">
-  <a class="brand" href="index.html"><img src="../assets/icon.png" alt="" width="32" height="32">{{APP}}</a>
+  <a class="brand" href="index.html"><img src="../assets/icon.png" alt="" width="32" height="32">{{APP_NAME}}</a>
   <nav aria-label="Web">
     <a href="index.html">Přehled</a>
     <a href="manual.html" aria-current="page">Manuál</a>
@@ -27,7 +32,7 @@
 <main>
   <div class="wrap title">
     <h1>Manuál</h1>
-    <p>Každý ovládací prvek aplikace {{APP}} {{VERSION}}: kde ho najdete a co dělá.
+    <p>Každý ovládací prvek aplikace {{APP_NAME}} {{VERSION}}: kde ho najdete a co dělá.
     Rámečky ve snímcích označují prvek, o kterém text mluví.</p>
   </div>
 
@@ -40,16 +45,12 @@
         <li><a href="#header">Hlavička</a></li>
         <li><a href="#knobs">Knoby a přepínače</a>
           <ol>
-            <li><a href="#stroke">Stroke</a></li>
-            <li><a href="#hands">Hands</a></li>
-            <li><a href="#pitch">Pitch</a></li>
-            <li><a href="#friction">Friction</a></li>
-            <li><a href="#body">Body</a></li>
-            <li><a href="#noise">Noise</a></li>
+            <!-- FILL: one <li><a href="#id">Name</a></li> for each section of kSections (Params.h), in that order, the same as on the English page (the panel's names stay English). -->
             <li><a href="#master">Master</a></li>
           </ol>
         </li>
         <li><a href="#keyboard">Režim klaviatury</a></li>
+        <li><a href="#voices">Režimy hlasů, glide a sustain</a></li>
         <li><a href="#pads">Režim padů</a></li>
         <li><a href="#send">Send to pad</a></li>
         <li><a href="#presets">Presety</a></li>
@@ -68,19 +69,20 @@
         <ol>
           <li>Stáhněte obraz disku ze <a href="index.html#get">stránky ke stažení</a>
           a otevřete ho.</li>
-          <li>Přetáhněte <b>{{APP}}</b> do složky <b>Aplikace</b> a spusťte ji odtamtud.</li>
-          <li>Klikněte na klávesu klaviatury ve spodní části okna. U horního okraje klávesy je tah slabý, níž je silnější. Hrát můžete i z MIDI klaviatury: aplikace poslouchá všechna připojená MIDI zařízení, dokud si nevyberete jedno.</li>
+          <li>Přetáhněte aplikaci <b>{{APP}}</b> do složky <b>Aplikace</b> a spusťte ji odtamtud.</li>
+          <li>Klikněte na klávesu klaviatury ve spodní části okna. U horního okraje klávesy je nota slabá, níž je silnější. Hrát můžete i z MIDI klaviatury: aplikace poslouchá všechna připojená MIDI zařízení, dokud si nevyberete jedno.</li>
           <li>Zvuk jde do výstupu nastaveného v macOS. Jiné zařízení, nebo jedno MIDI zařízení či kanál, vyberete po kliknutí na ozubené kolečko vpravo v hlavičce (<span class="ui">Settings</span>; viz <a href="#settings">Nastavení</a>).</li>
-          <li>Chcete-li {{APP}} hrát v hostitelském programu, jako je Logic Pro nebo Ableton Live, otevřete <span class="ui">Settings</span> a klikněte na <span class="ui">Install Audio Unit</span> (viz <a href="#plugin">Plugin Audio Unit</a>).</li>
+          <li>Chcete-li plugin {{APP_NAME}} použít v hostitelském programu, jako je Logic Pro nebo Ableton Live, otevřete <span class="ui">Settings</span> a klikněte na <span class="ui">Install Audio Unit</span> (viz <a href="#plugin">Plugin Audio Unit</a>).</li>
         </ol>
-        <p>{{APP}} je třecí buben: hliněný hrnec potažený blánou, kterou prochází dva svazky koňských žíní, a po žíních táhnou mokré ruce. Každá nota je jeden tah ruky. Aplikace si zvuk pamatuje mezi spuštěními: knoby klaviatury, všech šestnáct padů, režim, vybraný pad i preset, ze kterého každý zvuk pochází. Pamatuje si také vaše MIDI ovladače (viz <a href="#midi">MIDI ovladače</a>).</p>
+        <p><!-- FILL: in Czech, the same one or two sentences as on the English page: what the instrument is and what one note is on it. --> Aplikace si zvuk pamatuje mezi spuštěními: knoby klaviatury, všech šestnáct padů, režim, vybraný pad i preset, ze kterého každý zvuk pochází. Pamatuje si také vaše MIDI ovladače (viz <a href="#midi">MIDI ovladače</a>).</p>
       </section>
 
       <section id="window">
         <h2>Hlavní okno</h2>
         <figure class="fig">
+          <!-- FILL: the English page's figure: the same image, --iw/--ih and marks. -->
           <div class="view" style="--iw:2200;--ih:1464">
-            <img src="../assets/manual/keyboard.png" alt="Okno aplikace {{APP}} v režimu klaviatury s vyznačenými oblastmi">
+            <img src="../assets/manual/keyboard.png" alt="Okno aplikace {{APP_NAME}} v režimu klaviatury s vyznačenými oblastmi">
             <div class="mark" style="--x:20.5;--y:0.4;--w:14.2;--h:6.3"><b>1</b></div>
             <div class="mark" style="--x:35.1;--y:0.4;--w:14.2;--h:6.3"><b>2</b></div>
             <div class="mark" style="--x:54.3;--y:1.6;--w:11.1;--h:3.8"><b>3</b></div>
@@ -92,29 +94,29 @@
             <div class="mark" style="--x:86.4;--y:77.6;--w:11.6;--h:5.7"><b>9</b></div>
             <div class="mark" style="--x:1.6;--y:85.0;--w:96.7;--h:13.0"><b>10</b></div>
           </div>
-          <figcaption>Okno v režimu klaviatury s presetem Wet hands, než zazněla první nota.</figcaption>
+          <figcaption>Okno v režimu klaviatury<!-- FILL: in Czech, as on the English page, e.g. " s programem X, než zazněla první nota" -->.</figcaption>
         </figure>
         <dl class="controls">
           <dt><span class="n">1</span>Program</dt>
-          <dd>Načte do knobů jeden z dvanácti vestavěných zvuků (viz <a href="#header">Hlavička</a>).</dd>
+          <dd>Načte do knobů jeden z vestavěných zvuků (viz <a href="#header">Hlavička</a>).</dd>
           <dt><span class="n">2</span>Preset</dt>
           <dd>Vaše vlastní zvuky uložené jako soubory: jeden načtete do knobů, knoby uložíte jako nový, nebo jeden smažete (viz <a href="#presets">Presety</a>).</dd>
           <dt><span class="n">3</span>Keyboard | Pads</dt>
           <dd>Režim: klávesy hrají jeden zvuk ve své výšce, nebo noty 36–51 rozeznívají šestnáct padů, z nichž každý má vlastní zvuk (viz <a href="#keyboard">Režim klaviatury</a> a <a href="#pads">Režim padů</a>).</dd>
           <dt><span class="n">4</span>LFO 1, LFO 2, VEL</dt>
-          <dd>Promění knoby v míry, o které jimi hýbe LFO nebo síla úderu (viz <a href="#amounts">Míry LFO a VEL</a>).</dd>
+          <dd>Promění knoby v míry, o které jimi hýbe LFO nebo síla úderu noty (viz <a href="#amounts">Míry LFO a VEL</a>).</dd>
           <dt><span class="n">5</span>MIDI</dt>
           <dd>Ukáže, který MIDI ovladač hýbe kterým knobem a přepínačem, a nechá je naučit se nové (viz <a href="#midi">MIDI ovladače</a>).</dd>
           <dt><span class="n">6</span>Settings</dt>
           <dd>MIDI vstup, zvukový výstup a instalace pluginu Audio Unit. Má je jen aplikace.</dd>
-          <dt><span class="n">7</span>Stroke, Hands, Pitch, Friction, Body, Noise, Master</dt>
-          <dd>Knoby a přepínače zvuku v sedmi skupinách (viz <a href="#knobs">Knoby a přepínače</a>). V režimu klaviatury ukazují zvuk klaviatury, v režimu padů zvuk vybraného padu.</dd>
+          <dt><span class="n">7</span><!-- FILL: the names of the sections of kSections, as on the English page -->, Master</dt>
+          <dd>Knoby a přepínače zvuku v jejich skupinách (viz <a href="#knobs">Knoby a přepínače</a>). V režimu klaviatury ukazují zvuk klaviatury, v režimu padů zvuk vybraného padu.</dd>
           <dt><span class="n">8</span>Last note</dt>
           <dd>Poslední nota zahraná v režimu klaviatury; než nějaká zazní, je to C2. Tuto výšku dá padu tlačítko <span class="ui">Send to pad</span>.</dd>
           <dt><span class="n">9</span>Send to pad</dt>
           <dd>Zkopíruje zvuk klaviatury do jednoho z padů (viz <a href="#send">Send to pad</a>).</dd>
           <dt><span class="n">10</span>Klaviatura</dt>
-          <dd>Tři oktávy, C2 až B4 (H4). Kliknutím na klávesu ji zahrajete: u horního okraje klávesy má tah sílu úderu (velocity) 40, u spodního 127. Puštění klávesy nebo sjetí myší mimo ni klávesu uvolní (to je důležité při Key Up = Stop); přetažením myši na jinou klávesu se ta nezahraje. V režimu padů jsou na tomto místě pady.</dd>
+          <dd>Tři oktávy, C2 až B4 (H4). Kliknutím na klávesu ji zahrajete: u horního okraje klávesy má nota sílu úderu (velocity) 40, u spodního 127. Puštěním klávesy nebo sjetím myší mimo ni nota skončí; přetažením myši na jinou klávesu se ta nezahraje. V režimu padů jsou na tomto místě pady.</dd>
         </dl>
       </section>
 
@@ -122,22 +124,10 @@
         <h2>Hlavička</h2>
         <dl class="controls">
           <dt>Program</dt>
-          <dd>Dvanáct vestavěných programů: český {{APP_LOWER}} a jeho příbuzní. Program nastaví všechny knoby, přepínače i míry zvuku, který knoby právě ukazují, kromě <span class="ui">Octave</span>: v režimu klaviatury zvuk klaviatury, v režimu padů zvuk vybraného padu. Program, který se právě používá, je zaškrtnutý.
+          <dd>Vestavěné programy. Program nastaví všechny knoby, přepínače i míry zvuku, který knoby právě ukazují, kromě <span class="ui">Octave</span>: v režimu klaviatury zvuk klaviatury, v režimu padů zvuk vybraného padu. Program, který se právě používá, je zaškrtnutý.
             <ul>
-              <li><b>{{APP}}</b>: výchozí hodnoty, koledníkův buben s koňskými žíněmi: tah dlouhý 230 ms, obě ruce trochu odlišné.</li>
-              <li><b>{{APP}} High</b>: vyšší buben z dvojice: kratší tahy, ruce se od sebe liší víc.</li>
-              <li><b>Brummtopf</b>: německý „bručící hrnec“: krátký a suchý, se silnou rezonancí hrnce.</li>
-              <li><b>Zambomba</b>: španělská zambomba: blána zní s tónem a zhruba každý pátý tah na ni vyskočí.</li>
-              <li><b>Zambomba Grave</b>: velká zambomba: nízký, široký hrnec a delší doznívání.</li>
-              <li><b>Putipù</b>: neapolské putipù: pomalé, hluboké, drsné bručení přes hlasitý hrnec.</li>
-              <li><b>Cuíca</b>: brazilská cuíca: krátké, čisté, vysoké tahy, ruce se od sebe hodně liší.</li>
-              <li><b>Cuíca Whoop</b>: houknutí cuíky: každý tah vyjede o 6,6 půltónu zdola do své výšky.</li>
-              <li><b>Furruco</b>: venezuelské furruco: nízké a drsné, jeho kmity jsou nestejně dlouhé.</li>
-              <li><b>Creak</b>: tón rozpadlý na jednotlivá smeknutí, z nichž každé rozezní blánu, jako vrzající dveře.</li>
-              <li><b>Flick</b>: žádné tření, jen švihnutí prstem přes žíně.</li>
-              <li><b>Buhai</b>: rumunský buhai: dlouhé, pomalé, nízké tahy (nastavené po sluchu: žádná nahrávka se neměřila).</li>
+              <!-- FILL: in Czech, one <li><b>Name</b>: …</li> for each program of kPrograms, as on the English page (the program names stay as the menu writes them), and the same note on Volume after the list if the English page has it. -->
             </ul>
-            Některé programy mají ztišený <span class="ui">Volume</span>, aby žádný nebyl o moc hlasitější než ostatní.
           </dd>
           <dt>Preset</dt>
           <dd>Vaše presety, zvuky, které jste si uložili. Stejně jako Program působí na zvuk, který právě ukazují knoby. V názvu nabídky je preset, ze kterého tento zvuk pochází, nebo „—“ (viz <a href="#presets">Presety</a>).</dd>
@@ -156,113 +146,21 @@
       <section id="knobs">
         <h2>Knoby a přepínače</h2>
         <figure class="fig">
+          <!-- FILL: the English page's figure: the same zoom and marks; the alt in Czech. -->
           <div class="view" style="--iw:2200;--ih:1464;--zx:0;--zy:8;--zw:28;--zh:33">
-            <img src="../assets/manual/keyboard.png" alt="Skupina Stroke: šest knobů a přepínač Key Up">
+            <img src="../assets/manual/keyboard.png" alt="Karta panelu s knoby a přepínačem">
             <div class="mark" style="--x:2.2;--y:14.8;--w:6.9;--h:10.9"><b>1</b></div>
             <div class="mark" style="--x:14.5;--y:35.4;--w:11.1;--h:3.6"><b>2</b></div>
           </div>
-          <figcaption>Stroke: <span class="n">1</span> knob, <span class="n">2</span> přepínač.</figcaption>
+          <figcaption><span class="n">1</span> knob, <span class="n">2</span> přepínač.</figcaption>
         </figure>
-        <p>Knob <span class="n">1</span> má nad sebou název a pod sebou hodnotu; terakotový oblouk ukazuje, kde stojí. Táhněte knob nahoru nebo dolů: 200 bodů tažení ho otočí z jednoho konce na druhý. S klávesou <kbd>Shift</kbd> jsou kroky desetkrát jemnější. Dvojklik vrátí knob na hodnotu z presetu, ze kterého zvuk pochází, a bez presetu na hodnotu naposledy načteného programu. Přepínač <span class="n">2</span> ukazuje své volby vedle sebe; klikněte na jednu z nich. Tvary LFO mají voleb víc, proto jsou to nabídky.</p>
-        <p>Rozsahy a výchozí hodnoty níže jsou hodnoty programu {{APP}}. Knob hlasitosti, jehož rozsah končí slovem „Off“, je na dolním konci dráhy úplně zticha.</p>
+        <p>Knob <span class="n">1</span> má nad sebou název a pod sebou hodnotu; oblouk ukazuje, kde stojí. Táhněte knob nahoru nebo dolů: 200 bodů tažení ho otočí z jednoho konce na druhý. S klávesou <kbd>Shift</kbd> jsou kroky desetkrát jemnější. Dvojklik vrátí knob na hodnotu z presetu, ze kterého zvuk pochází, a bez presetu na hodnotu naposledy načteného programu. Přepínač <span class="n">2</span> ukazuje své volby vedle sebe; klikněte na jednu z nich. Přepínač s více než čtyřmi volbami, třeba tvary LFO, je nabídka.</p>
+        <p>U každého prvku níže je uveden jeho rozsah a výchozí hodnota, tedy hodnota, kterou má, než ji změní program nebo preset. Knob hlasitosti, jehož rozsah končí slovem „Off“, je na dolním konci dráhy úplně zticha.</p>
 
-        <h3 id="stroke">Stroke</h3>
-        <p>Jeden tah ruky po žíních: jak se buben rozezní, jak dlouho ruka tře a jak buben potom dozní.</p>
-        <dl class="controls">
-          <dt>Attack (5–400 ms, výchozí 42 ms)</dt>
-          <dd>Jak dlouho trvá, než se tah rozezní, než se blána pod rukou rozkmitá.</dd>
-          <dt>Length (0–2000 ms, výchozí 230 ms)</dt>
-          <dd>Jak dlouho ruka tře. Pak ruka žíně pustí a buben dozní za čas Release. Na 0 ruka pustí hned: krátké ťuknutí.</dd>
-          <dt>Release (0,03–3 s, výchozí 0,30 s)</dt>
-          <dd>Jak dlouho buben zní poté, co ruka přestane: čas, za který zeslábne o 60 dB.</dd>
-          <dt>Damp (0–100 %, výchozí 0 %)</dt>
-          <dd>Zkrátí doznívání, jako by se na blánu položila dlaň: na 100 % buben utichne třikrát rychleji, než říká Release.</dd>
-          <dt>Key Up (Ignore, Stop; výchozí Ignore)</dt>
-          <dd>Co udělá puštění klávesy nebo padu. <b>Ignore</b>: ruka tře po celou délku Length, ať byla klávesa držená jakkoli krátce. <b>Stop</b>: ruka přestane, jakmile klávesu pustíte, nejpozději po Length, takže krátké noty dají krátké tahy.</dd>
-          <dt>Vel Sens (0–100 %, výchozí 70 %)</dt>
-          <dd>Jak moc mění síla úderu hlasitost tahu: slabší tah je tišší podle násobku 1 − Vel Sens × (1 − síla úderu). Na 0 je každý tah stejně hlasitý jako ten nejsilnější. Ať je Vel Sens jakýkoli, slabší tah také tře tišeji a při doznívání dřív ztmavne (viz <span class="ui">Stick&gt;Level</span>).</dd>
-          <dt>Vary (0–100 %, výchozí 20 %)</dt>
-          <dd>Náhodný rozdíl mezi jedním tahem a dalším, protože žádná ruka netáhne dvakrát stejně. Na 20 % se délka tahu mění až o 10 %, jeho hlasitost až o 0,75 dB a výška až o 12,5 centu; na 100 % pětkrát víc.</dd>
-        </dl>
-
-        <h3 id="hands">Hands</h3>
-        <p>Hráč táhne střídavě oběma rukama a ruce nikdy netáhnou úplně stejně.</p>
-        <dl class="controls">
-          <dt>Alternate (0–12 dB, výchozí 2 dB)</dt>
-          <dd>Každý druhý tah bubnu je o tolik tišší: slabší ruka. Tahy se počítají pro každý buben zvlášť (viz <a href="#keyboard">Režim klaviatury</a> a <a href="#pads">Režim padů</a>).</dd>
-          <dt>Alt Tune (−100 až +100 ct, výchozí +10 ct)</dt>
-          <dd>Tah slabší ruky zní o tolik centů jinak než tah té druhé.</dd>
-        </dl>
-
-        <h3 id="pitch">Pitch</h3>
-        <p>Jak se výška pohybuje během tahu. Třecí buben nikdy nezní úplně rovně: tlak ruky ho ohýbá.</p>
-        <dl class="controls">
-          <dt>Scoop (0–12 st, výchozí 0 st)</dt>
-          <dd>Tah začne o tolik půltónů níž a vyjede do své výšky: houknutí cuíky.</dd>
-          <dt>Scoop Time (10–300 ms, výchozí 80 ms)</dt>
-          <dd>Jak dlouho tento nájezd trvá.</dd>
-          <dt>Drift (−3 až +3 st, výchozí −0,80 st)</dt>
-          <dd>O kolik půltónů se výška posune za dobu Length: pod nulou tah klesá, nad nulou stoupá.</dd>
-          <dt>Drop (0–2 st, výchozí 0 st)</dt>
-          <dd>Když ruka žíně pustí, výška během zhruba 15 ms o tolik klesne.</dd>
-          <dt>Wobble (0–60 ct, výchozí 20 ct)</dt>
-          <dd>Neklid ruky: náhodné kolísání výšky, v centech.</dd>
-          <dt>Jump (0–100 %, výchozí 0 %)</dt>
-          <dd>Pravděpodobnost, že tah po 70 % své délky vyskočí na vyšší mód blány. Na 100 % vyskočí každý tah.</dd>
-          <dt>Jump Ratio (1,10–2,50, výchozí 1,40)</dt>
-          <dd>Jak vysoko skok vede, jako poměr frekvencí: 1,40 je asi 5,8 půltónu, 2,00 oktáva.</dd>
-          <dt>Vel&gt;Pitch (0–100 ct, výchozí 0 ct)</dt>
-          <dd>Silnější tah zní výš: při plné síle úderu o tolik centů, při síle 0 vůbec.</dd>
-        </dl>
-
-        <h3 id="friction">Friction</h3>
-        <p>Jak mokrá ruka na žíních drží a smekává se: to určuje barvu tónu bubnu.</p>
-        <dl class="controls">
-          <dt>Stick (0,50–0,95, výchozí 0,88)</dt>
-          <dd>Jakou část každého kmitu blána drží na ruce, než se smekne. Vyšší hodnoty dají ostřejší smeknutí: jasnější, bzučivější tón. Přidává k němu aftertouch.</dd>
-          <dt>Stick&gt;Level (0–0,100, výchozí 0,030)</dt>
-          <dd>O kolik méně blána drží, když tah slábne: tón při doznívání tmavne, a u slabého tahu dřív.</dd>
-          <dt>Split (0–100 %, výchozí 0 %)</dt>
-          <dd>Každý druhý kmit prodlouží a ten další zkrátí, a také trochu zesílí a zeslabí: do tónu se vkrade drsné bručení o oktávu níž.</dd>
-          <dt>Creak (0–100 %, výchozí 0 %)</dt>
-          <dd>Rozbije tón na jednotlivá smeknutí, z nichž každé rozezní blánu, jako vrzající dveře. Na 100 % zbudou jen smeknutí.</dd>
-          <dt>Creak Rate (4–40 Hz, výchozí 14 Hz)</dt>
-          <dd>Kolik smeknutí za sekundu vrzání udělá, s trochou náhody.</dd>
-          <dt>Creak Ring (10–100 ms, výchozí 40 ms)</dt>
-          <dd>Jak dlouho každé smeknutí rozeznívá blánu.</dd>
-        </dl>
-
-        <h3 id="body">Body</h3>
-        <p>Hrnec a jeho blána, které znějí s tónem: dvě rezonance, každá se svou frekvencí, ostrostí a hlasitostí.</p>
-        <dl class="controls">
-          <dt>Pot (150–1500 Hz, výchozí 500 Hz)</dt>
-          <dd>Rezonance těla hrnce, vzduchu uvnitř.</dd>
-          <dt>Pot Q (1,0–20,0, výchozí 4,0)</dt>
-          <dd>Jak ostrá je rezonance hrnce: nízké hodnoty znějí široce, vysoké v jedné výšce.</dd>
-          <dt>Pot Level (−40 až +18 dB, Off; výchozí Off)</dt>
-          <dd>Jak hlasitá je rezonance hrnce.</dd>
-          <dt>Skin (100–1500 Hz, výchozí 306 Hz)</dt>
-          <dd>Rezonance blány, jeden z jejích módů. Zní na ní i smeknutí vrzání.</dd>
-          <dt>Skin Q (1,0–40,0, výchozí 10,0)</dt>
-          <dd>Jak ostrá je rezonance blány.</dd>
-          <dt>Skin Level (−40 až +6 dB, Off; výchozí Off)</dt>
-          <dd>Jak hlasitá je rezonance blány.</dd>
-          <dt>Track (0–100 %, výchozí 0 %)</dt>
-          <dd>Nakolik hrnec a blána sledují notu. Na 0 stojí, kde je knoby nechaly, jako u skutečného hrnce; na 100 % se posouvají s výškou tónu, od místa, kde stojí na B2 (H2).</dd>
-        </dl>
-
-        <h3 id="noise">Noise</h3>
-        <p>Co ruka přidá vedle tónu.</p>
-        <dl class="controls">
-          <dt>Rub (−40 až 0 dB, Off; výchozí −10 dB)</dt>
-          <dd>Šum mokré ruky, která tře po žíních, nejhlasitější, když se blána smeká, a při silném tahu. Přidává k němu modulační kolečko.</dd>
-          <dt>Scrape (0–100 %, výchozí 10 %)</dt>
-          <dd>Krátké škrábnutí prstů na začátku tahu, které zmizí během několika desítek milisekund.</dd>
-          <dt>Shimmer (0–3,0 dB, výchozí 0,7 dB)</dt>
-          <dd>Náhodné chvění hlasitosti, protože úchop žíní se pořád mění.</dd>
-        </dl>
+        <!-- FILL: in Czech, for each section of kSections, the same <h3 id>, <p> and <dl class="controls"> as on the English page: the names of sections, knobs and choices stay English as the panel writes them; ranges with a decimal comma and "až" ("−40 až +6 dB"), "výchozí" for default. -->
 
         <h3 id="master">Master</h3>
+        <p>Knoby, které má každý zvuk, ať je jakýkoli.</p>
         <dl class="controls">
           <dt>Volume (−40 až +6 dB, výchozí 0,0 dB)</dt>
           <dd>Hlasitost zvuku.</dd>
@@ -271,70 +169,97 @@
           <dt>Tune (−100 až +100 ct, výchozí 0 ct)</dt>
           <dd>Jemné ladění v centech.</dd>
           <dt>Octave (−2 až +2, výchozí 0)</dt>
-          <dd>Posouvá zvuk po oktávách. Na 0 zní nota ve své vlastní výšce: B2 (H2, nota 47) má 123,5 Hz. Programy tento knob nechávají, kde je.</dd>
-          <dt>Bend Up (0–24 st, výchozí 12 st), Bend Down (0–12 st, výchozí 2 st)</dt>
-          <dd>O kolik půltónů ohne kolečko pitch bend buben na svých koncích nahoru a dolů: prst hráče na cuíce, který blánu přimáčkne.</dd>
+          <dd>Posouvá zvuk po oktávách. Na 0 zní nota ve své vlastní výšce: A4 (nota 69) má 440 Hz. Programy tento knob nechávají, kde je.</dd>
+          <dt>Bend Up, Bend Down (0–24 st, výchozí 2 st)</dt>
+          <dd>O kolik půltónů ohne kolečko pitch bend výšku na svých koncích nahoru a dolů (viz <a href="#keyboard">Režim klaviatury</a>).</dd>
+          <dt>Voice Mode (Poly, Mono, Legato; výchozí Poly)</dt>
+          <dd>Jak klaviatura hraje noty, které se překrývají. <b>Poly</b>: každá klávesa má vlastní hlas. <b>Mono</b>: jeden hlas, naposledy stisknutá klávesa. <b>Legato</b>: jeden hlas, který překrývající se noty sváže bez nového nasazení. Viz <a href="#voices">Režimy hlasů, glide a sustain</a>.</dd>
+          <dt>Glide (0–2000 ms, výchozí 0 ms)</dt>
+          <dd>V režimech Mono a Legato: jak dlouho výška klouže z jedné noty na další. Na 0 skočí hned. Viz <a href="#voices">Režimy hlasů, glide a sustain</a>.</dd>
+          <dt>LFO Start (Hit, Free; výchozí Hit)</dt>
+          <dd><b>Hit</b> spustí obě LFO znovu s každou notou, takže stejná nota pohne knoby vždy stejně. <b>Free</b> je nechá běžet dál a každá nota se k nim připojí tam, kde právě jsou.</dd>
           <dt>LFO 1 Rate, LFO 2 Rate (0,02–20 Hz, výchozí 6,00 Hz a 2,00 Hz)</dt>
           <dd>Jak často každé LFO oběhne svůj cyklus. Čím LFO hýbe a o kolik, se nastavuje přímo na knobech (viz <a href="#amounts">Míry LFO a VEL</a>).</dd>
           <dt>LFO 1 Shape, LFO 2 Shape (Sine, Triangle, Ramp Up, Ramp Down, Square, Steps, Wander; výchozí Sine)</dt>
           <dd>Tvar cyklu každého LFO. Sine a Triangle se houpou; rampy stoupají nebo klesají a skočí zpět; Square přepíná mezi dvěma místy; Steps si každý cyklus vybere nové náhodné místo a drží ho; Wander si ho vybere a plynule se k němu přesune.</dd>
-          <dt>Drum (One, Many; výchozí One)</dt>
-          <dd>Na kolik bubnů klaviatura hraje. <b>One</b>: všechny noty jsou jeden buben, jako když držíte v rukou jeden {{APP_LOWER}}. <b>Many</b>: každá nota je samostatný buben. Viz <a href="#keyboard">Režim klaviatury</a>.</dd>
-          <dt>LFO Start (Hit, Free; výchozí Hit)</dt>
-          <dd><b>Hit</b> spustí obě LFO znovu s každým tahem, takže stejný tah pohne knoby vždy stejně. <b>Free</b> je nechá běžet dál a každý tah se k nim připojí tam, kde právě jsou.</dd>
+          <dt>Vel Sens (0–100 %, výchozí 70 %)</dt>
+          <dd>Jak moc mění síla úderu hlasitost noty: slabší nota je tišší podle násobku 1 − Vel Sens × (1 − síla úderu), kde síla úderu jde od 0 do 1. Na 0 je každá nota stejně hlasitá jako ta nejsilnější.</dd>
         </dl>
       </section>
 
       <section id="keyboard">
         <h2>Režim klaviatury</h2>
-        <p>Každá MIDI nota i každá klávesa na obrazovce zahraje tah zvuku klaviatury ve výšce noty. Právě tento zvuk v tomto režimu ukazují knoby.</p>
+        <p>Každá MIDI nota i každá klávesa na obrazovce zahraje zvuk klaviatury ve výšce noty, jak říká <span class="ui">Voice Mode</span> (viz <a href="#voices">Režimy hlasů, glide a sustain</a>). Právě tento zvuk v tomto režimu ukazují knoby.</p>
         <ul>
-          <li><b>Tah na znějící buben v něm pokračuje.</b> Při <span class="ui">Drum</span> = One jsou všechny noty jeden buben: nová nota nespustí druhý hlas, ale naváže tam, kde blána právě je, v nové výšce, takže tahy do sebe plynule přejdou s poklesem, ne s lupnutím, a Alternate počítá tahy napříč všemi notami. Při Drum = Many je každá nota samostatný buben: různé noty znějí přes sebe a nový tah na stejnou notu pokračuje v bubnu této noty.</li>
-          <li>Znějící tah sleduje knoby: otočíte jedním a změnu hned slyšíte. Výjimkou je to, co si tah určí na svém začátku: Length, náhodné rozdíly Vary, Alternate, Alt Tune, Vel Sens, Vel&gt;Pitch, pravděpodobnost Jump, Scrape a Octave platí až od dalšího tahu.</li>
-          <li>Najednou zní nejvýš šestnáct hlasů, pady včetně. Tah na tichý buben, který by byl sedmnáctý, během několika milisekund umlčí nejtišší hlas.</li>
+          <!-- FILL: in Czech, the same <li> as on the English page: what a note does on a key whose note still sounds (kRehitContinues). -->
+          <li>Znějící nota sleduje knoby: otočíte jedním a změnu hned slyšíte.<!-- FILL: in Czech, the same sentence as on the English page on the knobs a note reads only at its start, or nothing. --></li>
+          <li>Najednou zní nejvýš šestnáct hlasů, pady včetně. Nota, která by byla sedmnáctá, během 3 ms umlčí nejtišší hlas.</li>
         </ul>
         <dl class="controls">
           <dt>Síla úderu (velocity)</dt>
-          <dd>Tvaruje tah podle <span class="ui">Vel Sens</span> a <span class="ui">Vel&gt;Pitch</span> a hýbe knoby, které mají míru VEL (viz <a href="#amounts">Míry LFO a VEL</a>).</dd>
+          <dd>Určuje hlasitost noty podle <span class="ui">Vel Sens</span> a hýbe knoby, které mají míru VEL (viz <a href="#amounts">Míry LFO a VEL</a>).</dd>
           <dt>Pitch bend</dt>
-          <dd>Ohýbá výšku bubnu, až o <span class="ui">Bend Up</span> půltónů nahoru a o <span class="ui">Bend Down</span> dolů.</dd>
+          <dd>Ohýbá výšku, až o <span class="ui">Bend Up</span> půltónů nahoru a o <span class="ui">Bend Down</span> dolů, ve všech režimech hlasů.</dd>
           <dt>Modulační kolečko (CC 1)</dt>
-          <dd>Ruka tře silněji: přidá až 20 dB knobu <span class="ui">Rub</span>, polovinu jeho dráhy, nikdy však nad 0 dB.</dd>
+          <dd><!-- FILL: in Czech, what the mod wheel does (kModWheelTargets), as on the English page; "V aplikaci {{APP_NAME}} nedělá nic." when the table holds no target. --></dd>
           <dt>Aftertouch (channel pressure)</dt>
-          <dd>Ruka víc tlačí: přidá až 0,07 knobu <span class="ui">Stick</span>, nikdy však nad 0,95.</dd>
+          <dd><!-- FILL: in Czech, the same for aftertouch (kAftertouchTargets). --></dd>
         </dl>
-        <p>Kolečka působí jen na zvuk klaviatury; pady je nesledují. Reset All Controllers (CC 121) vrátí všechna tři do klidu a All Sound Off a All Notes Off (CC 120 a 123) během 10 ms ztlumí každý hlas.</p>
+        <p>Kolečka působí jen na zvuk klaviatury; pady je nesledují, stejně jako pitch bend. Reset All Controllers (CC 121) vrátí kolečka i pitch bend do klidu a uvolní pedál sustain a All Sound Off a All Notes Off (CC 120 a 123) během 10 ms ztlumí každý hlas.</p>
         <p>Ostatní MIDI ovladače otáčejí přímo knoby a přepínači (viz <a href="#midi">MIDI ovladače</a>).</p>
+      </section>
+
+      <section id="voices">
+        <h2>Režimy hlasů, glide a sustain</h2>
+        <p><span class="ui">Voice Mode</span> a <span class="ui">Glide</span> ve skupině <a href="#master">Master</a> určují, jak klaviatura hraje noty, které se překrývají; patří ke zvuku stejně jako každý knob. Pedál sustain drží noty ve všech režimech hlasů. Pady se neřídí ani jedním z nich (viz <a href="#pads">Režim padů</a>).</p>
+        <dl class="controls">
+          <dt>Poly</dt>
+          <dd>Každá klávesa hraje vlastním hlasem, takže zní i akordy, nejvýš šestnáct not najednou.</dd>
+          <dt>Mono</dt>
+          <dd>Jeden hlas, naposledy stisknutá klávesa. Každá nová nota začne znovu, s vlastním nasazením, a nota, kterou nahradí, během 3 ms dozní. Pustíte-li nejnovější klávesu, zatímco jiné ještě držíte, vrátí se hlas bez nového nasazení k nejnovější z nich, jako jedna nota, která se přesune do jiné výšky; pustíte-li poslední klávesu, nota skončí.</dd>
+          <dt>Legato</dt>
+          <dd>Jako Mono, ale nota zahraná, zatímco jiná klávesa je ještě držená, převezme hlas bez nového nasazení: překrývající se noty se sváží do jedné linky. Nota zahraná, když žádná klávesa držená není, začne znovu. Svázaná nota si ponechá sílu úderu a LFO noty, kterou převzala.</dd>
+          <dt>Glide</dt>
+          <dd>Jak dlouho výška klouže od místa, kde hlas je, k nové notě: vždy stejně dlouho, ať jsou noty od sebe jakkoli daleko, rovnoměrně v půltónech. Mono klouže ke každé nové notě, dokud jeho hlas ještě zní (držený, držený pedálem nebo doznívající); Legato klouže jen mezi překrývajícími se notami; obě klouzají, když se hlas vrací ke klávese, která je ještě držená. Na 0 ms, v režimu Poly a na padech nic neklouže.</dd>
+          <dt>Pedál sustain (CC 64)</dt>
+          <dd>Dokud je pedál sešlápnutý (64 a víc), puštění klávesy notu neukončí; když pedál pustíte, skončí noty, jejichž klávesy jsou nahoře, jako byste je pustili právě teď. V režimech Mono a Legato o výšce dál rozhodují klávesy: puštění klávesy, zatímco jiné držíte, se k nim stále vrátí, a pedál drží jen poslední notu. Pedál nedrží žádný pad: nota padu skončí, když pad pustíte.</dd>
+        </dl>
+        <ul>
+          <li>Držené klávesy, posledních šestnáct, si aplikace pamatuje ve všech režimech hlasů, takže je najde i režim přepnutý, zatímco jsou klávesy dole. Noty, které znějí ve chvíli přepnutí režimu, hrají dál, dokud jejich klávesy nepustíte.</li>
+          <li>Pedál sustain je vlastní ovladač MIDI: žádný knob se CC 64 naučit nemůže (viz <a href="#midi">MIDI ovladače</a>).</li>
+        </ul>
       </section>
 
       <section id="pads">
         <h2>Režim padů</h2>
         <figure class="fig">
+          <!-- FILL: the English page's figure: the same image, --iw/--ih and marks. -->
           <div class="view" style="--iw:2200;--ih:1464">
-            <img src="../assets/manual/pads.png" alt="Okno aplikace {{APP}} v režimu padů s vybraným padem 05">
+            <img src="../assets/manual/pads.png" alt="Okno aplikace {{APP_NAME}} v režimu padů s vybraným padem">
             <div class="mark" style="--x:1.6;--y:75.8;--w:67.3;--h:22.1"><b>1</b></div>
             <div class="mark" style="--x:1.6;--y:81.4;--w:16.5;--h:5.5"><b>2</b></div>
             <div class="mark" style="--x:70.2;--y:75.8;--w:28.9;--h:22.1"><b>3</b></div>
             <div class="mark" style="--x:20.5;--y:0.4;--w:28.8;--h:6.3"><b>4</b></div>
             <div class="mark" style="--x:54.3;--y:1.6;--w:11.1;--h:3.8"><b>5</b></div>
           </div>
-          <figcaption>Režim padů s výchozí sadou a vybraným padem 05: knoby ukazují Brummtopf, vlastní zvuk padu.</figcaption>
+          <figcaption>Režim padů s výchozí sadou<!-- FILL: in Czech, as on the English page, e.g. " a vybraným padem 05: knoby ukazují X, vlastní zvuk padu" -->.</figcaption>
         </figure>
-        <p>V režimu padů <span class="n">5</span> rozeznívají MIDI noty 36–51 (C2–D♯3) pady 1–16: nota 36 je pad 1, nota 37 pad 2 a tak dál, jako na MPC nebo v Drum Racku Abletonu. Ostatní noty se ignorují. Každý pad má vlastní zvuk, zmrazený s ním, a hraje ho ve vlastní výšce, ať ho rozezní kterákoli nota.</p>
+        <p>V režimu padů <span class="n">5</span> rozeznívají MIDI noty 36–51 (C2–D♯3) pady 1–16: nota 36 je pad 1, nota 37 pad 2 a tak dál, jako na MPC a většině padových kontrolérů. Ostatní noty se ignorují. Každý pad má vlastní zvuk, zmrazený s ním, a hraje ho ve vlastní výšce, ať ho rozezní kterákoli nota.</p>
         <dl class="controls">
           <dt><span class="n">1</span>Pady</dt>
-          <dd>Pad 1 je vlevo nahoře a pady pokračují po řádcích. Každý ukazuje číslo a vedle něj název, pod ním výšku a skupinu („B2 G1“; „Off“, když žádnou nemá). Název padu je název presetu, ze kterého jeho zvuk pochází, a bez presetu název jeho programu. Pad se při úderu rozsvítí, ať přijde z obrazovky, nebo z MIDI.</dd>
+          <dd>Pad 1 je vlevo nahoře a pady pokračují po řádcích. Každý ukazuje číslo a vedle něj název, pod ním výšku a skupinu („C3 G1“; „Off“, když žádnou nemá). Název padu je název presetu, ze kterého jeho zvuk pochází, a bez presetu název jeho programu. Pad se při úderu rozsvítí, ať přijde z obrazovky, nebo z MIDI.</dd>
           <dt><span class="n">2</span>Výběr a hraní padu</dt>
-          <dd>Kliknutím pad zahrajete a vyberete; vybraný pad má terakotový obrys. Stejně jako u kláves je tah u horního okraje slabý a níž silnější. Pad zůstane držený, dokud nepustíte tlačítko myši, což má význam při Key Up = Stop.</dd>
+          <dd>Kliknutím pad zahrajete a vyberete; vybraný pad má obrys. Stejně jako u kláves je úder u horního okraje slabý a níž silnější. Nota padu trvá, dokud nepustíte tlačítko myši.</dd>
           <dt>Úpravy padu</dt>
           <dd>Knoby ukazují zvuk vybraného padu a otáčení jimi mění jen tento pad. <span class="n">4</span> <span class="ui">Program</span> i <span class="ui">Preset</span> se načtou do vybraného padu. Zvuk klaviatury i ostatní pady zůstanou, jak byly.</dd>
           <dt><span class="n">3</span>Výška a skupina</dt>
           <dd>Vedle padů: který pad je vybraný, jeho výška a skupina (viz níže) a nabídka Kit (viz <a href="#kits">Sady</a>).</dd>
         </dl>
-        <p>Tah padu použije zvuk padu tak, jak byl v okamžiku úderu: otočení knobem změní až další tah, ne ten, který zní.</p>
+        <p>Nota padu použije zvuk padu tak, jak byl v okamžiku úderu: otočení knobem změní až další úder, ne ten, který zní. Síla úderu hýbe knoby padu o vlastní míry VEL tohoto padu (viz <a href="#amounts">Míry LFO a VEL</a>). Voice Mode, Glide, pedál sustain, pitch bend ani kolečka na pady nepůsobí: pad je jeden zmrazený stisk klávesy.</p>
 
         <h3>Výška a skupina</h3>
         <figure class="fig">
+          <!-- FILL: the English page's figure: the same image, --iw/--ih and marks. -->
           <div class="view" style="--iw:820;--ih:368">
             <img src="../assets/manual/pad-inspector.png" alt="Údaje o padu: vybraný pad, jeho výška, skupina a nabídka Kit">
             <div class="mark" style="--x:50.3;--y:22.0;--w:45.7;--h:12.0"><b>1</b></div>
@@ -354,32 +279,17 @@
           <dd>Načítá, ukládá a maže sady: všech šestnáct padů najednou (viz <a href="#kits">Sady</a>).</dd>
         </dl>
 
-        <h3>Skupiny: jeden buben</h3>
-        <p>Všechny pady jedné skupiny jsou jeden buben, na který hraje jeden pár rukou. Úder na kterýkoli z nich nespustí druhý hlas: naváže tam, kde tento buben právě je, se zvukem a výškou nového padu, takže tahy do sebe přecházejí jako na skutečném bubnu a Alternate počítá tahy celé skupiny (pady 1 a 2 výchozí sady jsou dvě ruce jednoho {{APP_LOWER}}u). Pad, jehož skupina je <b>Off</b>, je samostatný buben: při dalším úderu pokračuje tam, kde je; dva takové pady znějí přes sebe.</p>
+        <h3>Skupiny: jeden hlas</h3>
+        <p>Všechny pady jedné skupiny sdílejí jeden hlas. <!-- FILL: in Czech, the same sentences as on the English page: what a hit on a pad of a group does while the group's voice sounds (kRehitContinues), and what groups are good for on this instrument. --> Pad, jehož skupina je <b>Off</b>, má vlastní hlas: dva takové pady znějí přes sebe.</p>
 
         <h3 id="default-kit">Výchozí sada</h3>
-        <p>Při prvním spuštění a v každé nové instanci pluginu mají pady tuto sadu; <span class="ui">Kit › Default kit</span> ji vrátí. Skupiny 1–6 jsou šest bubnů; poslední čtyři pady znějí každý sám za sebe.</p>
+        <p>Při prvním spuštění a v každé nové instanci pluginu mají pady tuto sadu; <span class="ui">Kit › Default kit</span> ji vrátí.<!-- FILL: in Czech, the same sentence as on the English page on how the kit is laid out. --></p>
         <table>
           <thead>
             <tr><th>Pad</th><th>Program</th><th>Nota</th><th>Skupina</th></tr>
           </thead>
           <tbody>
-            <tr><td>01</td><td>{{APP}}</td><td>B2 (47)</td><td>1</td></tr>
-            <tr><td>02</td><td>{{APP}}</td><td>B2 (47)</td><td>1</td></tr>
-            <tr><td>03</td><td>{{APP}} High</td><td>G3 (55)</td><td>2</td></tr>
-            <tr><td>04</td><td>{{APP}} High</td><td>C4 (60)</td><td>2</td></tr>
-            <tr><td>05</td><td>Brummtopf</td><td>C♯3 (49)</td><td>3</td></tr>
-            <tr><td>06</td><td>Brummtopf</td><td>D♯2 (39)</td><td>3</td></tr>
-            <tr><td>07</td><td>Cuíca</td><td>F4 (65)</td><td>4</td></tr>
-            <tr><td>08</td><td>Cuíca</td><td>G5 (79)</td><td>4</td></tr>
-            <tr><td>09</td><td>Cuíca Whoop</td><td>G5 (79)</td><td>4</td></tr>
-            <tr><td>10</td><td>Zambomba, Jump 0 %</td><td>A3 (57)</td><td>5</td></tr>
-            <tr><td>11</td><td>Zambomba, Jump 100 %</td><td>A3 (57)</td><td>5</td></tr>
-            <tr><td>12</td><td>Putipù</td><td>C2 (36)</td><td>6</td></tr>
-            <tr><td>13</td><td>Furruco</td><td>C♯2 (37)</td><td>Off</td></tr>
-            <tr><td>14</td><td>Creak</td><td>B2 (47)</td><td>Off</td></tr>
-            <tr><td>15</td><td>Flick</td><td>D♯4 (63)</td><td>Off</td></tr>
-            <tr><td>16</td><td>Buhai</td><td>C2 (36)</td><td>Off</td></tr>
+            <!-- FILL: the English page's sixteen rows, the same values. -->
           </tbody>
         </table>
       </section>
@@ -387,8 +297,9 @@
       <section id="send">
         <h2>Send to pad</h2>
         <figure class="fig">
+          <!-- FILL: the English page's figure: the same image, --iw/--ih and marks. -->
           <div class="view" style="--iw:1510;--ih:634">
-            <img src="../assets/manual/send-to-pad.png" alt="Okénko Send to pad s dotazem, zda nahradit pad 05">
+            <img src="../assets/manual/send-to-pad.png" alt="Okénko Send to pad s dotazem, zda nahradit pad">
             <div class="mark" style="--x:4.6;--y:39.0;--w:18.2;--h:11.5"><b>1</b></div>
             <div class="mark" style="--x:4.4;--y:76.5;--w:73.5;--h:17.5"><b>2</b></div>
           </div>
@@ -397,7 +308,7 @@
         <ol>
           <li>V režimu klaviatury nastavte zvuk a zahrajte notu, kterou má pad dostat. Ukazuje ji <span class="ui">Last note</span> vedle tlačítka.</li>
           <li>Klikněte na <span class="ui">Send to pad</span>. Objeví se šestnáct padů s názvy a výškami.</li>
-          <li>Klikněte na pad, který chcete nahradit <span class="n">1</span>. {{APP}} se zeptá <span class="n">2</span>, jestli ho opravdu nahradit, a uvede pad i výšku.</li>
+          <li>Klikněte na pad, který chcete nahradit <span class="n">1</span>. Aplikace se zeptá <span class="n">2</span>, jestli ho opravdu nahradit, a uvede pad i výšku.</li>
           <li>Kliknutím na <span class="ui">Replace</span> (nebo klávesou Return) zvuk zkopírujete; <span class="ui">Cancel</span> (nebo Esc) pad nechá, jak byl.</li>
         </ol>
         <p>Pad převezme všechny knoby, přepínače a míry zvuku klaviatury, jeho program, preset, ze kterého zvuk pochází (pokud nějaký), a jako výšku poslední zahranou notu (C2, pokud žádná nezazněla). Svou skupinu si ponechá.</p>
@@ -407,14 +318,15 @@
         <h2>Presety</h2>
         <p>Preset je jeden zvuk uložený jako soubor: program, ze kterého vyšel, a všechny knoby, přepínače a míry včetně <span class="ui">Octave</span>. Můžete ho načíst do klaviatury nebo do kteréhokoli padu, kolikrát chcete. Výška a skupina padu jeho součástí nejsou.</p>
         <figure class="fig">
+          <!-- FILL: the English page's figure: the same image, --iw/--ih and marks; the alt and the caption in Czech, naming the same preset. -->
           <div class="view" style="--iw:860;--ih:400">
-            <img src="../assets/manual/preset-menu.png" alt="Otevřená nabídka Preset se zaškrtnutým Wet hands">
+            <img src="../assets/manual/preset-menu.png" alt="Otevřená nabídka Preset se zaškrtnutým presetem">
             <div class="mark" style="--x:43.5;--y:11.0;--w:35.5;--h:13.0"><b>1</b></div>
             <div class="mark" style="--x:43.0;--y:27.0;--w:33.5;--h:25.0"><b>2</b></div>
             <div class="mark" style="--x:43.0;--y:57.0;--w:33.5;--h:12.0"><b>3</b></div>
             <div class="mark" style="--x:43.0;--y:69.0;--w:33.5;--h:12.0"><b>4</b></div>
           </div>
-          <figcaption>Nabídka Preset se dvěma presety; zvuk klaviatury pochází z Wet hands.</figcaption>
+          <figcaption>Nabídka Preset se dvěma presety; zvuk klaviatury pochází ze zaškrtnutého.</figcaption>
         </figure>
         <dl class="controls">
           <dt><span class="n">1</span>Nabídka Preset</dt>
@@ -424,11 +336,12 @@
           <dt><span class="n">3</span>Save as…</dt>
           <dd>Uloží zvuk, který ukazují knoby, jako preset (viz <a href="#saving">Uložení presetu</a>).</dd>
           <dt><span class="n">4</span>Delete</dt>
-          <dd>Podnabídka vašich presetů. {{APP}} se zeptá „Delete “Wet hands”? It goes to the Trash.“: <span class="ui">Delete</span> přesune soubor do koše, <span class="ui">Cancel</span> (nebo Return či Esc) ho ponechá. Zvuk, který ze smazaného presetu pochází, si své knoby ponechá.</dd>
+          <dd>Podnabídka vašich presetů. Aplikace se zeptá „Delete “<i>název</i>”? It goes to the Trash.“: <span class="ui">Delete</span> přesune soubor do koše, <span class="ui">Cancel</span> (nebo Return či Esc) ho ponechá. Zvuk, který ze smazaného presetu pochází, si své knoby ponechá.</dd>
         </dl>
 
         <h3 id="saving">Uložení presetu</h3>
         <figure class="fig">
+          <!-- FILL: the English page's figure: the same image, --iw/--ih and marks. -->
           <div class="view" style="--iw:920;--ih:480">
             <img src="../assets/manual/name-popover.png" alt="Okénko pro pojmenování nového presetu">
             <div class="mark" style="--x:23.0;--y:43.0;--w:58.0;--h:11.5"><b>1</b></div>
@@ -438,22 +351,23 @@
         </figure>
         <ol>
           <li>Nastavte zvuk a zvolte <span class="ui">Preset › Save as…</span>.</li>
-          <li>Napište název <span class="n">1</span>. Pole začíná názvem používaného presetu, pokud nějaký je. Pod ním {{APP}} uvádí, co se uloží <span class="n">2</span>.</li>
+          <li>Napište název <span class="n">1</span>. Pole začíná názvem používaného presetu, pokud nějaký je. Pod ním aplikace uvádí, co se uloží <span class="n">2</span>.</li>
           <li>Klikněte na <span class="ui">Save</span> <span class="n">3</span> nebo stiskněte Return. <span class="ui">Cancel</span> nebo Esc nic neuloží.</li>
         </ol>
-        <p>Název může mít nejvýš 60 znaků. Mezery na jeho koncích se vynechají a „/“ a „:“ se změní na „-“. Pokud preset s tímto názvem už existuje (na velikosti písmen nezáleží), {{APP}} se zeptá „Replace “Wet hands”?“: <span class="ui">Replace</span> ho přepíše, <span class="ui">Cancel</span> vás vrátí k názvu. Zvuky, které pocházejí ze staré verze, si ponechají své knoby, ale dvojklik už knob vrátí na hodnotu z nové verze.</p>
+        <p>Název může mít nejvýš 60 znaků. Mezery na jeho koncích se vynechají a „/“ a „:“ se změní na „-“. Pokud preset s tímto názvem už existuje (na velikosti písmen nezáleží), aplikace se zeptá „Replace “<i>název</i>”?“: <span class="ui">Replace</span> ho přepíše, <span class="ui">Cancel</span> vás vrátí k názvu. Zvuky, které pocházejí ze staré verze, si ponechají své knoby, ale dvojklik už knob vrátí na hodnotu z nové verze.</p>
 
         <h3>Používaný preset</h3>
         <p>Každý zvuk, zvuk klaviatury i zvuk každého padu, si pamatuje preset, ze kterého pochází. Ukazuje to název nabídky a zaškrtnutí, pad ukazuje jeho název a dvojklik vrátí knob na hodnotu z presetu. Otáčení knoby tuto vazbu nezruší. Zruší ji načtení programu a název nabídky pak znovu ukazuje „—“; stejně tak smazání souboru presetu, po kterém dvojklik vrací knob na hodnotu programu.</p>
 
         <h3>Kde jsou presety uložené</h3>
-        <p>Každý preset je soubor pojmenovaný podle něj, s příponou <span class="ui">.{{APP_LOWER}}</span>, ve složce <span class="ui">~/Library/Application Support/{{APP}}/Presets</span>. Aplikace i plugin používají stejnou složku, takže preset uložený v jednom je v nabídce i toho druhého. Soubory můžete zkopírovat na jiný Mac nebo je přejmenovat ve Finderu. {{APP}} složku vytvoří, až uložíte první preset.</p>
+        <p>Každý preset je soubor pojmenovaný podle něj, s příponou <span class="ui">.{{APP_LOWER}}</span>, ve složce <span class="ui">~/Library/Application Support/{{APP}}/Presets</span>. Aplikace i plugin používají stejnou složku, takže preset uložený v jednom je v nabídce i toho druhého. Soubory můžete zkopírovat na jiný Mac nebo je přejmenovat ve Finderu. Aplikace složku vytvoří, až uložíte první preset.</p>
       </section>
 
       <section id="kits">
         <h2>Sady</h2>
         <p>Sada (kit) je všech šestnáct padů uložených v jednom souboru: zvuk, výška a skupina každého padu a preset, ze kterého každý zvuk pochází. Načtení sady nahradí všech šestnáct padů najednou; zvuk klaviatury i režim zůstanou, jak byly.</p>
         <figure class="fig">
+          <!-- FILL: the English page's figure: the same image, --iw/--ih and marks. -->
           <div class="view" style="--iw:820;--ih:760">
             <img src="../assets/manual/kit-menu.png" alt="Otevřená nabídka Kit vedle padů">
             <div class="mark" style="--x:50.3;--y:35.0;--w:45.7;--h:8.0"><b>1</b></div>
@@ -470,7 +384,7 @@
           <dt><span class="n">2</span>Vaše sady</dt>
           <dd>Kliknutím sadu načtete do padů. Pad, jehož preset ve složce Presets stále je, se s ním znovu propojí.</dd>
           <dt><span class="n">3</span>Default kit</dt>
-          <dd>Vrátí sadu, se kterou {{APP}} začíná (viz <a href="#default-kit">Výchozí sada</a>).</dd>
+          <dd>Vrátí sadu, se kterou aplikace začíná (viz <a href="#default-kit">Výchozí sada</a>).</dd>
           <dt><span class="n">4</span>Save kit as…</dt>
           <dd>Uloží šestnáct padů jako sadu. Pojmenování funguje stejně jako u presetu (viz <a href="#saving">Uložení presetu</a>).</dd>
           <dt><span class="n">5</span>Delete kit</dt>
@@ -481,8 +395,9 @@
 
       <section id="amounts">
         <h2>Míry LFO a VEL</h2>
-        <p>Knoby za vás mohou hýbat dvě LFO a síla úderu každého tahu. Každý knob, kterým mohou hýbat, má pro každý z těchto zdrojů svou míru: o kolik jím zdroj pohne, jako část dráhy knobu, od −100 do +100 %. Míry patří ke zvuku stejně jako knoby, takže každý pad má své vlastní. Ve všech programech začínají na nule.</p>
+        <p>Knoby za vás mohou hýbat dvě LFO a síla úderu každé noty. Každý knob, kterým mohou hýbat, má pro každý z těchto zdrojů svou míru: o kolik jím zdroj pohne, jako část dráhy knobu, od −100 do +100 %. Míry patří ke zvuku stejně jako knoby, takže každý pad má své vlastní: na každém padu si vyberete, čím hýbe jeho síla úderu a jeho LFO. Ve všech programech začínají na nule.</p>
         <figure class="fig">
+          <!-- FILL: the English page's figure: the same image, --iw/--ih and marks. -->
           <div class="view" style="--iw:2200;--ih:1464">
             <img src="../assets/manual/lfo1-amounts.png" alt="Okno se zapnutým LFO 1: knoby ukazují míry LFO 1">
             <div class="mark" style="--x:67.5;--y:1.4;--w:6.8;--h:4.4"><b>1</b></div>
@@ -490,11 +405,11 @@
             <div class="mark" style="--x:1.4;--y:48.5;--w:7.6;--h:10.5"><b>3</b></div>
             <div class="mark" style="--x:2.2;--y:14.8;--w:6.9;--h:10.9"><b>4</b></div>
           </div>
-          <figcaption>Zapnuté LFO 1 se třemi mírami nastavenými pro ukázku: Rub +40 %, Stick −30 % a Tune +20 %.</figcaption>
+          <figcaption>Zapnuté LFO 1 se třemi mírami nastavenými pro ukázku<!-- FILL: in Czech, the amounts as on the English page, e.g. ": A +40 %, B −30 % a Tune +20 %" -->.</figcaption>
         </figure>
         <dl class="controls">
           <dt>Nastavení míry</dt>
-          <dd>Klikněte v hlavičce na <span class="n">1</span> <span class="ui">LFO 1</span>, <span class="ui">LFO 2</span> nebo <span class="ui">VEL</span>; tlačítko se rozsvítí svou barvou (LFO 1 blankytně modrou, LFO 2 mátovou, VEL pergamenovou). Knoby teď pod sebou ukazují míry tohoto zdroje <span class="n">2</span>: tažením nahoru nastavíte kladnou míru, dolů zápornou. Míra do 1 % od nuly je nula. Dvojklik vrátí míru knobu na 0. Dalším kliknutím na tlačítko se vrátíte ke knobům.</dd>
+          <dd>Klikněte v hlavičce na <span class="n">1</span> <span class="ui">LFO 1</span>, <span class="ui">LFO 2</span> nebo <span class="ui">VEL</span>; tlačítko se rozsvítí svou vlastní barvou. Knoby teď pod sebou ukazují míry tohoto zdroje <span class="n">2</span>: tažením nahoru nastavíte kladnou míru, dolů zápornou. Míra do 1 % od nuly je nula. Dvojklik vrátí míru knobu na 0. Dalším kliknutím na tlačítko se vrátíte ke knobům.</dd>
           <dt>Jak je to vidět</dt>
           <dd>Knob, kterým některý zdroj hýbe, má uvnitř oblouku hodnoty tenký oblouk v barvě zdroje <span class="n">3</span>, i když jsou tlačítka vypnutá, takže hned vidíte, co se hýbe. Ukazatel knobu zůstává tam, kam jste ho dali.</dd>
           <dt>Co ustoupí</dt>
@@ -502,11 +417,12 @@
         </dl>
 
         <h3>LFO</h3>
-        <p>LFO houpe knobem na obě strany od místa, kde stojí, o svou míru z dráhy knobu, a nikdy za konce jeho dráhy. Záporná míra pohyb obrátí. Jedním knobem mohou hýbat obě LFO; jejich pohyby se sčítají. Rychlosti, tvary a start LFO jsou ve skupině <a href="#master">Master</a>; každý hlas má svá vlastní LFO a při <span class="ui">LFO Start</span> = Hit se spouštějí znovu s každým tahem. Když stojí Tune na 0, míra 50 % už houpe výškou o celý půltón (100 centů) na obě strany.</p>
-        <p>LFO mohou hýbat knoby Tune, Stick, Rub, Pot, Pot Level, Skin Level, Wobble, Creak, Split, Volume a Pan.</p>
+        <p>LFO houpe knobem na obě strany od místa, kde stojí, o svou míru z dráhy knobu, a nikdy za konce jeho dráhy. Záporná míra pohyb obrátí. Jedním knobem mohou hýbat obě LFO; jejich pohyby se sčítají. Rychlosti, tvary a start LFO jsou ve skupině <a href="#master">Master</a>; každý hlas má svá vlastní LFO a při <span class="ui">LFO Start</span> = Hit se spouštějí znovu s každou notou. Když stojí Tune na 0, míra 50 % už houpe výškou o celý půltón (100 centů) na obě strany.</p>
+        <p>LFO mohou hýbat knoby <!-- FILL: the instrument's knobs of kLfoTargets, as on the English page, each followed by ", " -->Volume, Pan a Tune.</p>
 
         <h3>VEL</h3>
         <figure class="fig">
+          <!-- FILL: the English page's figure: the same image, --iw/--ih and marks. -->
           <div class="view" style="--iw:2200;--ih:1464">
             <img src="../assets/manual/vel-amounts.png" alt="Okno se zapnutým VEL: knoby ukazují míry síly úderu">
             <div class="mark" style="--x:82.1;--y:1.4;--w:6.0;--h:4.4"><b>1</b></div>
@@ -515,80 +431,73 @@
             <div class="mark" style="--x:81.2;--y:14.5;--w:6.8;--h:10.7"><b>4</b></div>
             <div class="mark" style="--x:10.3;--y:24.9;--w:6.8;--h:10.7"><b>5</b></div>
           </div>
-          <figcaption>Zapnuté VEL <span class="n">1</span> se třemi mírami nastavenými pro ukázku: <span class="n">2</span> Release +40 %, <span class="n">3</span> Stick +30 %, <span class="n">4</span> Volume +60 %. <span class="n">5</span> Vel Sens míru VEL nemá.</figcaption>
+          <figcaption>Zapnuté VEL <span class="n">1</span> se třemi mírami nastavenými pro ukázku<!-- FILL: in Czech, the amounts as on the English page, with the same <span class="n"> numbers -->. <span class="n">5</span> Vel Sens míru VEL nemá.</figcaption>
         </figure>
-        <p>Knob stojí tam, kam ho dá tah plnou silou úderu. Slabší tah ho posune o díl dráhy rovný míra × (1 − síla úderu), kde síla úderu jde od 0 do 1 (MIDI 127 je 1). Kladná míra znamená „čím silnější tah, tím vyšší hodnota“: s mírou Release +40 % postaví tah poloviční silou knob Release o 20 % jeho dráhy níž, takže slabé tahy doznívají kratší dobu. Záporná míra funguje obráceně. Síla úderu je pro celý tah pevná; pohyby LFO se k ní přičítají.</p>
-        <p><b>Výjimkou je Volume.</b> Jeho míra VEL místo toho násobí zesílení číslem 1 − míra × (1 − síla úderu): klasická závislost hlasitosti na síle úderu. Na +100 % dostane tah poloviční silou poloviční zesílení (−6 dB), navíc k tomu, co udělá <span class="ui">Vel Sens</span>; na 0 % mění síla úderu hlasitost jen přes <span class="ui">Vel Sens</span>.</p>
-        <p>Síla úderu může hýbat všemi knoby skupiny Stroke kromě Vel Sens (Attack, Length, Release, Damp, Vary), všemi knoby skupin Hands, Pitch, Friction, Body a Noise a knoby Volume, Pan, Tune, LFO 1 Rate a LFO 2 Rate. Přepínače, Octave, Bend Up, Bend Down a Vel Sens míru VEL nemají: Vel Sens je vlastní knob síly úderu.</p>
+        <p>Knob stojí tam, kam ho dá nota plnou silou úderu. Slabší nota ho posune o díl dráhy rovný míra × (1 − síla úderu), kde síla úderu jde od 0 do 1 (MIDI 127 je 1). Kladná míra znamená „čím silnější nota, tím vyšší hodnota“: s mírou LFO 1 Rate +40 % postaví nota poloviční silou knob LFO 1 Rate o 20 % jeho dráhy níž, takže slabé noty se houpou pomaleji. Záporná míra funguje obráceně. Síla úderu je pro celou notu pevná; pohyby LFO se k ní přičítají.</p>
+        <p><b>Výjimkou je Volume.</b> Jeho míra VEL místo toho násobí zesílení číslem 1 − míra × (1 − síla úderu): klasická závislost hlasitosti na síle úderu. Na +100 % dostane nota poloviční silou poloviční zesílení (−6 dB), navíc k tomu, co udělá <span class="ui">Vel Sens</span>; na 0 % mění síla úderu hlasitost jen přes <span class="ui">Vel Sens</span>.</p>
+        <p>Síla úderu může hýbat knoby <!-- FILL: the instrument's knobs of kVelTargets, as on the English page, each followed by ", ", and "Glide, " when kVelTargets holds it -->Volume, Pan, Tune, LFO 1 Rate a LFO 2 Rate. Přepínače, Octave, Bend Up a Bend Down míru VEL nemají a nemá ji ani Vel Sens: je to vlastní knob síly úderu.</p>
       </section>
 
       <section id="midi">
         <h2>MIDI ovladače</h2>
         <p>Každý knob a přepínač zvuku klaviatury může sledovat MIDI ovladač (CC): knob, fader nebo pedál vaší MIDI klaviatury či kontroléru. Každý má svůj standardní ovladač (viz tabulka níže), takže kontrolér, který posílá tato čísla, funguje hned, a kterýkoli z nich se může naučit jiný.</p>
         <figure class="fig">
+          <!-- FILL: the English page's figure: the same image, --iw/--ih and marks; the alt and the caption in Czech, naming the same listening knob. -->
           <div class="view" style="--iw:2200;--ih:1464">
-            <img src="../assets/manual/midi-learn.png" alt="Okno se zapnutým MIDI: každý prvek ukazuje svůj ovladač a Stick čeká na nový">
+            <img src="../assets/manual/midi-learn.png" alt="Okno se zapnutým MIDI: každý prvek ukazuje svůj ovladač a jeden knob čeká na nový">
             <div class="mark" style="--x:88.3;--y:1.4;--w:6.5;--h:4.4"><b>1</b></div>
             <div class="mark" style="--x:2.2;--y:14.8;--w:6.9;--h:10.9"><b>2</b></div>
             <div class="mark" style="--x:14.5;--y:35.4;--w:11.1;--h:3.6"><b>3</b></div>
             <div class="mark" style="--x:1.4;--y:48.5;--w:7.6;--h:10.5"><b>4</b></div>
           </div>
-          <figcaption>Zapnuté MIDI: každý prvek ukazuje svůj ovladač a Stick na jeden čeká.</figcaption>
+          <figcaption>Zapnuté MIDI: každý prvek ukazuje svůj ovladač a jeden knob na nový čeká.</figcaption>
         </figure>
         <dl class="controls">
           <dt><span class="n">1</span>Zobrazení ovladačů</dt>
-          <dd>Klikněte v hlavičce na <span class="ui">MIDI</span>; tlačítko se rozsvítí krémově. Každý knob pod sebou místo hodnoty ukazuje svůj ovladač <span class="n">2</span> a každý přepínač ho ukazuje místo svých voleb <span class="n">3</span>: „CC 73“, nebo „—“, když žádný nemá. Dalším kliknutím na <span class="ui">MIDI</span> se hodnoty vrátí.</dd>
+          <dd>Klikněte v hlavičce na <span class="ui">MIDI</span>; tlačítko se rozsvítí. Každý knob pod sebou místo hodnoty ukazuje svůj ovladač <span class="n">2</span> a každý přepínač ho ukazuje místo svých voleb <span class="n">3</span>: „CC 7“, nebo „—“, když žádný nemá. Dalším kliknutím na <span class="ui">MIDI</span> se hodnoty vrátí.</dd>
           <dt><span class="n">4</span>Naučení ovladače</dt>
           <dd>Klikněte na knob nebo přepínač: objeví se čárkovaný kruh a nápis „move a control“. Pohněte knobem nebo faderem kontroléru: prvek si vezme první ovladač, který se pohne, a nastaví se tam, kde tento ovladač stojí. Dalším kliknutím na prvek naslouchání ukončíte; ukončí ho i vypnutí MIDI, změna režimu, přepnutí do jiné aplikace nebo zavření okna.</dd>
           <dt>Standardní ovladač</dt>
           <dd>Dvojklik vrátí knobu nebo přepínači jeho standardní ovladač.</dd>
           <dt>Nabídka po kliknutí pravým tlačítkem</dt>
-          <dd>Klikněte na knob nebo přepínač se stisknutou klávesou Control (nebo dvěma prsty): <span class="ui">No controller</span> mu ovladač odebere, <span class="ui">Back to CC 74</span> (s jeho standardním číslem) mu vrátí standardní. <span class="ui">Every control back to its standard controller</span> v této nabídce i v nabídce tlačítka <span class="ui">MIDI</span> vrátí standardní ovladače všem.</dd>
+          <dd>Klikněte na knob nebo přepínač se stisknutou klávesou Control (nebo dvěma prsty): <span class="ui">No controller</span> mu ovladač odebere, <span class="ui">Back to CC <i>n</i></span> (s jeho standardním číslem) mu vrátí standardní. <span class="ui">Every control back to its standard controller</span> v této nabídce i v nabídce tlačítka <span class="ui">MIDI</span> vrátí standardní ovladače všem.</dd>
         </dl>
         <ul>
           <li><b>Jeden ovladač hýbe jedním prvkem.</b> Ovladač, který se naučí jeden prvek, se odebere prvku, který ho měl dosud.</li>
-          <li>Ovladač nastaví svůj prvek podle své hodnoty: 0 je začátek dráhy, 127 její konec. U knobu, jehož střed je nula (Alt Tune, Drift, Pan, Tune, Octave), je 64 přesně uprostřed. Přepínač rozloží své volby po rozsahu 0–127.</li>
+          <li>Ovladač nastaví svůj prvek podle své hodnoty: 0 je začátek dráhy, 127 její konec. U knobu, jehož střed je nula (<!-- FILL: the instrument's knobs whose range runs from −x to +x, as on the English page, each followed by ", " -->Pan, Tune, Octave), je 64 přesně uprostřed. Přepínač rozloží své volby po rozsahu 0–127.</li>
           <li>Ovladače fungují na všech MIDI kanálech; aplikace je přijímá na kanálech zvolených v <a href="#settings">nastavení</a>.</li>
           <li><b>Ovladače hýbou zvukem klaviatury, i v režimu padů.</b> Pady ani míry LFO a VEL ovladače nemají, proto jsou při zapnutém MIDI v režimu padů prvky ztlumené a ukazují „—“.</li>
-          <li>Znějící tah sleduje ovladač stejně jako otočení knobem (viz <a href="#keyboard">Režim klaviatury</a>), od svého dalšího řídicího kroku, o zlomek milisekundy později.</li>
+          <li>Znějící nota sleduje ovladač stejně jako otočení knobem (viz <a href="#keyboard">Režim klaviatury</a>), od svého dalšího řídicího kroku, o zlomek milisekundy později.</li>
           <li>Ovladače patří aplikaci nebo pluginu, ne zvuku: načtení programu, presetu ani sady je nezmění. Aplikace je má ve svém nastavení, takže po novém spuštění zůstanou. Plugin je ukládá s projektem hostitelského programu, každá instance své.</li>
           <li>V pluginu se knob, kterým pohne ovladač, ohlásí hostitelskému programu, jako byste jím otočili vy.</li>
         </ul>
 
         <h3>Standardní ovladače</h3>
-        <p>Kde General MIDI dává ovladači význam, který se hodí, prvek ho dostane: Volume 7, Pan 10, Stick 74 (jas), Pot Q 71 (barva), Release 72 (doznívání), Attack 73 (náběh) a Rub 2 (dechový ovladač). Ostatní dostanou čísla, která MIDI nechává bez významu, v pořadí skupin na panelu.</p>
+        <p>Kde General MIDI dává ovladači význam, který se hodí, prvek ho dostane: Volume 7, Pan 10, Glide 5 (portamento)<!-- FILL: in Czech, as on the English page: ", Name n (its General MIDI meaning in Czech)" for each such instrument knob -->. Ostatní dostanou čísla, která MIDI nechává bez významu, v pořadí skupin na panelu.</p>
         <table>
           <thead>
-            <tr><th>Prvek</th><th>CC</th><th>Prvek</th><th>CC</th></tr>
+            <tr><th>Prvek</th><th>CC</th></tr>
           </thead>
           <tbody>
-            <tr><td>Attack</td><td>73</td><td>Pot</td><td>87</td></tr>
-            <tr><td>Length</td><td>14</td><td>Pot Q</td><td>71</td></tr>
-            <tr><td>Release</td><td>72</td><td>Pot Level</td><td>88</td></tr>
-            <tr><td>Damp</td><td>15</td><td>Skin</td><td>89</td></tr>
-            <tr><td>Key Up</td><td>16</td><td>Skin Q</td><td>90</td></tr>
-            <tr><td>Vel Sens</td><td>17</td><td>Skin Level</td><td>102</td></tr>
-            <tr><td>Vary</td><td>18</td><td>Track</td><td>103</td></tr>
-            <tr><td>Alternate</td><td>19</td><td>Rub</td><td>2</td></tr>
-            <tr><td>Alt Tune</td><td>20</td><td>Scrape</td><td>104</td></tr>
-            <tr><td>Scoop</td><td>21</td><td>Shimmer</td><td>105</td></tr>
-            <tr><td>Scoop Time</td><td>22</td><td>Volume</td><td>7</td></tr>
-            <tr><td>Drift</td><td>23</td><td>Pan</td><td>10</td></tr>
-            <tr><td>Drop</td><td>24</td><td>Tune</td><td>106</td></tr>
-            <tr><td>Wobble</td><td>25</td><td>Octave</td><td>107</td></tr>
-            <tr><td>Jump</td><td>26</td><td>Bend Up</td><td>108</td></tr>
-            <tr><td>Jump Ratio</td><td>27</td><td>Bend Down</td><td>109</td></tr>
-            <tr><td>Vel&gt;Pitch</td><td>28</td><td>Drum</td><td>110</td></tr>
-            <tr><td>Stick</td><td>74</td><td>LFO Start</td><td>111</td></tr>
-            <tr><td>Stick&gt;Level</td><td>29</td><td>LFO 1 Rate</td><td>112</td></tr>
-            <tr><td>Split</td><td>30</td><td>LFO 1 Shape</td><td>113</td></tr>
-            <tr><td>Creak</td><td>31</td><td>LFO 2 Rate</td><td>114</td></tr>
-            <tr><td>Creak Rate</td><td>85</td><td>LFO 2 Shape</td><td>115</td></tr>
-            <tr><td>Creak Ring</td><td>86</td><td></td><td></td></tr>
+            <!-- FILL: the English page's rows for the instrument knobs, the same values. -->
+            <tr><td>Volume</td><td>7</td></tr>
+            <tr><td>Pan</td><td>10</td></tr>
+            <tr><td>Tune</td><td>102</td></tr>
+            <tr><td>Octave</td><td>103</td></tr>
+            <tr><td>Bend Up</td><td>104</td></tr>
+            <tr><td>Bend Down</td><td>105</td></tr>
+            <tr><td>Voice Mode</td><td>106</td></tr>
+            <tr><td>Glide</td><td>5</td></tr>
+            <tr><td>LFO Start</td><td>107</td></tr>
+            <tr><td>LFO 1 Rate</td><td>108</td></tr>
+            <tr><td>LFO 1 Shape</td><td>109</td></tr>
+            <tr><td>LFO 2 Rate</td><td>110</td></tr>
+            <tr><td>LFO 2 Shape</td><td>111</td></tr>
+            <tr><td>Vel Sens</td><td>112</td></tr>
           </tbody>
         </table>
-        <p><b>Vyhrazené ovladače.</b> CC 0–1, 6, 32, 38, 64, 96–101 a 120–127 si ponechávají svůj význam v MIDI (výběr banky, zadávání dat, sustain, čísla parametrů a zprávy kanálu). Žádný prvek je nedostane a učení je přeskakuje. CC 1 je modulační kolečko, které přidává Rub (viz <a href="#keyboard">Režim klaviatury</a>); CC 121 vrátí kolečka do klidu a CC 120 a 123 zastaví všechny hlasy.</p>
-        <p>Volné k naučení, ve {{APP}}u bez významu: CC 3–5, 8, 9, 11–13, 33–37, 39–63, 65–70, 75–84, 91–95 a 116–119.</p>
+        <p><b>Vyhrazené ovladače.</b> CC 0–1, 6, 32, 38, 64, 96–101 a 120–127 si ponechávají svůj význam v MIDI (výběr banky, modulační kolečko, zadávání dat, pedál sustain, čísla parametrů a zprávy kanálu). Žádný prvek je nedostane a učení je přeskakuje. CC 1 je modulační kolečko (viz <a href="#keyboard">Režim klaviatury</a>) a CC 64 pedál sustain (viz <a href="#voices">Režimy hlasů, glide a sustain</a>); CC 121 vrátí kolečka do klidu a uvolní pedál a CC 120 a 123 zastaví všechny hlasy.</p>
+        <p>Volné k naučení, v aplikaci {{APP_NAME}} bez významu: <!-- FILL: the English page's list of free controllers, the same ranges -->.</p>
       </section>
 
       <section id="settings">
@@ -599,8 +508,8 @@
           <dd><b>All devices</b> (výchozí, všechna zařízení), <b>None</b> (žádné), nebo jedna připojená klaviatura či kontrolér. Vybrané zařízení, které odpojíte, zůstane v seznamu s poznámkou „not connected“; jakmile ho znovu připojíte, aplikace ho začne zase poslouchat.</dd>
           <dt>MIDI input › Channel</dt>
           <dd><b>All channels</b> (všechny kanály) nebo jeden z kanálů 1–16; zprávy na ostatních kanálech se ignorují.</dd>
-          <dt>MIDI port „{{APP}}“</dt>
-          <dd>Dokud aplikace běží, mohou jiné aplikace posílat MIDI do portu <b>{{APP}}</b>. Řídí se nastavením kanálu.</dd>
+          <dt>MIDI port „{{APP_NAME}}“</dt>
+          <dd>Dokud aplikace běží, mohou jiné aplikace posílat MIDI do portu <b>{{APP_NAME}}</b>. Řídí se nastavením kanálu.</dd>
           <dt>Audio output › Device</dt>
           <dd><b>System default</b> (výchozí výstup systému) nebo konkrétní zvukové zařízení. System default sleduje výstup zvolený v macOS. Vybrané zařízení, které odpojíte, zůstane v seznamu s poznámkou „not connected“ a zvuk jde do výchozího výstupu systému, dokud ho znovu nepřipojíte.</dd>
           <dt>Audio output › Channels</dt>
@@ -615,18 +524,18 @@
         <ol>
           <li>V aplikaci otevřete <span class="ui">Settings</span> a klikněte na <span class="ui">Install Audio Unit</span>. Soubor <span class="ui">{{APP}}.component</span> se zkopíruje do <span class="ui">~/Library/Audio/Plug-Ins/Components</span>.</li>
           <li>Restartujte hostitelský program nebo ho nechte znovu prohledat pluginy.</li>
-          <li>Nástroj se objeví jako <b>{{APP}}</b> od výrobce <b>Jiri Pisa</b> mezi nástroji Audio Unit.</li>
+          <li>Nástroj se objeví jako <b>{{APP_NAME}}</b> od výrobce <b>Jiri Pisa</b> mezi nástroji Audio Unit.</li>
         </ol>
         <p>Okno pluginu je okno aplikace bez ozubeného kolečka: stejná hlavička, knoby, klaviatura, pady i Send to pad. Klávesy a pady na obrazovce hrají přímo na plugin.</p>
         <dl class="controls">
           <dt>Automatizace</dt>
-          <dd>Hostitelský program vidí 103 parametrů: zvuk klaviatury, tedy jeho 45 knobů a přepínačů, 22 měr LFO a 36 měr VEL. Otáčení knobem v režimu klaviatury lze nahrát jako automatizaci a automatizace hýbe knoby. Pady, jejich výšky a skupiny ani režim parametry nejsou: automatizace dosáhne jen na zvuk klaviatury.</dd>
+          <dd>Hostitelský program vidí <!-- FILL: in Czech, the English page's numbers: "N parametrů: zvuk klaviatury, tedy jeho K knobů a přepínačů, L měr LFO a V měr VEL." --> Otáčení knobem v režimu klaviatury lze nahrát jako automatizaci a automatizace hýbe knoby. Pady, jejich výšky a skupiny ani režim parametry nejsou: automatizace dosáhne jen na zvuk klaviatury. Parametr si v hostitelském programu ponechává své číslo z verze na verzi, takže automatizace nahraná s touto verzí najde svůj knob i po aktualizaci.</dd>
           <dt>Presety</dt>
-          <dd>Dvanáct programů jsou tovární presety pluginu; načítají se do zvuku klaviatury. Vaše vlastní presety jsou v nabídce Preset v okně pluginu, společné s aplikací (viz <a href="#presets">Presety</a>). Když jeden načtete do klaviatury, ukáže hostitelský program jeho název jako preset pluginu; volba továrního presetu v hostitelském programu tuto vazbu zruší.</dd>
+          <dd>Programy jsou tovární presety pluginu; načítají se do zvuku klaviatury. Vaše vlastní presety jsou v nabídce Preset v okně pluginu, společné s aplikací (viz <a href="#presets">Presety</a>). Když jeden načtete do klaviatury, ukáže hostitelský program jeho název jako preset pluginu; volba továrního presetu v hostitelském programu tuto vazbu zruší.</dd>
           <dt>Uloženo s projektem</dt>
           <dd>Zvuk klaviatury a jeho program, režim, všech šestnáct padů (zvuk, výška a skupina), preset, ze kterého každý zvuk pochází, MIDI ovladače a vybraný pad. Úprava padu označí projekt jako změněný půl sekundy poté, co přestanete, nebo když okno zavřete. Okno pluginu se otevře na naposledy vybraném padu.</dd>
           <dt>Latence</dt>
-          <dd>Pod 88,2 kHz počítá {{APP}} hlasy na dvojnásobné frekvenci hostitele, což zvuk zpozdí o 29 vzorků (0,6 ms při 48 kHz). Plugin to hostitelskému programu hlásí a ten zpoždění vyrovná. Od 88,2 kHz výš je latence nulová.</dd>
+          <dd>Pod 88,2 kHz počítá plugin hlasy na dvojnásobné frekvenci hostitele, což zvuk zpozdí o 29 vzorků (0,6 ms při 48 kHz). Plugin to hostitelskému programu hlásí a ten zpoždění vyrovná. Od 88,2 kHz výš je latence nulová.</dd>
           <dt>Výstup</dt>
           <dd>Stereo. Na monofonní stopě plugin smíchá obě strany do jedné, takže i pady posunuté úplně doprava jsou slyšet.</dd>
         </dl>
@@ -635,9 +544,9 @@
 
       <section id="updates">
         <h2>Aktualizace</h2>
-        <p>Při každém spuštění se {{APP}} podívá, jestli existuje novější verze,
+        <p>Při každém spuštění se aplikace podívá, jestli existuje novější verze,
         a pokud ano, nabídne ji; bez vašeho souhlasu se nic nenainstaluje.
-        <span class="ui">{{APP}} › Check for Updates…</span> se zeptá hned.</p>
+        <span class="ui">{{APP_NAME}} › Check for Updates…</span> se zeptá hned.</p>
       </section>
     </article>
   </div>
@@ -645,7 +554,7 @@
 
 <footer>
   <div class="wrap">
-    <span>{{APP}}, autor {{AUTHOR}}. {{LICENSE_LABEL_CS}}. Manuál pro verzi {{VERSION}}.</span>
+    <span>{{APP_NAME}}, autor {{AUTHOR}}. {{LICENSE_LABEL_CS}}. Manuál pro verzi {{VERSION}}.</span>
     <span><a href="index.html">Přehled</a></span>
   </div>
 </footer>

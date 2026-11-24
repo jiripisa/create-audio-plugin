@@ -71,7 +71,7 @@ struct HeaderView<Trailing: View>: View {
     private var wordmark: some View {
         HStack(spacing: 10) {
             LogoView().frame(width: LogoView.width(height: 38), height: 38)
-            Text("{{APP}}")
+            Text("{{APP_NAME}}")
                 .font(.system(size: 32, weight: .semibold, design: .serif))
                 .foregroundStyle(Artwork.ink)
         }

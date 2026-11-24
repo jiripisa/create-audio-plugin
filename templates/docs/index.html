@@ -3,9 +3,9 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>{{APP}} for macOS</title>
+<title>{{APP_NAME}} for macOS</title>
 <meta name="description" content="{{TAGLINE}}">
-<meta property="og:title" content="{{APP}}">
+<meta property="og:title" content="{{APP_NAME}}">
 <meta property="og:description" content="{{TAGLINE}}">
 <meta property="og:image" content="{{PAGES_URL}}assets/{{APP_LOWER}}-window.png">
 <meta property="og:type" content="website">
@@ -16,9 +16,16 @@
 <link rel="stylesheet" href="assets/site.css">
 </head>
 <body>
+<!-- FILL: This page is a template. Every FILL comment says what goes in its place and where it
+     comes from; replace each one by its content and delete the comment. docs/cs/index.html has
+     the same tags in the same order: change both together. The images are made in phase 05:
+     assets/icon.png (256 px, drawn from the icon master with the system's squircle),
+     assets/hero-{{APP_LOWER}}.jpg (1920 × 819, the approved site look, no text in it),
+     assets/{{APP_LOWER}}-window.png (the real app's window captured by PID) and
+     assets/ornament.png (the divider band site.css puts between sections). -->
 
 <header class="wrap masthead">
-  <a class="brand" href="#top"><img src="assets/icon.png" alt="" width="32" height="32">{{APP}}</a>
+  <a class="brand" href="#top"><img src="assets/icon.png" alt="" width="32" height="32">{{APP_NAME}}</a>
   <nav aria-label="Page">
     <a href="manual.html">Manual</a>
     <a href="#get">Download</a>
@@ -32,7 +39,7 @@
     <div class="hero-intro">
       <img class="hero-art" src="assets/hero-{{APP_LOWER}}.jpg" alt="" width="1920" height="819" fetchpriority="high">
       <div class="hero-copy">
-    <h1>{{APP}}</h1>
+    <h1>{{APP_NAME}}</h1>
     <p class="lede">{{TAGLINE}}</p>
     <div class="actions">
       <a class="button" href="{{REPO_URL}}/releases/download/v{{VERSION}}/{{APP}}-{{VERSION}}.dmg">
@@ -44,7 +51,7 @@
       </div>
     </div>
     <figure class="shot">
-      <img src="assets/{{APP_LOWER}}-window.png" alt="The {{APP}} window" width="1400">
+      <img src="assets/{{APP_LOWER}}-window.png" alt="The {{APP_NAME}} window" width="1400">
     </figure>
   </div>
 
@@ -53,43 +60,28 @@
       <h2>What it does</h2>
       <div class="grid">
         <div>
-          <h3>A friction drum to play</h3>
-          <p>A clay jug covered with a skin, two tufts of horsehair through it,
-          pulled by wet hands: the drum Czech carollers play at Christmas.
-          Twelve built-in programs play it and its relatives: the German
-          Brummtopf, the Spanish zambomba, the Neapolitan putipù, the Brazilian
-          cuíca, the Venezuelan furruco and the Romanian buhai, plus a creak
-          and a flick.</p>
+          <h3><!-- FILL: a heading that says what instrument this is, e.g. "A <instrument> to play". --></h3>
+          <p><!-- FILL: what the real instrument is, where it comes from and how it is played, in three or four plain sentences (research report); then what the built-in programs play: its variants and relatives by name (kPrograms). --></p>
         </div>
         <div>
           <h3>Synthesized, not sampled</h3>
-          <p>Every stroke is made as it sounds, not played back from a
-          recording, so it can move: scoop up into its pitch like the cuíca's
-          whoop, drift as the hand pulls, or jump to a higher mode of the skin.
-          Vary keeps no two strokes quite alike.</p>
+          <p>Every note is made as it sounds, not played back from a recording.<!-- FILL: two sentences on what that lets this instrument do, from the spec and the approved prototype: what moves within a note, what a knob changes that a recording could not. --></p>
         </div>
         <div>
-          <h3>Two hands, one drum</h3>
-          <p>A player pulls with both hands in turn, and the weaker one is a
-          little quieter and a little off. A stroke on a sounding drum goes on
-          from where the skin is, so strokes run into each other with a dip,
-          not a click. With Drum One the whole keyboard is one drum; with Drum
-          Many every note is a drum of its own.</p>
+          <h3><!-- FILL: a heading for what is most its own in the playing, e.g. how a note starts, rings or joins the next. --></h3>
+          <p><!-- FILL: three or four sentences on that, from the spec's playing style (§ playing style, kRehitContinues, the voice mode and glide the programs use) and the research report. --></p>
         </div>
         <div>
           <h3>Keys and pads</h3>
-          <p>In keyboard mode every note strikes the sound at its pitch. In pad
-          mode notes 36–51 hit sixteen pads, each with a sound, a pitch and a
-          group of its own; the pads of a group are one drum, played by one
-          pair of hands. Send to pad turns a sound made on the keyboard into a
-          pad.</p>
+          <p>In keyboard mode every note plays the sound at its pitch: Poly for chords, Mono and Legato for a single line, with glide between notes and the sustain pedal. In pad mode notes 36–51 hit sixteen pads, each with a sound, a pitch and a group of its own; the pads of a group share one voice. Send to pad turns a sound made on the keyboard into a pad.</p>
         </div>
         <div>
           <h3>Presets, kits and MIDI learn</h3>
           <p>Save a sound as a preset and all sixteen pads as a kit; the app
           and the plug-in share them. Two LFOs and the velocity move the knobs
-          by amounts set on the knobs themselves. Every knob and switch follows
-          a MIDI controller and learns a new one with a click.</p>
+          by amounts set on the knobs themselves, every pad with its own. Every
+          knob and switch follows a MIDI controller and learns a new one with a
+          click.</p>
         </div>
         <div>
           <h3>App and Audio Unit</h3>
@@ -106,7 +98,7 @@
     <div class="wrap grid">
       <div>
         <h2>Download</h2>
-        <p>{{APP}} needs macOS 27 or later. The disk image is signed and
+        <p>{{APP_NAME}} needs macOS 27 or later. The disk image is signed and
         notarized by Apple, so it opens without security warnings. Drag
         {{APP}} to Applications.</p>
         <div class="actions">
@@ -128,7 +120,7 @@ cd {{APP_LOWER}}
 
 <footer>
   <div class="wrap">
-    <span>{{APP}} by {{AUTHOR}}. {{LICENSE_LABEL}}.</span>
+    <span>{{APP_NAME}} by {{AUTHOR}}. {{LICENSE_LABEL}}.</span>
     <span><a href="manual.html">Manual</a> · <a href="{{REPO_URL}}">Source on GitHub</a></span>
   </div>
 </footer>

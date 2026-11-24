@@ -72,3 +72,15 @@ Vel>Pitch
 \bshimmer\b
 \bShimmer\b
 horse hair
+# The same in Czech (the Czech site and manual).
+buben
+bubn
+třecí
+žíně
+žíní
+\bblána\b
+\bblánu\b
+\bblány\b
+hrnec
+hrnce
+koledn

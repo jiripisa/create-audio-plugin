@@ -7,7 +7,7 @@ struct {{APP}}App: App {
     @State private var model = AppModel()
 
     var body: some Scene {
-        Window("{{APP}}", id: "main") {
+        Window("{{APP_NAME}}", id: "main") {
             ContentView(model: model)
         }
         .windowResizability(.contentSize)

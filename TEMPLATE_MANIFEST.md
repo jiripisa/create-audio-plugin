@@ -3,8 +3,8 @@
 `templates/` is Fanfrnoch, the source instrument of design spec §7, at its tag `v1.0.0` with its
 identity replaced by placeholders, moved to macOS 27 (§"macOS 27" below), with its friction-drum
 engine replaced by a placeholder instrument, "Tone", behind a seam between the platform and the
-instrument (§"The instrument seam" below). The site and the manual still describe the friction
-drum; they become templates later (plan, Task 7).
+instrument (§"The instrument seam" below). The site, the manual and the planning files say what
+is the instrument's with `FILL` comments (§"Texts: FILL markers" below).
 `scaffold.py --templates` renders it (double-brace variables, flag blocks, `__APP__` in paths).
 
 This file is the skill's map of the template. It lives at the repo root, outside `templates/`, so
@@ -46,11 +46,10 @@ content with the new instrument's; the line says with what).
 `scripts/check_leftovers.sh templates` (words: `scripts/leftover-words.txt`) finds no identity
 token; the subtype `Fanf` is matched as a whole word only, so that words such as `Fanfare` stay
 allowed. The words file also holds the friction drum's content words (drum, friction, stick, rub,
-skin, pot, the programs' instrument names, the palette's Modrotisk, …), short ones as whole words
-so that `sticky` or `pottery` stay allowed. They are gone from everything but `docs/`, whose
-bodies still describe the friction drum: `check_leftovers.sh --skip-dir docs templates` finds
-nothing, and `verify_template.sh` checks the rendered project with `--skip-dir docs` until the
-site and manual are templates.
+skin, pot, the programs' instrument names, the palette's Modrotisk, …, and the Czech pages' buben,
+žíně, hrnec, …), short ones as whole words so that `sticky` or `pottery` stay allowed. They are
+gone from everything: `check_leftovers.sh templates` finds nothing, with no directory skipped, and
+`verify_template.sh` checks the whole rendered project the same way.
 
 ## What resisted a plain rename
 
@@ -68,12 +67,25 @@ site and manual are templates.
   Python ever reads it.
 - **The C++ namespace** is `namespace {{APP_LOWER}}`; `identity.py` guarantees it starts with a letter.
 - **Names built from the instrument's name**: the kit extension `.{{APP_LOWER}}kit`, the
-  listening renders' directory variable `{{APP_UPPER}}_LISTEN_DIR`, Czech declensions such as
-  `{{APP}}u` in `docs/cs/`. They render to valid code and text.
+  listening renders' directory variable `{{APP_UPPER}}_LISTEN_DIR`. They render to valid code.
+  The Czech pages never decline the name (it may be any word): they write "aplikace
+  {{APP_NAME}}", "plugin {{APP_NAME}}" or leave it out.
 - **Kept as they are**: the manufacturer code `JPis` and its name `Jiri Pisa` (the AU's `name` is
   `Jiri Pisa: {{APP}}`) and the shared Sparkle `SUPublicEDKey`.
-- **Display names use `{{APP}}`**, as the mechanical rename gives them (window title, bundle
-  names, the site). For a name with spaces or diacritics `{{APP_NAME}}` would read better there.
+- **Display names use `{{APP_NAME}}`** (it may hold diacritics and spaces, e.g. "Čimbál"),
+  `{{APP}}` stays where a file, a folder, a target or a code name is meant. `{{APP_NAME}}`:
+  `CFBundleName` and `CFBundleDisplayName` of the app (so the app menu, About and Quit), the
+  component's `CFBundleName`, its `AudioComponents` `name` (`Jiri Pisa: {{APP_NAME}}`, the
+  manufacturer prefix kept) and `description`, the window title (`{{APP}}App.swift`), the panel's
+  wordmark (`HeaderView`), the MIDI client and the virtual MIDI port (`MIDIInput`) and the
+  Settings text naming it, the "is not a … file" message (`Presets.swift`), the DMG's volume name
+  (`build.sh`), the appcast's titles (`make_appcast.py`, `docs/appcast.xml`), every heading and
+  sentence of the site, the manual, `README.md`, `CLAUDE.md`, `development_workflow.md`, the
+  release skill and `.planning`. `{{APP}}`: the bundle and executable (`{{APP}}.app`, what the user
+  drags to Applications), `{{APP}}.component`, the DMG file `{{APP}}-<version>.dmg`, the folder
+  `~/Library/Application Support/{{APP}}/`, Swift and C identifiers, test-only names.
+  `verify_template.sh` renders with `APP_NAME` "Zkušebník Test" (`APP` Zkusebnik), so the build,
+  the tests and `auval` run with such a name (`auval` shows `AudioUnit Name: Zkušebník Test`).
 - **Feature flags are not wired**: the template always renders the site, manual, Czech pages,
   Sparkle and the release skill (the verification config sets every flag true).
 
@@ -333,9 +345,10 @@ keyboard set's Voice Mode:
 | `scripts/make_appcast.py` | platform | Sparkle feed from the CHANGELOG section |
 | `CHANGELOG.md` | platform | `## Unreleased` |
 | `README.md` | platform | name, tagline, build commands, licence |
-| `CLAUDE.md` | platform | project rules; its first line is `{{TAGLINE}}` |
-| `development_workflow.md` | platform | toolchain, build, auval, icon, distribution, phases |
-| `.claude/skills/release/SKILL.md` | platform | the release procedure |
+| `CLAUDE.md` | platform | project rules; its first line is `{{TAGLINE}}`; where the instrument lives; no `FILL:` left at a release |
+| `development_workflow.md` | platform | toolchain, build, auval, icon, distribution, phases 01–06; 0.1.0 until the first release, 1.0.0 |
+| `.claude/skills/release/SKILL.md` | platform | the release procedure (below) |
+| `.planning/ROADMAP.md`, `.planning/STATE.md` | platform frame, instrument rows | the run's phases 01–06 with `FILL` comments for what each made |
 
 ### Resources
 
@@ -445,6 +458,48 @@ fail there.
 | `docs/.nojekyll` | platform | Pages serves files as they are |
 | `docs/appcast.xml` | platform | empty Sparkle feed; `build.sh dist` writes it |
 | `docs/assets/site.css`, `manual.css` | platform | shared styles |
-| `docs/index.html`, `docs/cs/index.html` | platform frame, instrument body | head, nav, download, footer stay; a run writes what the instrument is and its images |
-| `docs/manual.html`, `docs/cs/manual.html` | platform frame, instrument body | the platform's chapters (modes, pads, presets, kits, MIDI, LFO/VEL) stay; a run writes the sections of its knobs, its programs and kit |
+| `docs/index.html`, `docs/cs/index.html` | platform frame, instrument body | head, nav, the platform's three feature cards, download, footer stay; a run writes the first and third cards and a sentence of the second, and makes the images |
+| `docs/manual.html`, `docs/cs/manual.html` | platform frame, instrument body | the platform's chapters stay written out (window, header, Master, keyboard mode, voice modes, glide and sustain, pads and groups, Send to pad, presets, kits, LFO/VEL amounts per pad, MIDI controllers and learn, Settings, the Audio Unit, updates); a run writes the sections of its knobs, its programs, its kit, its wheels and re-hit, the numbers that follow from `Params.h`, and the screenshots' marks |
 | `docs/assets/*.png`, `docs/assets/*.jpg`, `docs/assets/manual/*` | instrument | screenshots, hero, icon, ornament (absent in the template) |
+
+## Texts: FILL markers
+
+What a run writes is marked where it goes, by an HTML comment (`<!-- FILL: … -->` in HTML and
+Markdown, `/* … FILL: … */` in `site.css`) that says what goes there and from which source: the
+research report, the spec, `Params.h` (`kSections`, `kInstrumentKnobs`, `kPrograms`,
+`kDefaultKit`, `kLfoTargets`, `kVelTargets`, `kModWheelTargets`, `kAftertouchTargets`,
+`kRehitContinues`), `Voice.h`, the approved look, a real-app screenshot captured by PID. A FILL
+in running text sits where its words go, so the sentence around it reads on. The Czech pages hold
+the same tags in the same order as the English ones, their FILL comments included (each asks for
+the English page's content in Czech). The figures keep their marks with placeholder coordinates;
+the FILL above each says what the screenshot shows and that the marks are measured on it. A
+release has none left (`CLAUDE.md`; the release skill's step 1 checks `grep -rn "FILL:" docs
+.planning`).
+
+| File | FILL comments | What they ask for |
+|---|---|---|
+| `docs/index.html`, `docs/cs/index.html` | 6 each | the page's images (one comment), the first and third feature cards, what "synthesized" lets the instrument do |
+| `docs/manual.html`, `docs/cs/manual.html` | 35 each | the contents' and the panel's section names, what the instrument is, the programs, each section of knobs, re-hit and start-only knobs, the wheels, groups and the default kit, the LFO/VEL target lists, the knobs centred on 0, the standard and free controllers, the Audio Unit's parameter counts, each figure's screenshot and caption |
+| `docs/assets/site.css` | 1 | the approved site look's palette, display font and button (the template's is a neutral dark one) |
+| `.planning/ROADMAP.md` | 7 | file names of the report and the spec, the status rule, what phases 02–05 made |
+| `.planning/STATE.md` | 5 | one entry per phase; the research, prototype and spec entry |
+
+Checked by rendering (`Zkušebník Test`) and opening the four pages in headless Chrome
+(Playwright 1.65.1, its Chromium 1255) at 1440 and 400 px: no page is wider than its viewport, the
+in-page anchors all resolve, no script error, and the English and Czech pages have the same
+sequence of elements and FILL comments (87 for the overview, 720 for the manual). The only failed
+requests are the images a run makes: `assets/icon.png`, `assets/hero-<app>.jpg`,
+`assets/<app>-window.png`, `assets/ornament.png` and the ten `assets/manual/*.png`.
+
+## The release skill
+
+Fanfrnoch's procedure, renamed, with these changes: the first release is 1.0.0 (the skeleton
+carries 0.1.0, which step 1 replaces in the site with every other old version); step 1 also checks
+that no `FILL:` is left; `auval` runs on the component that ships; the catalog is split as design
+§5 says: its entry is written into `projects.json` of a fresh clone of
+`{{OWNER}}/{{OWNER}}.github.io` by a text edit (never a JSON rewrite) and committed locally before
+the push question, and the `update-catalog` build check and push run after publishing and the live
+checks. The one bold push question names every outward action of the first release in order
+(create the public repo, push the tag, the GitHub Release with the DMG, `curl` the DMG for 200,
+push `main`, turn on Pages, push the catalog); a later release names only what is not so already.
+

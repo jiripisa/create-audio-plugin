@@ -15,9 +15,10 @@
 #              stream on it. Never changes the default output, never brings the app to the front.
 #
 # The dummy instrument is a directory named Zkusebnik (identity from scripts/identity.py, subtype
-# Zkus). It is rendered into $SCRATCH/verify-<timestamp>/ ($SCRATCH defaults to $TMPDIR) and kept
-# there for inspection. Prints TEMPLATE OK last on success. Every run ends by removing the dummy's
-# preferences and what the tests and tools wrote outside the scratch folder.
+# Zkus), shown as "Zkušebník Test" (APP_NAME). It is rendered into $SCRATCH/verify-<timestamp>/
+# ($SCRATCH defaults to $TMPDIR) and kept there for inspection. Prints TEMPLATE OK last on
+# success. Every run ends by removing the dummy's preferences and what the tests and tools wrote
+# outside the scratch folder.
 
 set -euo pipefail
 
@@ -174,7 +175,10 @@ if [ "$(echo "$ID" | jq -r .AU_SUBTYPE)" != "$SUBTYPE" ]; then
     echo "FAILED: identity.py gave subtype $(echo "$ID" | jq -r .AU_SUBTYPE), expected $SUBTYPE"
     exit 1
 fi
+# The display name has diacritics and a space, as a directory name may (Čimbál, Tape Loop): every
+# window title, bundle name, menu, MIDI port and page that shows it is built with one.
 echo "$ID" | jq '. + {
+    APP_NAME: "Zkušebník Test",
     AUTHOR: "Jiří Píša",
     TAGLINE: "A test instrument.",
     TAGLINE_CS: "Zkušební nástroj.",
@@ -187,9 +191,7 @@ echo "$ID" | jq '. + {
 # --- Render ---
 step "render" python3 -I "$SCAFFOLD" --config "$OUT/config.json" --out "$PROJ" \
     --templates "$SKILL_DIR/templates"
-# docs/ is left out until the site and the manual are templates (plan, Task 7): their bodies still
-# describe the source instrument.
-step "leftovers" "$SKILL_DIR/scripts/check_leftovers.sh" --skip-dir docs "$PROJ"
+step "leftovers" "$SKILL_DIR/scripts/check_leftovers.sh" "$PROJ"
 if grep -rIn -E '\{\{[#^/]?[A-Z_]+\}\}|__APP__' "$PROJ" > "$LOGS/placeholders.log"; then
     echo "FAILED: unrendered placeholders (full list: $LOGS/placeholders.log)"
     head -n 20 "$LOGS/placeholders.log"

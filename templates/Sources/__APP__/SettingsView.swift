@@ -28,7 +28,7 @@ struct SettingsView: View {
                             Text("Channel \(channel)").tag(MIDIChannelFilter.channel(channel))
                         }
                     }
-                    Text("Other applications can also send MIDI to the port “{{APP}}”.")
+                    Text("Other applications can also send MIDI to the port “{{APP_NAME}}”.")
                         .font(.footnote)
                         .foregroundStyle(.secondary)
                 }

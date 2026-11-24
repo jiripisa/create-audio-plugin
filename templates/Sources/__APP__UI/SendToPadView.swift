@@ -64,7 +64,7 @@ struct SendToPadView: View {
                     .font(.system(size: 13, weight: .semibold, design: .serif))
                     .foregroundStyle(Artwork.ink)
                     .lineLimit(1)
-                    .minimumScaleFactor(0.8)            // "03  {{APP}} High"
+                    .minimumScaleFactor(0.8)            // "03  Soft Tone"
                 Text(Notes.name(model.padNote(pad)))
                     .font(.system(size: 11).monospacedDigit())
                     .foregroundStyle(Artwork.muted)

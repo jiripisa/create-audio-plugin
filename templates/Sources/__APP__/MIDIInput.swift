@@ -10,7 +10,7 @@ struct MIDISource: Identifiable, Hashable {
 }
 
 /// Feeds MIDI to the synth from the chosen sources and from the app's own
-/// virtual port "{{APP}}", which other applications can send to.
+/// virtual port "{{APP_NAME}}", which other applications can send to.
 /// CoreMIDI calls back on its own thread, hence the lock around the filter.
 final class MIDIInput: @unchecked Sendable {
 
@@ -26,7 +26,7 @@ final class MIDIInput: @unchecked Sendable {
 
     init(synth: Synth) {
         self.synth = synth
-        MIDIClientCreateWithBlock("{{APP}}" as CFString, &client) { [weak self] notification in
+        MIDIClientCreateWithBlock("{{APP_NAME}}" as CFString, &client) { [weak self] notification in
             guard notification.pointee.messageID == .msgSetupChanged, let self else { return }
             let changed = self.onSourcesChanged
             Task { @MainActor in changed?() }
@@ -34,7 +34,7 @@ final class MIDIInput: @unchecked Sendable {
         MIDIInputPortCreateWithProtocol(client, "Input" as CFString, ._1_0, &port) { [weak self] list, _ in
             self?.receive(list)
         }
-        MIDIDestinationCreateWithProtocol(client, "{{APP}}" as CFString, ._1_0, &destination) { [weak self] list, _ in
+        MIDIDestinationCreateWithProtocol(client, "{{APP_NAME}}" as CFString, ._1_0, &destination) { [weak self] list, _ in
             self?.receive(list)
         }
     }

@@ -1,9 +1,9 @@
-# {{APP}}
+# {{APP_NAME}}
 
 {{TAGLINE}}
 
-Native macOS app (SwiftUI, macOS 27 or later), built with Swift Package
-Manager and shell scripts; no Xcode project.
+An Audio Unit instrument (AUv2) and a native macOS app (SwiftUI, macOS 27 or
+later), built with Swift Package Manager and shell scripts; no Xcode project.
 
 Website and manual: {{PAGES_URL}}
 

@@ -216,7 +216,7 @@ rm -rf "$DMG_STAGING" "$DMG_PATH"
 mkdir -p "$DMG_STAGING"
 cp -R "$APP_BUNDLE" "$DMG_STAGING/"
 ln -s /Applications "$DMG_STAGING/Applications"
-hdiutil create -volname "{{APP}}" -srcfolder "$DMG_STAGING" \
+hdiutil create -volname "{{APP_NAME}}" -srcfolder "$DMG_STAGING" \
     -ov -format UDZO "$DMG_PATH"
 rm -rf "$DMG_STAGING"
 

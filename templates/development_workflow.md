@@ -1,4 +1,4 @@
-# {{APP}} — Development Workflow, Build & Distribution
+# {{APP_NAME}} — Development Workflow, Build & Distribution
 
 ## 1. Toolchain & Project Layout
 
@@ -158,10 +158,15 @@ hardened runtime and notarization. Add entitlements to
   one branch `feature/NN-slug` = one `--no-ff` merge into `main`.
 - Definition of done: acceptance criteria checked, `swift test` green, app
   built and run, CHANGELOG and manual updated, ROADMAP/STATE updated.
+- The first phases make the instrument: 01 skeleton (the platform template
+  rendered, green on its placeholder engine), 02 engine (the approved prototype
+  as the engine, equal to its reference), 03 art (the panel's look), 04 panel, app,
+  Audio Unit and manual, 05 icon and website, 06 the 1.0.0 release.
 
 ### Versioning & releases
 
 - The version lives in `Resources/Info.plist` (`CFBundleShortVersionString`
-  and `CFBundleVersion`), semantic versioning, starting at 0.1.0.
+  and `CFBundleVersion`), semantic versioning. The skeleton carries 0.1.0 until
+  the first release, which is 1.0.0.
 - Releases follow the project skill `.claude/skills/release/SKILL.md`.
 - Pushes to GitHub happen only after explicit confirmation.

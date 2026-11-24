@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>{{APP}} Manual</title>
-<meta name="description" content="The {{APP}} manual: every control, with marked screenshots.">
+<title>{{APP_NAME}} Manual</title>
+<meta name="description" content="The {{APP_NAME}} manual: every control, with marked screenshots.">
 <link rel="alternate" hreflang="en" href="{{PAGES_URL}}manual.html">
 <link rel="alternate" hreflang="cs" href="{{PAGES_URL}}cs/manual.html">
 <link rel="alternate" hreflang="x-default" href="{{PAGES_URL}}manual.html">
@@ -13,9 +13,15 @@
 <link rel="stylesheet" href="assets/manual.css">
 </head>
 <body>
+<!-- FILL: This page is a template. Every FILL comment says what goes in its place and where it
+     comes from; replace each one by its content and delete the comment. Text outside FILL
+     comments describes the platform and stays as it is, unless the instrument changes what it
+     describes. docs/cs/manual.html has the same tags in the same order: change both together.
+     The screenshots (docs/assets/manual/*.png) are the real app's window, captured by PID
+     (scripts/capture_window.swift of the skill), never a mockup. -->
 
 <header class="wrap masthead">
-  <a class="brand" href="index.html"><img src="assets/icon.png" alt="" width="32" height="32">{{APP}}</a>
+  <a class="brand" href="index.html"><img src="assets/icon.png" alt="" width="32" height="32">{{APP_NAME}}</a>
   <nav aria-label="Site">
     <a href="index.html">Overview</a>
     <a href="manual.html" aria-current="page">Manual</a>
@@ -27,7 +33,7 @@
 <main>
   <div class="wrap title">
     <h1>Manual</h1>
-    <p>Every control of {{APP}} {{VERSION}}, where to find it and what it does.
+    <p>Every control of {{APP_NAME}} {{VERSION}}, where to find it and what it does.
     The frames in the screenshots mark the control the text talks about.</p>
   </div>
 
@@ -40,16 +46,12 @@
         <li><a href="#header">The header</a></li>
         <li><a href="#knobs">Knobs and switches</a>
           <ol>
-            <li><a href="#stroke">Stroke</a></li>
-            <li><a href="#hands">Hands</a></li>
-            <li><a href="#pitch">Pitch</a></li>
-            <li><a href="#friction">Friction</a></li>
-            <li><a href="#body">Body</a></li>
-            <li><a href="#noise">Noise</a></li>
+            <!-- FILL: one <li><a href="#id">Name</a></li> for each section of kSections (Params.h), in that order: Name as the panel writes it, id the name in lower case with words joined by "-" (the id of its <h3> below). -->
             <li><a href="#master">Master</a></li>
           </ol>
         </li>
         <li><a href="#keyboard">Keyboard mode</a></li>
+        <li><a href="#voices">Voice modes, glide and sustain</a></li>
         <li><a href="#pads">Pad mode</a></li>
         <li><a href="#send">Send to pad</a></li>
         <li><a href="#presets">Presets</a></li>
@@ -69,18 +71,19 @@
           <li>Download the disk image from the <a href="index.html#get">download page</a>
           and open it.</li>
           <li>Drag <b>{{APP}}</b> to <b>Applications</b> and start it from there.</li>
-          <li>Click a key of the keyboard at the bottom of the window. Near the top of a key the stroke is soft, further down it is firmer. A MIDI keyboard plays it too: the app listens to every connected MIDI device until you choose one.</li>
+          <li>Click a key of the keyboard at the bottom of the window. Near the top of a key the note is soft, further down it is firmer. A MIDI keyboard plays it too: the app listens to every connected MIDI device until you choose one.</li>
           <li>The sound goes to the macOS output. To choose another device, or one MIDI device or channel, click the gear at the right of the header (<span class="ui">Settings</span>; see <a href="#settings">Settings</a>).</li>
-          <li>To play {{APP}} in a host such as Logic Pro or Ableton Live, open <span class="ui">Settings</span> and click <span class="ui">Install Audio Unit</span> (see <a href="#plugin">The Audio Unit plug-in</a>).</li>
+          <li>To play {{APP_NAME}} in a host such as Logic Pro or Ableton Live, open <span class="ui">Settings</span> and click <span class="ui">Install Audio Unit</span> (see <a href="#plugin">The Audio Unit plug-in</a>).</li>
         </ol>
-        <p>{{APP}} is a friction drum: a clay jug covered with a skin, two tufts of horsehair through it, pulled by wet hands. Every note is one pull of a hand, a stroke. The app remembers the sound between launches: the keyboard's knobs, all sixteen pads, the mode, the selected pad and the preset each sound came from. It also keeps your MIDI controllers (see <a href="#midi">MIDI controllers</a>).</p>
+        <p><!-- FILL: one or two sentences: what {{APP_NAME}} is (the instrument as the research report and the spec describe it, how it is played) and what one note is on it (a pluck, a blow, a stroke…). --> The app remembers the sound between launches: the keyboard's knobs, all sixteen pads, the mode, the selected pad and the preset each sound came from. It also keeps your MIDI controllers (see <a href="#midi">MIDI controllers</a>).</p>
       </section>
 
       <section id="window">
         <h2>The main window</h2>
         <figure class="fig">
+          <!-- FILL: assets/manual/keyboard.png, the real app's window in keyboard mode; --iw/--ih its size in pixels; one .mark for each numbered control below, --x/--y/--w/--h in percent of the image, measured on that screenshot (the values here are placeholders). -->
           <div class="view" style="--iw:2200;--ih:1464">
-            <img src="assets/manual/keyboard.png" alt="The {{APP}} window in keyboard mode with its areas marked">
+            <img src="assets/manual/keyboard.png" alt="The {{APP_NAME}} window in keyboard mode with its areas marked">
             <div class="mark" style="--x:20.5;--y:0.4;--w:14.2;--h:6.3"><b>1</b></div>
             <div class="mark" style="--x:35.1;--y:0.4;--w:14.2;--h:6.3"><b>2</b></div>
             <div class="mark" style="--x:54.3;--y:1.6;--w:11.1;--h:3.8"><b>3</b></div>
@@ -92,29 +95,29 @@
             <div class="mark" style="--x:86.4;--y:77.6;--w:11.6;--h:5.7"><b>9</b></div>
             <div class="mark" style="--x:1.6;--y:85.0;--w:96.7;--h:13.0"><b>10</b></div>
           </div>
-          <figcaption>The window in keyboard mode with the preset Wet hands, before any note was played.</figcaption>
+          <figcaption>The window in keyboard mode<!-- FILL: with the program or preset the screenshot shows, e.g. " with the program X, before any note was played" -->.</figcaption>
         </figure>
         <dl class="controls">
           <dt><span class="n">1</span>Program</dt>
-          <dd>Loads one of the twelve built-in sounds into the knobs (see <a href="#header">The header</a>).</dd>
+          <dd>Loads one of the built-in sounds into the knobs (see <a href="#header">The header</a>).</dd>
           <dt><span class="n">2</span>Preset</dt>
           <dd>Your own sounds, saved as files: load one into the knobs, save the knobs as one, delete one (see <a href="#presets">Presets</a>).</dd>
           <dt><span class="n">3</span>Keyboard | Pads</dt>
           <dd>The mode: the keys play one sound at their pitch, or notes 36–51 hit sixteen pads that each hold a sound of their own (see <a href="#keyboard">Keyboard mode</a> and <a href="#pads">Pad mode</a>).</dd>
           <dt><span class="n">4</span>LFO 1, LFO 2, VEL</dt>
-          <dd>Turn the knobs into the amounts by which an LFO or the velocity of a stroke moves them (see <a href="#amounts">LFO and VEL amounts</a>).</dd>
+          <dd>Turn the knobs into the amounts by which an LFO or the velocity of a note moves them (see <a href="#amounts">LFO and VEL amounts</a>).</dd>
           <dt><span class="n">5</span>MIDI</dt>
           <dd>Shows which MIDI controller moves each knob and switch, and lets them learn new ones (see <a href="#midi">MIDI controllers</a>).</dd>
           <dt><span class="n">6</span>Settings</dt>
           <dd>MIDI input, audio output and the Audio Unit installer. Only the app has it.</dd>
-          <dt><span class="n">7</span>Stroke, Hands, Pitch, Friction, Body, Noise, Master</dt>
-          <dd>The knobs and switches of the sound, in seven groups (see <a href="#knobs">Knobs and switches</a>). In keyboard mode they show the keyboard's sound, in pad mode the selected pad's.</dd>
+          <dt><span class="n">7</span><!-- FILL: the names of the sections of kSections, in order, joined by ", " -->, Master</dt>
+          <dd>The knobs and switches of the sound, in their groups (see <a href="#knobs">Knobs and switches</a>). In keyboard mode they show the keyboard's sound, in pad mode the selected pad's.</dd>
           <dt><span class="n">8</span>Last note</dt>
           <dd>The last note played in keyboard mode, C2 before any. It is the pitch <span class="ui">Send to pad</span> gives a pad.</dd>
           <dt><span class="n">9</span>Send to pad</dt>
           <dd>Copies the keyboard's sound to one of the pads (see <a href="#send">Send to pad</a>).</dd>
           <dt><span class="n">10</span>Keyboard</dt>
-          <dd>Three octaves, C2 to B4. Click a key to play it: at the top of a key the stroke has velocity 40, at the bottom 127. Letting go of the key, or dragging off it, is the key's release (it matters for Key Up = Stop); dragging onto another key does not play it. In pad mode the pads take this place.</dd>
+          <dd>Three octaves, C2 to B4. Click a key to play it: at the top of a key the note has velocity 40, at the bottom 127. Letting go of the key, or dragging off it, ends the note; dragging onto another key does not play it. In pad mode the pads take this place.</dd>
         </dl>
       </section>
 
@@ -122,22 +125,10 @@
         <h2>The header</h2>
         <dl class="controls">
           <dt>Program</dt>
-          <dd>The twelve built-in programs: the Czech {{APP_LOWER}} and its relatives. A program sets every knob, switch and amount of the sound the knobs show, except <span class="ui">Octave</span>: in keyboard mode the keyboard's sound, in pad mode the selected pad's. The program in use is ticked.
+          <dd>The built-in programs. A program sets every knob, switch and amount of the sound the knobs show, except <span class="ui">Octave</span>: in keyboard mode the keyboard's sound, in pad mode the selected pad's. The program in use is ticked.
             <ul>
-              <li><b>{{APP}}</b>: the defaults, the Czech carollers' horsehair drum: a pull of 230 ms, the two hands a little apart.</li>
-              <li><b>{{APP}} High</b>: the upper drum of a pair: shorter pulls, the hands further apart.</li>
-              <li><b>Brummtopf</b>: the German “growling pot”: short and dry, with a strong pot resonance.</li>
-              <li><b>Zambomba</b>: the Spanish zambomba: the skin rings along, and about one stroke in five jumps up to it.</li>
-              <li><b>Zambomba Grave</b>: a big zambomba: a low, broad pot and a longer ring.</li>
-              <li><b>Putipù</b>: the Neapolitan putipù: a slow, deep, rubbing growl through a loud pot.</li>
-              <li><b>Cuíca</b>: the Brazilian cuíca: short, clean, high strokes, the two hands far apart.</li>
-              <li><b>Cuíca Whoop</b>: the cuíca's whoop: every stroke scoops up 6.6 semitones into its pitch.</li>
-              <li><b>Furruco</b>: the Venezuelan furruco: low and rough, its periods unequal.</li>
-              <li><b>Creak</b>: the tone broken into separate slips, each ringing the skin, like a creaking door.</li>
-              <li><b>Flick</b>: no rubbing at all, only the flick of a finger across the hair.</li>
-              <li><b>Buhai</b>: the Romanian buhai: long, slow, low pulls (made by ear: no recording of one was measured).</li>
+              <!-- FILL: one <li><b>Name</b>: what it is and how it differs from the first program, in a sentence</li> for each program of kPrograms (Params.h), in menu order, from the spec's programs and the approved listening renders. If some programs are turned down with Volume to match the others' loudness, say so after the list. -->
             </ul>
-            Some programs are turned down with <span class="ui">Volume</span>, so that no program is much louder than another.
           </dd>
           <dt>Preset</dt>
           <dd>Your presets, the sounds you have saved. Like Program, it works on the sound the knobs show. Its title is the preset that sound came from, or “—” (see <a href="#presets">Presets</a>).</dd>
@@ -156,113 +147,27 @@
       <section id="knobs">
         <h2>Knobs and switches</h2>
         <figure class="fig">
+          <!-- FILL: a zoom (--zx/--zy/--zw/--zh, percent of the image) into assets/manual/keyboard.png on a card that has a knob and a switch; mark 1 on a knob, mark 2 on a switch; the alt names that card and what it holds. -->
           <div class="view" style="--iw:2200;--ih:1464;--zx:0;--zy:8;--zw:28;--zh:33">
-            <img src="assets/manual/keyboard.png" alt="The Stroke group: six knobs and the Key Up switch">
+            <img src="assets/manual/keyboard.png" alt="A card of the panel with its knobs and a switch">
             <div class="mark" style="--x:2.2;--y:14.8;--w:6.9;--h:10.9"><b>1</b></div>
             <div class="mark" style="--x:14.5;--y:35.4;--w:11.1;--h:3.6"><b>2</b></div>
           </div>
-          <figcaption>Stroke: <span class="n">1</span> a knob, <span class="n">2</span> a switch.</figcaption>
+          <figcaption><span class="n">1</span> a knob, <span class="n">2</span> a switch.</figcaption>
         </figure>
-        <p>A knob <span class="n">1</span> shows its name above it and its value below it; the terracotta arc shows where it stands. Drag a knob up or down: 200 points of travel turn it from end to end. Hold <kbd>Shift</kbd> while dragging for steps ten times finer. Double-click a knob to take it back to its value in the preset the sound came from or, without one, in the program last loaded. A switch <span class="n">2</span> shows its choices side by side; click one. The LFO shapes, which have more choices, are menus.</p>
-        <p>The ranges and defaults below are those of the program {{APP}}. A level knob whose range ends in “Off” is silent at the bottom of its travel.</p>
+        <p>A knob <span class="n">1</span> shows its name above it and its value below it; the arc shows where it stands. Drag a knob up or down: 200 points of travel turn it from end to end. Hold <kbd>Shift</kbd> while dragging for steps ten times finer. Double-click a knob to take it back to its value in the preset the sound came from or, without one, in the program last loaded. A switch <span class="n">2</span> shows its choices side by side; click one. A switch with more than four choices, such as the LFO shapes, is a menu.</p>
+        <p>Each control below is given with its range and its default, the value it has before a program or a preset changes it. A level knob whose range ends in “Off” is silent at the bottom of its travel.</p>
 
-        <h3 id="stroke">Stroke</h3>
-        <p>One pull of the hand down the horsehair: how the drum starts to speak, how long the hand rubs and how the drum rings out after it.</p>
-        <dl class="controls">
-          <dt>Attack (5–400 ms, default 42 ms)</dt>
-          <dd>How long a stroke takes to build up, as the skin starts to swing under the hand.</dd>
-          <dt>Length (0–2000 ms, default 230 ms)</dt>
-          <dd>How long the hand rubs. Then the hand leaves the hair and the drum rings out in the Release time. At 0 the hand leaves at once: a short knock.</dd>
-          <dt>Release (0.03–3 s, default 0.30 s)</dt>
-          <dd>How long the drum rings after the hand stops: the time it takes to fall by 60 dB.</dd>
-          <dt>Damp (0–100 %, default 0 %)</dt>
-          <dd>Shortens that ring, as a hand laid on the skin would: at 100 % the drum falls three times faster than Release says.</dd>
-          <dt>Key Up (Ignore, Stop; default Ignore)</dt>
-          <dd>What letting go of a key or a pad does. <b>Ignore</b>: the hand rubs for the whole Length, however briefly the key was held. <b>Stop</b>: the hand stops when the key is let go, never later than Length, so short notes give short strokes.</dd>
-          <dt>Vel Sens (0–100 %, default 70 %)</dt>
-          <dd>How much the velocity changes the stroke's level: a softer stroke is quieter by the factor 1 − Vel Sens × (1 − velocity). At 0 every stroke is as loud as the hardest. Whatever Vel Sens says, a softer stroke also rubs more quietly and darkens sooner as it fades (see <span class="ui">Stick&gt;Level</span>).</dd>
-          <dt>Vary (0–100 %, default 20 %)</dt>
-          <dd>A random difference between one stroke and the next, as no hand pulls twice alike. At 20 % the length of a stroke varies by up to 10 %, its level by up to 0.75 dB and its pitch by up to 12.5 cents; at 100 % by five times as much.</dd>
-        </dl>
-
-        <h3 id="hands">Hands</h3>
-        <p>A player pulls with both hands in turn, and the two hands never pull quite alike.</p>
-        <dl class="controls">
-          <dt>Alternate (0–12 dB, default 2 dB)</dt>
-          <dd>Every second stroke of a drum is this much quieter: the weaker hand. The strokes are counted per drum (see <a href="#keyboard">Keyboard mode</a> and <a href="#pads">Pad mode</a>).</dd>
-          <dt>Alt Tune (−100 to +100 ct, default +10 ct)</dt>
-          <dd>The weaker hand's stroke sounds this many cents off the other's.</dd>
-        </dl>
-
-        <h3 id="pitch">Pitch</h3>
-        <p>How the pitch moves within a stroke. A friction drum is never quite steady: the pressure of the hand bends it.</p>
-        <dl class="controls">
-          <dt>Scoop (0–12 st, default 0 st)</dt>
-          <dd>The stroke starts this many semitones below its pitch and slides up into it, the cuíca's whoop.</dd>
-          <dt>Scoop Time (10–300 ms, default 80 ms)</dt>
-          <dd>How long that slide takes.</dd>
-          <dt>Drift (−3 to +3 st, default −0.80 st)</dt>
-          <dd>How far the pitch moves over the Length of the stroke, in semitones: a falling pull below 0, a rising one above.</dd>
-          <dt>Drop (0–2 st, default 0 st)</dt>
-          <dd>When the hand leaves the hair, the pitch falls this far within about 15 ms.</dd>
-          <dt>Wobble (0–60 ct, default 20 ct)</dt>
-          <dd>The unsteadiness of the hand: a random wavering of the pitch, in cents.</dd>
-          <dt>Jump (0–100 %, default 0 %)</dt>
-          <dd>The chance that a stroke jumps up to a higher mode of the skin, after 70 % of its Length. At 100 % every stroke jumps.</dd>
-          <dt>Jump Ratio (1.10–2.50, default 1.40)</dt>
-          <dd>How far up a jump goes, as a ratio of frequencies: 1.40 is about 5.8 semitones, 2.00 an octave.</dd>
-          <dt>Vel&gt;Pitch (0–100 ct, default 0 ct)</dt>
-          <dd>A harder stroke sounds higher: at full velocity by this many cents, at velocity 0 not at all.</dd>
-        </dl>
-
-        <h3 id="friction">Friction</h3>
-        <p>How the wet hand sticks to the hair and slips: this shapes the drum's tone.</p>
-        <dl class="controls">
-          <dt>Stick (0.50–0.95, default 0.88)</dt>
-          <dd>The part of each vibration for which the skin sticks to the hand before it slips. Higher values make a sharper slip: a brighter, buzzier tone. The aftertouch adds to it.</dd>
-          <dt>Stick&gt;Level (0–0.100, default 0.030)</dt>
-          <dd>How much less the skin sticks as the stroke grows quiet: the tone darkens as it fades, and sooner for a soft stroke.</dd>
-          <dt>Split (0–100 %, default 0 %)</dt>
-          <dd>Makes every other vibration longer and the next one shorter, and a little louder and softer: a rough, growling tone an octave lower creeps in.</dd>
-          <dt>Creak (0–100 %, default 0 %)</dt>
-          <dd>Breaks the tone into separate slips, each of which rings the skin, like a creaking door. At 100 % only the slips are left.</dd>
-          <dt>Creak Rate (4–40 Hz, default 14 Hz)</dt>
-          <dd>How many slips a second the creak makes, with a little randomness.</dd>
-          <dt>Creak Ring (10–100 ms, default 40 ms)</dt>
-          <dd>How long each slip rings the skin.</dd>
-        </dl>
-
-        <h3 id="body">Body</h3>
-        <p>The jug and its skin, which ring along with the tone: two resonances, each with its frequency, its sharpness and its level.</p>
-        <dl class="controls">
-          <dt>Pot (150–1500 Hz, default 500 Hz)</dt>
-          <dd>The resonance of the jug's body, the air inside it.</dd>
-          <dt>Pot Q (1.0–20.0, default 4.0)</dt>
-          <dd>How sharp the pot's resonance is: low values ring broadly, high values ring at one pitch.</dd>
-          <dt>Pot Level (−40 to +18 dB, Off; default Off)</dt>
-          <dd>How loud the pot's resonance is.</dd>
-          <dt>Skin (100–1500 Hz, default 306 Hz)</dt>
-          <dd>The resonance of the skin, a mode of the membrane. The creak's slips ring at it too.</dd>
-          <dt>Skin Q (1.0–40.0, default 10.0)</dt>
-          <dd>How sharp the skin's resonance is.</dd>
-          <dt>Skin Level (−40 to +6 dB, Off; default Off)</dt>
-          <dd>How loud the skin's resonance is.</dd>
-          <dt>Track (0–100 %, default 0 %)</dt>
-          <dd>How far the pot and the skin follow the note. At 0 they stay where the knobs put them, as a real jug does; at 100 % they move with the pitch, from where they stand at B2.</dd>
-        </dl>
-
-        <h3 id="noise">Noise</h3>
-        <p>What the hand adds beside the tone.</p>
-        <dl class="controls">
-          <dt>Rub (−40 to 0 dB, Off; default −10 dB)</dt>
-          <dd>The noise of the wet hand rubbing on the hair, loudest while the skin slips and with a hard stroke. The mod wheel adds to it.</dd>
-          <dt>Scrape (0–100 %, default 10 %)</dt>
-          <dd>The short scrape of the fingers at the start of a stroke, gone within a few tens of milliseconds.</dd>
-          <dt>Shimmer (0–3.0 dB, default 0.7 dB)</dt>
-          <dd>A random flutter of the level, as the grip on the hair keeps changing.</dd>
-        </dl>
+        <!-- FILL: for each section of kSections (Params.h), in order:
+             <h3 id="id">Name</h3>, with the id the contents use;
+             <p>one or two sentences: what part of the instrument the section is, in the player's words (spec, research report)</p>;
+             <dl class="controls"> with, for each knob of the section in the panel's order,
+               <dt>Name (range, default)</dt>: as the panel writes them, e.g. "Attack (1–2000 ms, default 5 ms)", "Mode (A, B; default A)", "Level (−40 to +6 dB, Off; default −10 dB)";
+               <dd>what it does to the sound and what the player hears, with the spec's numbers; which wheel adds to it (kModWheelTargets, kAftertouchTargets); what a note reads only at its start, if anything.</dd>
+             Ranges and defaults from kInstrumentKnobs (Params.h), checked against the real app's panel. -->
 
         <h3 id="master">Master</h3>
+        <p>The knobs every sound has, whatever it is.</p>
         <dl class="controls">
           <dt>Volume (−40 to +6 dB, default 0.0 dB)</dt>
           <dd>The level of the sound.</dd>
@@ -271,70 +176,97 @@
           <dt>Tune (−100 to +100 ct, default 0 ct)</dt>
           <dd>Fine tuning in cents.</dd>
           <dt>Octave (−2 to +2, default 0)</dt>
-          <dd>Moves the sound by octaves. At 0 a note sounds at its own pitch: B2 (note 47) is 123.5 Hz. Programs leave this knob where it is.</dd>
-          <dt>Bend Up (0–24 st, default 12 st), Bend Down (0–12 st, default 2 st)</dt>
-          <dd>How far the pitch bend wheel bends the drum at its ends, up and down, in semitones: the cuíca player's pressing finger.</dd>
+          <dd>Moves the sound by octaves. At 0 a note sounds at its own pitch: A4 (note 69) is 440 Hz. Programs leave this knob where it is.</dd>
+          <dt>Bend Up, Bend Down (0–24 st, default 2 st)</dt>
+          <dd>How far the pitch bend wheel bends the pitch at its ends, up and down, in semitones (see <a href="#keyboard">Keyboard mode</a>).</dd>
+          <dt>Voice Mode (Poly, Mono, Legato; default Poly)</dt>
+          <dd>How the keyboard plays notes that overlap. <b>Poly</b>: every key a voice of its own. <b>Mono</b>: one voice, the last key pressed. <b>Legato</b>: one voice that ties overlapping notes together without a new attack. See <a href="#voices">Voice modes, glide and sustain</a>.</dd>
+          <dt>Glide (0–2000 ms, default 0 ms)</dt>
+          <dd>In Mono and Legato, how long the pitch takes to slide from one note to the next. At 0 it jumps. See <a href="#voices">Voice modes, glide and sustain</a>.</dd>
+          <dt>LFO Start (Hit, Free; default Hit)</dt>
+          <dd><b>Hit</b> starts both LFOs anew with every note, so the same note always moves the knobs the same way. <b>Free</b> lets them run on, and each note joins them where they are.</dd>
           <dt>LFO 1 Rate, LFO 2 Rate (0.02–20 Hz, defaults 6.00 Hz and 2.00 Hz)</dt>
           <dd>How often each LFO goes round. What an LFO moves, and how far, is set on the knobs themselves (see <a href="#amounts">LFO and VEL amounts</a>).</dd>
           <dt>LFO 1 Shape, LFO 2 Shape (Sine, Triangle, Ramp Up, Ramp Down, Square, Steps, Wander; default Sine)</dt>
           <dd>The shape of each LFO's cycle. Sine and Triangle sway; the ramps rise or fall and jump back; Square switches between two places; Steps takes a new random place every cycle and holds it; Wander takes one and moves there smoothly.</dd>
-          <dt>Drum (One, Many; default One)</dt>
-          <dd>How many drums the keyboard plays. <b>One</b>: all notes are one drum, as with one {{APP_LOWER}} in your hands. <b>Many</b>: every note is a drum of its own. See <a href="#keyboard">Keyboard mode</a>.</dd>
-          <dt>LFO Start (Hit, Free; default Hit)</dt>
-          <dd><b>Hit</b> starts both LFOs anew with every stroke, so the same stroke always moves the knobs the same way. <b>Free</b> lets them run on, and each stroke joins them where they are.</dd>
+          <dt>Vel Sens (0–100 %, default 70 %)</dt>
+          <dd>How much the velocity changes the level of a note: a softer note is quieter by the factor 1 − Vel Sens × (1 − velocity), where velocity runs from 0 to 1. At 0 every note is as loud as the hardest.</dd>
         </dl>
       </section>
 
       <section id="keyboard">
         <h2>Keyboard mode</h2>
-        <p>Every MIDI note, and every key on the screen, strikes the keyboard's sound at the note's pitch. That sound is what the knobs show in this mode.</p>
+        <p>Every MIDI note, and every key on the screen, plays the keyboard's sound at the note's pitch, as <span class="ui">Voice Mode</span> says (see <a href="#voices">Voice modes, glide and sustain</a>). That sound is what the knobs show in this mode.</p>
         <ul>
-          <li><b>A stroke on a sounding drum continues it.</b> With <span class="ui">Drum</span> = One all notes are one drum: a new note does not start a second voice but goes on from where the head is, at the new pitch, so strokes run into each other with a dip, not a click, and Alternate counts the strokes across all notes. With Drum = Many every note is a drum of its own: different notes sound over each other, and striking the same note again continues that note's drum.</li>
-          <li>A sounding stroke follows the knobs: turn one and you hear the change at once. What a stroke draws when it starts is the exception: Length, Vary's random differences, Alternate, Alt Tune, Vel Sens, Vel&gt;Pitch, Jump's chance, Scrape and Octave count from the next stroke.</li>
-          <li>Sixteen voices sound at most, pads included. A stroke on a silent drum that would be the seventeenth stops the quietest voice within a few milliseconds.</li>
+          <!-- FILL: one <li> on what a note does on a key whose note still sounds (kRehitContinues in Params.h): true, it goes on from where the sounding note is, without a new attack; false, the sounding note fades out within 3 ms and a new one starts. In the instrument's words. -->
+          <li>A sounding note follows the knobs: turn one and you hear the change at once.<!-- FILL: " What a note takes when it starts is the exception: A and B count from the next note." naming the knobs the voice reads only at its start (Voice.h), or nothing when there are none. --></li>
+          <li>Sixteen voices sound at most, pads included. A note that would be the seventeenth stops the quietest voice within 3 ms.</li>
         </ul>
         <dl class="controls">
           <dt>Velocity</dt>
-          <dd>Shapes the stroke as <span class="ui">Vel Sens</span> and <span class="ui">Vel&gt;Pitch</span> say, and moves the knobs that have a VEL amount (see <a href="#amounts">LFO and VEL amounts</a>).</dd>
+          <dd>Sets the note's level as <span class="ui">Vel Sens</span> says and moves the knobs that have a VEL amount (see <a href="#amounts">LFO and VEL amounts</a>).</dd>
           <dt>Pitch bend</dt>
-          <dd>Bends the drum's pitch, by up to <span class="ui">Bend Up</span> semitones upward and <span class="ui">Bend Down</span> downward.</dd>
+          <dd>Bends the pitch, by up to <span class="ui">Bend Up</span> semitones upward and <span class="ui">Bend Down</span> downward, in every voice mode.</dd>
           <dt>Mod wheel (CC 1)</dt>
-          <dd>Rubs harder: adds up to 20 dB of <span class="ui">Rub</span>, half its travel, never past 0 dB.</dd>
+          <dd><!-- FILL: what the mod wheel does on this instrument (kModWheelTargets in Params.h): the knob it moves and how far at the top, "up to N % of its travel", in the player's words; "It does nothing in {{APP_NAME}}." when the table holds no target. --></dd>
           <dt>Aftertouch (channel pressure)</dt>
-          <dd>Presses harder: adds up to 0.07 of <span class="ui">Stick</span>, never past 0.95.</dd>
+          <dd><!-- FILL: the same for aftertouch (kAftertouchTargets in Params.h). --></dd>
         </dl>
-        <p>The wheels act on the keyboard's sound only; pads do not follow them. Reset All Controllers (CC 121) puts all three back to rest, and All Sound Off and All Notes Off (CC 120 and 123) fade every voice out within 10 ms.</p>
+        <p>The wheels act on the keyboard's sound only; pads do not follow them, nor the pitch bend. Reset All Controllers (CC 121) puts the wheels and the bend back to rest and the sustain pedal up, and All Sound Off and All Notes Off (CC 120 and 123) fade every voice out within 10 ms.</p>
         <p>Other MIDI controllers turn the knobs and switches themselves (see <a href="#midi">MIDI controllers</a>).</p>
+      </section>
+
+      <section id="voices">
+        <h2>Voice modes, glide and sustain</h2>
+        <p><span class="ui">Voice Mode</span> and <span class="ui">Glide</span>, in <a href="#master">Master</a>, say how the keyboard plays notes that overlap; they belong to the sound, like every knob. The sustain pedal holds notes in every voice mode. Pads ignore all three (see <a href="#pads">Pad mode</a>).</p>
+        <dl class="controls">
+          <dt>Poly</dt>
+          <dd>Every key plays a voice of its own, so chords sound, up to sixteen notes at once.</dd>
+          <dt>Mono</dt>
+          <dd>One voice, the last key pressed. Every new note starts afresh, with its own attack, and the note it replaces fades out within 3 ms. Let go of the newest key while others are still held and the voice goes back to the newest of them without a new attack, as one note moving to another pitch; let go of the last key and the note ends.</dd>
+          <dt>Legato</dt>
+          <dd>As Mono, but a note played while another key is still held takes the voice over without a new attack: overlapping notes are tied into one line. A note played with no key held starts afresh. A tied note keeps the velocity and the LFOs of the note it took over.</dd>
+          <dt>Glide</dt>
+          <dd>How long the pitch takes to slide from where the voice is to the new note: always the same time, however far the notes are apart, at an even speed in semitones. Mono glides to every new note while its voice still sounds (held, held by the pedal, or ringing out); Legato glides only between overlapping notes; both glide when the voice goes back to a key still held. At 0 ms, in Poly and on the pads nothing glides.</dd>
+          <dt>Sustain pedal (CC 64)</dt>
+          <dd>While the pedal is down (64 or more), letting go of a key does not end its note; when the pedal comes up, the notes whose keys are up end, as if they had been let go just then. In Mono and Legato the keys still decide the pitch: letting go of a key while others are held still goes back to them, and the pedal holds only the last note. The pedal holds no pad: a pad's note ends when the pad is let go.</dd>
+        </dl>
+        <ul>
+          <li>The keys held are remembered in every voice mode, the last sixteen of them, so a voice mode changed while keys are down finds them. Notes that sound when the voice mode changes go on until their keys are let go.</li>
+          <li>The sustain pedal is MIDI's own controller: no knob can learn CC 64 (see <a href="#midi">MIDI controllers</a>).</li>
+        </ul>
       </section>
 
       <section id="pads">
         <h2>Pad mode</h2>
         <figure class="fig">
+          <!-- FILL: assets/manual/pads.png, the real app's window in pad mode with the default kit and one pad selected; --iw/--ih its size; marks 1–5 measured on it as listed below. -->
           <div class="view" style="--iw:2200;--ih:1464">
-            <img src="assets/manual/pads.png" alt="The {{APP}} window in pad mode with pad 05 selected">
+            <img src="assets/manual/pads.png" alt="The {{APP_NAME}} window in pad mode with a pad selected">
             <div class="mark" style="--x:1.6;--y:75.8;--w:67.3;--h:22.1"><b>1</b></div>
             <div class="mark" style="--x:1.6;--y:81.4;--w:16.5;--h:5.5"><b>2</b></div>
             <div class="mark" style="--x:70.2;--y:75.8;--w:28.9;--h:22.1"><b>3</b></div>
             <div class="mark" style="--x:20.5;--y:0.4;--w:28.8;--h:6.3"><b>4</b></div>
             <div class="mark" style="--x:54.3;--y:1.6;--w:11.1;--h:3.8"><b>5</b></div>
           </div>
-          <figcaption>Pad mode with the default kit and pad 05 selected: the knobs show Brummtopf, the pad's own sound.</figcaption>
+          <figcaption>Pad mode with the default kit<!-- FILL: and the pad selected in the screenshot, e.g. " and pad 05 selected: the knobs show X, the pad's own sound" -->.</figcaption>
         </figure>
-        <p>In pad mode <span class="n">5</span> the MIDI notes 36–51 (C2–D♯3) hit pads 1–16: note 36 is pad 1, note 37 pad 2, and so on, as on an MPC or in an Ableton Drum Rack. Other notes are ignored. Each pad holds a sound of its own, frozen with it, and plays it at a pitch of its own, whatever note hits it.</p>
+        <p>In pad mode <span class="n">5</span> the MIDI notes 36–51 (C2–D♯3) hit pads 1–16: note 36 is pad 1, note 37 pad 2, and so on, as on an MPC and most pad controllers. Other notes are ignored. Each pad holds a sound of its own, frozen with it, and plays it at a pitch of its own, whatever note hits it.</p>
         <dl class="controls">
           <dt><span class="n">1</span>The pads</dt>
-          <dd>Pad 1 is at the top left and the pads run row by row. Each shows its number, and its name above its pitch and its group (“B2 G1”; “Off” when it has none). A pad's name is that of the preset its sound came from or, without one, that of its program. A pad lights up when it is hit, from the screen or from MIDI.</dd>
+          <dd>Pad 1 is at the top left and the pads run row by row. Each shows its number, and its name above its pitch and its group (“C3 G1”; “Off” when it has none). A pad's name is that of the preset its sound came from or, without one, that of its program. A pad lights up when it is hit, from the screen or from MIDI.</dd>
           <dt><span class="n">2</span>Selecting and playing a pad</dt>
-          <dd>Click a pad to play it and select it; the selected pad has a terracotta outline. As on the keys, near the top the stroke is soft and further down it is firmer. The pad is held until you let go of the mouse button, which matters for Key Up = Stop.</dd>
+          <dd>Click a pad to play it and select it; the selected pad has an outline. As on the keys, near the top the hit is soft and further down it is firmer. The pad's note lasts until you let go of the mouse button.</dd>
           <dt>Editing a pad</dt>
           <dd>The knobs show the selected pad's sound, and turning them changes that pad only. <span class="n">4</span> <span class="ui">Program</span> and <span class="ui">Preset</span> load into the selected pad. The keyboard's sound is left alone, and so are the other pads.</dd>
           <dt><span class="n">3</span>Pitch and group</dt>
           <dd>Beside the pads: which pad is selected, its pitch and its group (see below), and the Kit menu (see <a href="#kits">Kits</a>).</dd>
         </dl>
-        <p>A pad's stroke uses the pad's sound as it stood when the pad was hit: turning a knob changes the next stroke, not one that sounds.</p>
+        <p>A pad's note uses the pad's sound as it stood when the pad was hit: turning a knob changes the next hit, not one that sounds. The velocity moves the pad's knobs by the pad's own VEL amounts (see <a href="#amounts">LFO and VEL amounts</a>). Voice Mode, Glide, the sustain pedal, the pitch bend and the wheels do not act on pads: a pad is one key press, frozen.</p>
 
         <h3>Pitch and group</h3>
         <figure class="fig">
+          <!-- FILL: assets/manual/pad-inspector.png, the real app's pad inspector beside the pads; --iw/--ih its size; marks 1–4 measured on it. -->
           <div class="view" style="--iw:820;--ih:368">
             <img src="assets/manual/pad-inspector.png" alt="The pad inspector: the selected pad, its pitch, its group and the Kit menu">
             <div class="mark" style="--x:50.3;--y:22.0;--w:45.7;--h:12.0"><b>1</b></div>
@@ -354,32 +286,17 @@
           <dd>Loads, saves and deletes kits: all sixteen pads at once (see <a href="#kits">Kits</a>).</dd>
         </dl>
 
-        <h3>Groups: one drum</h3>
-        <p>All the pads of a group are one drum, played by one pair of hands. A hit on any of them does not start a second voice: it goes on from where that drum is, with the new pad's sound and pitch, so the strokes run into each other as on a real drum, and Alternate counts the strokes of the whole group (pads 1 and 2 of the default kit are the two hands of one {{APP_LOWER}}). A pad whose group is <b>Off</b> is a drum of its own: hit again, it goes on from where it is; two such pads sound over each other.</p>
+        <h3>Groups: one voice</h3>
+        <p>All the pads of a group share one voice. <!-- FILL: what a hit on a pad of a group does while the group's voice sounds (kRehitContinues): true, it goes on from where that voice is, with the new pad's sound and pitch, without a new attack; false, the sounding note fades out within 3 ms and the new pad starts afresh. Then a sentence on what groups are good for on this instrument, from the default kit (e.g. which pads share a group and why). --> A pad whose group is <b>Off</b> has a voice of its own: two such pads sound over each other.</p>
 
         <h3 id="default-kit">The default kit</h3>
-        <p>On the first launch, and in every new plug-in instance, the pads hold this kit; <span class="ui">Kit › Default kit</span> brings it back. Groups 1–6 are six drums; the last four pads ring on their own.</p>
+        <p>On the first launch, and in every new plug-in instance, the pads hold this kit; <span class="ui">Kit › Default kit</span> brings it back.<!-- FILL: one sentence on how the kit is laid out (which groups, which pads ring on their own), from kDefaultKit. --></p>
         <table>
           <thead>
             <tr><th>Pad</th><th>Program</th><th>Note</th><th>Group</th></tr>
           </thead>
           <tbody>
-            <tr><td>01</td><td>{{APP}}</td><td>B2 (47)</td><td>1</td></tr>
-            <tr><td>02</td><td>{{APP}}</td><td>B2 (47)</td><td>1</td></tr>
-            <tr><td>03</td><td>{{APP}} High</td><td>G3 (55)</td><td>2</td></tr>
-            <tr><td>04</td><td>{{APP}} High</td><td>C4 (60)</td><td>2</td></tr>
-            <tr><td>05</td><td>Brummtopf</td><td>C♯3 (49)</td><td>3</td></tr>
-            <tr><td>06</td><td>Brummtopf</td><td>D♯2 (39)</td><td>3</td></tr>
-            <tr><td>07</td><td>Cuíca</td><td>F4 (65)</td><td>4</td></tr>
-            <tr><td>08</td><td>Cuíca</td><td>G5 (79)</td><td>4</td></tr>
-            <tr><td>09</td><td>Cuíca Whoop</td><td>G5 (79)</td><td>4</td></tr>
-            <tr><td>10</td><td>Zambomba, Jump 0 %</td><td>A3 (57)</td><td>5</td></tr>
-            <tr><td>11</td><td>Zambomba, Jump 100 %</td><td>A3 (57)</td><td>5</td></tr>
-            <tr><td>12</td><td>Putipù</td><td>C2 (36)</td><td>6</td></tr>
-            <tr><td>13</td><td>Furruco</td><td>C♯2 (37)</td><td>Off</td></tr>
-            <tr><td>14</td><td>Creak</td><td>B2 (47)</td><td>Off</td></tr>
-            <tr><td>15</td><td>Flick</td><td>D♯4 (63)</td><td>Off</td></tr>
-            <tr><td>16</td><td>Buhai</td><td>C2 (36)</td><td>Off</td></tr>
+            <!-- FILL: sixteen rows, one per pad of kDefaultKit (Params.h): <tr><td>01</td><td>program name, then ", Knob value" for each override</td><td>note name (number), e.g. "C♯3 (49)"</td><td>group number, or Off</td></tr> -->
           </tbody>
         </table>
       </section>
@@ -387,8 +304,9 @@
       <section id="send">
         <h2>Send to pad</h2>
         <figure class="fig">
+          <!-- FILL: assets/manual/send-to-pad.png, the real app's Send to pad popover asking whether to replace a pad; --iw/--ih its size; mark 1 on the pad clicked, mark 2 on the question. -->
           <div class="view" style="--iw:1510;--ih:634">
-            <img src="assets/manual/send-to-pad.png" alt="The Send to pad popover asking whether to replace pad 05">
+            <img src="assets/manual/send-to-pad.png" alt="The Send to pad popover asking whether to replace a pad">
             <div class="mark" style="--x:4.6;--y:39.0;--w:18.2;--h:11.5"><b>1</b></div>
             <div class="mark" style="--x:4.4;--y:76.5;--w:73.5;--h:17.5"><b>2</b></div>
           </div>
@@ -397,7 +315,7 @@
         <ol>
           <li>In keyboard mode, set up the sound and play the note the pad should have. <span class="ui">Last note</span> beside the button shows it.</li>
           <li>Click <span class="ui">Send to pad</span>. The sixteen pads appear with their names and pitches.</li>
-          <li>Click the pad to replace <span class="n">1</span>. {{APP}} asks <span class="n">2</span> whether to replace it, naming the pad and the pitch.</li>
+          <li>Click the pad to replace <span class="n">1</span>. {{APP_NAME}} asks <span class="n">2</span> whether to replace it, naming the pad and the pitch.</li>
           <li>Click <span class="ui">Replace</span> (or press Return) to copy; <span class="ui">Cancel</span> (or Esc) keeps the pad as it was.</li>
         </ol>
         <p>The pad takes every knob, switch and amount of the keyboard's sound, its program, the preset it came from if any, and, as its pitch, the last note played (C2 if none was). It keeps its group.</p>
@@ -407,14 +325,15 @@
         <h2>Presets</h2>
         <p>A preset is one sound saved as a file: the program it started from and every knob, switch and amount, <span class="ui">Octave</span> included. You can load it into the keyboard or into any pad, as often as you like. A pad's pitch and group are not part of it.</p>
         <figure class="fig">
+          <!-- FILL: assets/manual/preset-menu.png, the real app's Preset menu open with two presets saved for the picture, one of them ticked; --iw/--ih its size; marks 1–4 measured on it; the alt and the caption name the ticked preset. -->
           <div class="view" style="--iw:860;--ih:400">
-            <img src="assets/manual/preset-menu.png" alt="The Preset menu open, with Wet hands ticked">
+            <img src="assets/manual/preset-menu.png" alt="The Preset menu open, with a preset ticked">
             <div class="mark" style="--x:43.5;--y:11.0;--w:35.5;--h:13.0"><b>1</b></div>
             <div class="mark" style="--x:43.0;--y:27.0;--w:33.5;--h:25.0"><b>2</b></div>
             <div class="mark" style="--x:43.0;--y:57.0;--w:33.5;--h:12.0"><b>3</b></div>
             <div class="mark" style="--x:43.0;--y:69.0;--w:33.5;--h:12.0"><b>4</b></div>
           </div>
-          <figcaption>The Preset menu with two presets; the keyboard's sound came from Wet hands.</figcaption>
+          <figcaption>The Preset menu with two presets; the ticked one is where the keyboard's sound came from.</figcaption>
         </figure>
         <dl class="controls">
           <dt><span class="n">1</span>The Preset menu</dt>
@@ -424,11 +343,12 @@
           <dt><span class="n">3</span>Save as…</dt>
           <dd>Saves the sound the knobs show as a preset (see <a href="#saving">Saving a preset</a>).</dd>
           <dt><span class="n">4</span>Delete</dt>
-          <dd>A submenu of your presets. {{APP}} asks “Delete “Wet hands”? It goes to the Trash.”: <span class="ui">Delete</span> moves the file to the Trash, <span class="ui">Cancel</span> (or Return, or Esc) keeps it. A sound that came from the deleted preset keeps its knobs.</dd>
+          <dd>A submenu of your presets. {{APP_NAME}} asks “Delete “<i>name</i>”? It goes to the Trash.”: <span class="ui">Delete</span> moves the file to the Trash, <span class="ui">Cancel</span> (or Return, or Esc) keeps it. A sound that came from the deleted preset keeps its knobs.</dd>
         </dl>
 
         <h3 id="saving">Saving a preset</h3>
         <figure class="fig">
+          <!-- FILL: assets/manual/name-popover.png, the real app's popover that names a new preset; --iw/--ih its size; mark 1 on the name field, 2 on the note under it, 3 on the buttons. -->
           <div class="view" style="--iw:920;--ih:480">
             <img src="assets/manual/name-popover.png" alt="The popover that names a new preset">
             <div class="mark" style="--x:23.0;--y:43.0;--w:58.0;--h:11.5"><b>1</b></div>
@@ -438,22 +358,23 @@
         </figure>
         <ol>
           <li>Set up the sound, then choose <span class="ui">Preset › Save as…</span>.</li>
-          <li>Type a name <span class="n">1</span>. The field starts with the name of the preset in use, if there is one. Under it {{APP}} says what is stored <span class="n">2</span>.</li>
+          <li>Type a name <span class="n">1</span>. The field starts with the name of the preset in use, if there is one. Under it {{APP_NAME}} says what is stored <span class="n">2</span>.</li>
           <li>Click <span class="ui">Save</span> <span class="n">3</span> or press Return. <span class="ui">Cancel</span> or Esc saves nothing.</li>
         </ol>
-        <p>A name can have up to 60 characters. Spaces at its ends are dropped, and “/” and “:” become “-”. If a preset of that name exists already (capitals do not count), {{APP}} asks “Replace “Wet hands”?”: <span class="ui">Replace</span> saves over it, <span class="ui">Cancel</span> takes you back to the name. Sounds that came from the old version keep their knobs, but a double-click now takes a knob to the new version's value.</p>
+        <p>A name can have up to 60 characters. Spaces at its ends are dropped, and “/” and “:” become “-”. If a preset of that name exists already (capitals do not count), {{APP_NAME}} asks “Replace “<i>name</i>”?”: <span class="ui">Replace</span> saves over it, <span class="ui">Cancel</span> takes you back to the name. Sounds that came from the old version keep their knobs, but a double-click now takes a knob to the new version's value.</p>
 
         <h3>The preset in use</h3>
         <p>Each sound, the keyboard's and every pad's, remembers the preset it came from. The menu's title and its tick show it, a pad shows its name, and a double-click takes a knob back to the preset's value. Turning knobs keeps the link. Loading a program ends it, and the title shows “—” again; so does deleting the preset's file, after which a double-click goes to the program's value.</p>
 
         <h3>Where presets are kept</h3>
-        <p>Each preset is a file named after it, with the extension <span class="ui">.{{APP_LOWER}}</span>, in <span class="ui">~/Library/Application Support/{{APP}}/Presets</span>. The app and the plug-in use the same folder, so a preset saved in one is in the other's menu too. You can copy the files to another Mac, or rename them in the Finder. {{APP}} makes the folder when you save your first preset.</p>
+        <p>Each preset is a file named after it, with the extension <span class="ui">.{{APP_LOWER}}</span>, in <span class="ui">~/Library/Application Support/{{APP}}/Presets</span>. The app and the plug-in use the same folder, so a preset saved in one is in the other's menu too. You can copy the files to another Mac, or rename them in the Finder. {{APP_NAME}} makes the folder when you save your first preset.</p>
       </section>
 
       <section id="kits">
         <h2>Kits</h2>
         <p>A kit is all sixteen pads saved as one file: each pad's sound, pitch and group, and the preset each sound came from. Loading a kit replaces all sixteen pads at once; the keyboard's sound and the mode stay as they are.</p>
         <figure class="fig">
+          <!-- FILL: assets/manual/kit-menu.png, the real app's Kit menu open beside the pads, with two kits saved for the picture; --iw/--ih its size; marks 1–5 measured on it. -->
           <div class="view" style="--iw:820;--ih:760">
             <img src="assets/manual/kit-menu.png" alt="The Kit menu open beside the pads">
             <div class="mark" style="--x:50.3;--y:35.0;--w:45.7;--h:8.0"><b>1</b></div>
@@ -470,7 +391,7 @@
           <dt><span class="n">2</span>Your kits</dt>
           <dd>Click one to load it into the pads. A pad whose preset is still in the Presets folder is linked to it again.</dd>
           <dt><span class="n">3</span>Default kit</dt>
-          <dd>Brings back the kit {{APP}} starts with (see <a href="#default-kit">The default kit</a>).</dd>
+          <dd>Brings back the kit {{APP_NAME}} starts with (see <a href="#default-kit">The default kit</a>).</dd>
           <dt><span class="n">4</span>Save kit as…</dt>
           <dd>Saves the sixteen pads as a kit. Naming works as for a preset (see <a href="#saving">Saving a preset</a>).</dd>
           <dt><span class="n">5</span>Delete kit</dt>
@@ -481,8 +402,9 @@
 
       <section id="amounts">
         <h2>LFO and VEL amounts</h2>
-        <p>Two LFOs and the velocity of each stroke can move the knobs for you. Every knob they can move has an amount for each of them: how far that source moves it, as a part of the knob's travel, from −100 to +100 %. The amounts belong to the sound, like the knobs, so every pad has its own. They all start at 0, in every program.</p>
+        <p>Two LFOs and the velocity of each note can move the knobs for you. Every knob they can move has an amount for each of them: how far that source moves it, as a part of the knob's travel, from −100 to +100 %. The amounts belong to the sound, like the knobs, so every pad has its own: on each pad you choose what its velocity and its LFOs move. They all start at 0, in every program.</p>
         <figure class="fig">
+          <!-- FILL: assets/manual/lfo1-amounts.png, the real app's window with LFO 1 on and three amounts set for the picture (one of them on Tune); --iw/--ih its size; mark 1 on the LFO 1 button, 2 on an amount below a knob, 3 on a knob's LFO arc, 4 on a dimmed control; the caption names the three amounts. -->
           <div class="view" style="--iw:2200;--ih:1464">
             <img src="assets/manual/lfo1-amounts.png" alt="The window with LFO 1 on: the knobs show the amounts of LFO 1">
             <div class="mark" style="--x:67.5;--y:1.4;--w:6.8;--h:4.4"><b>1</b></div>
@@ -490,11 +412,11 @@
             <div class="mark" style="--x:1.4;--y:48.5;--w:7.6;--h:10.5"><b>3</b></div>
             <div class="mark" style="--x:2.2;--y:14.8;--w:6.9;--h:10.9"><b>4</b></div>
           </div>
-          <figcaption>LFO 1 on, with three amounts set as an example: Rub +40 %, Stick −30 % and Tune +20 %.</figcaption>
+          <figcaption>LFO 1 on, with three amounts set as an example<!-- FILL: ": A +40 %, B −30 % and Tune +20 %", the amounts in the screenshot -->.</figcaption>
         </figure>
         <dl class="controls">
           <dt>Setting an amount</dt>
-          <dd>Click <span class="n">1</span> <span class="ui">LFO 1</span>, <span class="ui">LFO 2</span> or <span class="ui">VEL</span> in the header; the button lights up in its colour (LFO 1 sky blue, LFO 2 mint, VEL parchment). The knobs now show that source's amounts below them <span class="n">2</span>: drag a knob up for a positive amount, down for a negative one. An amount within 1 % of zero is zero. Double-click a knob to set its amount back to 0. Click the button again to get the knobs back.</dd>
+          <dd>Click <span class="n">1</span> <span class="ui">LFO 1</span>, <span class="ui">LFO 2</span> or <span class="ui">VEL</span> in the header; the button lights up in its own colour. The knobs now show that source's amounts below them <span class="n">2</span>: drag a knob up for a positive amount, down for a negative one. An amount within 1 % of zero is zero. Double-click a knob to set its amount back to 0. Click the button again to get the knobs back.</dd>
           <dt>Seeing it</dt>
           <dd>A knob a source moves shows a thin arc in that source's colour inside its value arc <span class="n">3</span>, also when the buttons are off, so you see what is moving. The knob's pointer stays where you put it.</dd>
           <dt>What steps back</dt>
@@ -502,11 +424,12 @@
         </dl>
 
         <h3>LFOs</h3>
-        <p>An LFO swings a knob either way from where it stands, by its amount of the knob's travel, and never past the knob's ends. A negative amount turns the movement round. Both LFOs can move the same knob; their movements add up. The LFOs' rates, shapes and start are in <a href="#master">Master</a>; each voice runs LFOs of its own, and with <span class="ui">LFO Start</span> = Hit they start anew with every stroke. With Tune at 0, an amount of 50 % already swings the pitch a whole semitone (100 cents) either way.</p>
-        <p>The LFOs can move Tune, Stick, Rub, Pot, Pot Level, Skin Level, Wobble, Creak, Split, Volume and Pan.</p>
+        <p>An LFO swings a knob either way from where it stands, by its amount of the knob's travel, and never past the knob's ends. A negative amount turns the movement round. Both LFOs can move the same knob; their movements add up. The LFOs' rates, shapes and start are in <a href="#master">Master</a>; each voice runs LFOs of its own, and with <span class="ui">LFO Start</span> = Hit they start anew with every note. With Tune at 0, an amount of 50 % already swings the pitch a whole semitone (100 cents) either way.</p>
+        <p>The LFOs can move <!-- FILL: the instrument's knobs of kLfoTargets (Params.h) by their panel names, in panel order, each followed by ", " -->Volume, Pan and Tune.</p>
 
         <h3>VEL</h3>
         <figure class="fig">
+          <!-- FILL: assets/manual/vel-amounts.png, the real app's window with VEL on and three amounts set for the picture (one of them on Volume); --iw/--ih its size; mark 1 on the VEL button, 2–4 on the three amounts, 5 on Vel Sens; the caption names the three amounts. -->
           <div class="view" style="--iw:2200;--ih:1464">
             <img src="assets/manual/vel-amounts.png" alt="The window with VEL on: the knobs show the velocity amounts">
             <div class="mark" style="--x:82.1;--y:1.4;--w:6.0;--h:4.4"><b>1</b></div>
@@ -515,80 +438,73 @@
             <div class="mark" style="--x:81.2;--y:14.5;--w:6.8;--h:10.7"><b>4</b></div>
             <div class="mark" style="--x:10.3;--y:24.9;--w:6.8;--h:10.7"><b>5</b></div>
           </div>
-          <figcaption>VEL on <span class="n">1</span>, with three amounts set as an example: <span class="n">2</span> Release +40 %, <span class="n">3</span> Stick +30 %, <span class="n">4</span> Volume +60 %. <span class="n">5</span> Vel Sens has no VEL amount.</figcaption>
+          <figcaption>VEL on <span class="n">1</span>, with three amounts set as an example<!-- FILL: ": <span class="n">2</span> A +40 %, <span class="n">3</span> B +30 %, <span class="n">4</span> Volume +60 %", the amounts in the screenshot -->. <span class="n">5</span> Vel Sens has no VEL amount.</figcaption>
         </figure>
-        <p>The knob is where a stroke at full velocity puts it. A softer stroke moves it away by amount × (1 − velocity) of its travel, where velocity runs from 0 to 1 (MIDI 127 is 1). A positive amount means “the harder the stroke, the higher the value”: with Release at +40 %, a stroke at half velocity stands the Release knob 20 % of its travel lower, so soft strokes ring shorter. A negative amount works the other way round. The velocity is fixed for the stroke; LFO movements add to it.</p>
-        <p><b>Volume is the exception.</b> Its VEL amount scales the level instead, by 1 − amount × (1 − velocity): the classic velocity-to-level. At +100 % a stroke at half velocity gets half the gain (−6 dB), on top of what <span class="ui">Vel Sens</span> does; at 0 % the velocity changes the level only through <span class="ui">Vel Sens</span>.</p>
-        <p>The velocity can move every knob of Stroke but Vel Sens (Attack, Length, Release, Damp, Vary), every knob of Hands, Pitch, Friction, Body and Noise, and Volume, Pan, Tune, LFO 1 Rate and LFO 2 Rate. The switches, Octave, Bend Up, Bend Down and Vel Sens have no VEL amount: Vel Sens is the velocity's own knob.</p>
+        <p>The knob is where a note at full velocity puts it. A softer note moves it away by amount × (1 − velocity) of its travel, where velocity runs from 0 to 1 (MIDI 127 is 1). A positive amount means “the harder the note, the higher the value”: with LFO 1 Rate at +40 %, a note at half velocity stands the LFO 1 Rate knob 20 % of its travel lower, so soft notes swing slower. A negative amount works the other way round. The velocity is fixed for the note; LFO movements add to it.</p>
+        <p><b>Volume is the exception.</b> Its VEL amount scales the level instead, by 1 − amount × (1 − velocity): the classic velocity-to-level. At +100 % a note at half velocity gets half the gain (−6 dB), on top of what <span class="ui">Vel Sens</span> does; at 0 % the velocity changes the level only through <span class="ui">Vel Sens</span>.</p>
+        <p>The velocity can move <!-- FILL: the instrument's knobs of kVelTargets (Params.h) by their panel names, in panel order, each followed by ", " (every continuous knob of the instrument's sections), and "Glide, " when kVelTargets holds it -->Volume, Pan, Tune, LFO 1 Rate and LFO 2 Rate. The switches, Octave, Bend Up and Bend Down have no VEL amount, and neither has Vel Sens: it is the velocity's own knob.</p>
       </section>
 
       <section id="midi">
         <h2>MIDI controllers</h2>
         <p>Every knob and switch of the keyboard's sound can follow a MIDI controller (a CC): a knob, fader or pedal of your MIDI keyboard or controller. Each comes with a standard controller (see the table below), so a controller that sends those numbers works at once, and any of them can learn another.</p>
         <figure class="fig">
+          <!-- FILL: assets/manual/midi-learn.png, the real app's window with MIDI on and one knob listening; --iw/--ih its size; mark 1 on the MIDI button, 2 on a knob's controller, 3 on a switch's controller, 4 on the listening knob; the alt and the caption name the listening knob. -->
           <div class="view" style="--iw:2200;--ih:1464">
-            <img src="assets/manual/midi-learn.png" alt="The window with MIDI on: every control shows its controller, and Stick is listening">
+            <img src="assets/manual/midi-learn.png" alt="The window with MIDI on: every control shows its controller, and one knob is listening">
             <div class="mark" style="--x:88.3;--y:1.4;--w:6.5;--h:4.4"><b>1</b></div>
             <div class="mark" style="--x:2.2;--y:14.8;--w:6.9;--h:10.9"><b>2</b></div>
             <div class="mark" style="--x:14.5;--y:35.4;--w:11.1;--h:3.6"><b>3</b></div>
             <div class="mark" style="--x:1.4;--y:48.5;--w:7.6;--h:10.5"><b>4</b></div>
           </div>
-          <figcaption>MIDI on: every control shows its controller, and Stick waits for one.</figcaption>
+          <figcaption>MIDI on: every control shows its controller, and one knob waits for one.</figcaption>
         </figure>
         <dl class="controls">
           <dt><span class="n">1</span>Showing the controllers</dt>
-          <dd>Click <span class="ui">MIDI</span> in the header; it lights up in cream. Each knob shows its controller below it instead of its value <span class="n">2</span>, and each switch in place of its choices <span class="n">3</span>: “CC 73”, or “—” for none. Click <span class="ui">MIDI</span> again to get the values back.</dd>
+          <dd>Click <span class="ui">MIDI</span> in the header; it lights up. Each knob shows its controller below it instead of its value <span class="n">2</span>, and each switch in place of its choices <span class="n">3</span>: “CC 7”, or “—” for none. Click <span class="ui">MIDI</span> again to get the values back.</dd>
           <dt><span class="n">4</span>Learning a controller</dt>
           <dd>Click a knob or switch: a dashed ring appears and it says “move a control”. Move a knob or fader of your controller: the first controller that moves is taken, and the control goes where that controller stands. Click the control again to stop listening; turning MIDI off, changing the mode, switching to another app or closing the window stops it too.</dd>
           <dt>The standard controller</dt>
           <dd>Double-click a knob or switch to give it its standard controller back.</dd>
           <dt>The secondary-click menu</dt>
-          <dd>Control-click a knob or switch (or click it with two fingers): <span class="ui">No controller</span> leaves it without one, <span class="ui">Back to CC 74</span> (its standard number) gives the standard one back. <span class="ui">Every control back to its standard controller</span>, in this menu and in the <span class="ui">MIDI</span> button's, resets them all.</dd>
+          <dd>Control-click a knob or switch (or click it with two fingers): <span class="ui">No controller</span> leaves it without one, <span class="ui">Back to CC <i>n</i></span> (its standard number) gives the standard one back. <span class="ui">Every control back to its standard controller</span>, in this menu and in the <span class="ui">MIDI</span> button's, resets them all.</dd>
         </dl>
         <ul>
           <li><b>One controller moves one control.</b> A controller learnt by one control is taken from the control that had it.</li>
-          <li>A controller puts its control where its value says: 0 is the bottom of the travel, 127 the top. On a knob whose middle is 0 (Alt Tune, Drift, Pan, Tune, Octave), 64 is exactly the middle. A switch spreads its choices over 0–127.</li>
+          <li>A controller puts its control where its value says: 0 is the bottom of the travel, 127 the top. On a knob whose middle is 0 (<!-- FILL: the instrument's knobs whose range runs from −x to +x, by panel name, each followed by ", " -->Pan, Tune, Octave), 64 is exactly the middle. A switch spreads its choices over 0–127.</li>
           <li>Controllers work on every MIDI channel; the app takes them on the channels chosen in <a href="#settings">Settings</a>.</li>
           <li><b>Controllers move the keyboard's sound, in pad mode too.</b> The pads and the LFO and VEL amounts have none, so with MIDI on in pad mode the controls are dimmed and show “—”.</li>
-          <li>A sounding stroke follows a controller as it follows a turn of the knob (see <a href="#keyboard">Keyboard mode</a>), from its next control step, a fraction of a millisecond later.</li>
+          <li>A sounding note follows a controller as it follows a turn of the knob (see <a href="#keyboard">Keyboard mode</a>), from its next control step, a fraction of a millisecond later.</li>
           <li>The controllers belong to the app or the plug-in, not to a sound: loading a program, a preset or a kit leaves them alone. The app keeps them in its settings, so they are there after a relaunch. The plug-in keeps them with the host's project, each instance its own.</li>
           <li>In the plug-in, a knob a controller moves is reported to the host as if you had turned it.</li>
         </ul>
 
         <h3>The standard controllers</h3>
-        <p>Where General MIDI gives a controller a meaning that fits, the control takes it: Volume 7, Pan 10, Stick 74 (brightness), Pot Q 71 (timbre), Release 72 (release time), Attack 73 (attack time) and Rub 2 (breath controller). The others take numbers that MIDI leaves undefined, in the order of the panel's groups.</p>
+        <p>Where General MIDI gives a controller a meaning that fits, the control takes it: Volume 7, Pan 10, Glide 5 (portamento time)<!-- FILL: then ", Name n (its General MIDI meaning)" for each instrument knob whose controller in Params.h is one General MIDI names (2, 71–75, …) -->. The others take numbers that MIDI leaves undefined, in the order of the panel's groups.</p>
         <table>
           <thead>
-            <tr><th>Control</th><th>CC</th><th>Control</th><th>CC</th></tr>
+            <tr><th>Control</th><th>CC</th></tr>
           </thead>
           <tbody>
-            <tr><td>Attack</td><td>73</td><td>Pot</td><td>87</td></tr>
-            <tr><td>Length</td><td>14</td><td>Pot Q</td><td>71</td></tr>
-            <tr><td>Release</td><td>72</td><td>Pot Level</td><td>88</td></tr>
-            <tr><td>Damp</td><td>15</td><td>Skin</td><td>89</td></tr>
-            <tr><td>Key Up</td><td>16</td><td>Skin Q</td><td>90</td></tr>
-            <tr><td>Vel Sens</td><td>17</td><td>Skin Level</td><td>102</td></tr>
-            <tr><td>Vary</td><td>18</td><td>Track</td><td>103</td></tr>
-            <tr><td>Alternate</td><td>19</td><td>Rub</td><td>2</td></tr>
-            <tr><td>Alt Tune</td><td>20</td><td>Scrape</td><td>104</td></tr>
-            <tr><td>Scoop</td><td>21</td><td>Shimmer</td><td>105</td></tr>
-            <tr><td>Scoop Time</td><td>22</td><td>Volume</td><td>7</td></tr>
-            <tr><td>Drift</td><td>23</td><td>Pan</td><td>10</td></tr>
-            <tr><td>Drop</td><td>24</td><td>Tune</td><td>106</td></tr>
-            <tr><td>Wobble</td><td>25</td><td>Octave</td><td>107</td></tr>
-            <tr><td>Jump</td><td>26</td><td>Bend Up</td><td>108</td></tr>
-            <tr><td>Jump Ratio</td><td>27</td><td>Bend Down</td><td>109</td></tr>
-            <tr><td>Vel&gt;Pitch</td><td>28</td><td>Drum</td><td>110</td></tr>
-            <tr><td>Stick</td><td>74</td><td>LFO Start</td><td>111</td></tr>
-            <tr><td>Stick&gt;Level</td><td>29</td><td>LFO 1 Rate</td><td>112</td></tr>
-            <tr><td>Split</td><td>30</td><td>LFO 1 Shape</td><td>113</td></tr>
-            <tr><td>Creak</td><td>31</td><td>LFO 2 Rate</td><td>114</td></tr>
-            <tr><td>Creak Rate</td><td>85</td><td>LFO 2 Shape</td><td>115</td></tr>
-            <tr><td>Creak Ring</td><td>86</td><td></td><td></td></tr>
+            <!-- FILL: one <tr><td>Name</td><td>CC</td></tr> for each instrument knob, in panel order, with its controller from kInstrumentKnobs (Params.h). -->
+            <tr><td>Volume</td><td>7</td></tr>
+            <tr><td>Pan</td><td>10</td></tr>
+            <tr><td>Tune</td><td>102</td></tr>
+            <tr><td>Octave</td><td>103</td></tr>
+            <tr><td>Bend Up</td><td>104</td></tr>
+            <tr><td>Bend Down</td><td>105</td></tr>
+            <tr><td>Voice Mode</td><td>106</td></tr>
+            <tr><td>Glide</td><td>5</td></tr>
+            <tr><td>LFO Start</td><td>107</td></tr>
+            <tr><td>LFO 1 Rate</td><td>108</td></tr>
+            <tr><td>LFO 1 Shape</td><td>109</td></tr>
+            <tr><td>LFO 2 Rate</td><td>110</td></tr>
+            <tr><td>LFO 2 Shape</td><td>111</td></tr>
+            <tr><td>Vel Sens</td><td>112</td></tr>
           </tbody>
         </table>
-        <p><b>Reserved controllers.</b> CC 0–1, 6, 32, 38, 64, 96–101 and 120–127 keep their meanings in MIDI (bank select, data entry, sustain, parameter numbers and the channel messages). No control is given one, and learning ignores them. CC 1 is the mod wheel, which adds Rub (see <a href="#keyboard">Keyboard mode</a>); CC 121 puts the wheels back to rest, and CC 120 and 123 stop every voice.</p>
-        <p>Free to learn, with no meaning in {{APP}}: CC 3–5, 8, 9, 11–13, 33–37, 39–63, 65–70, 75–84, 91–95 and 116–119.</p>
+        <p><b>Reserved controllers.</b> CC 0–1, 6, 32, 38, 64, 96–101 and 120–127 keep their meanings in MIDI (bank select, the mod wheel, data entry, the sustain pedal, parameter numbers and the channel messages). No control is given one, and learning ignores them. CC 1 is the mod wheel (see <a href="#keyboard">Keyboard mode</a>) and CC 64 the sustain pedal (see <a href="#voices">Voice modes, glide and sustain</a>); CC 121 puts the wheels back to rest and the pedal up, and CC 120 and 123 stop every voice.</p>
+        <p>Free to learn, with no meaning in {{APP_NAME}}: <!-- FILL: every controller from 2 to 119 that is neither reserved nor in the table above, as ranges, e.g. "CC 3–4, 8, 9, 11–13, …"; the platform alone leaves 2–4, 8, 9, 11–31, 33–37, 39–63, 65–95 and 113–119 -->.</p>
       </section>
 
       <section id="settings">
@@ -599,8 +515,8 @@
           <dd><b>All devices</b> (the default), <b>None</b>, or one connected keyboard or controller. A chosen device that is unplugged stays in the list as “not connected”; the app listens to it again as soon as it is back.</dd>
           <dt>MIDI input › Channel</dt>
           <dd><b>All channels</b> or one of 1–16; messages on other channels are ignored.</dd>
-          <dt>The “{{APP}}” MIDI port</dt>
-          <dd>While the app runs, other applications can send MIDI to a port called <b>{{APP}}</b>. It obeys the channel setting.</dd>
+          <dt>The “{{APP_NAME}}” MIDI port</dt>
+          <dd>While the app runs, other applications can send MIDI to a port called <b>{{APP_NAME}}</b>. It obeys the channel setting.</dd>
           <dt>Audio output › Device</dt>
           <dd><b>System default</b> or a specific audio device. System default follows the output chosen in macOS. A chosen device that is unplugged stays in the list as “not connected”, and the sound goes to the system default until it is back.</dd>
           <dt>Audio output › Channels</dt>
@@ -615,18 +531,18 @@
         <ol>
           <li>In the app, open <span class="ui">Settings</span> and click <span class="ui">Install Audio Unit</span>. This copies <span class="ui">{{APP}}.component</span> into <span class="ui">~/Library/Audio/Plug-Ins/Components</span>.</li>
           <li>Restart your host or let it rescan its plug-ins.</li>
-          <li>The instrument appears as <b>{{APP}}</b> by <b>Jiri Pisa</b> among the Audio Unit instruments.</li>
+          <li>The instrument appears as <b>{{APP_NAME}}</b> by <b>Jiri Pisa</b> among the Audio Unit instruments.</li>
         </ol>
         <p>The plug-in's window is the app's, without the gear: the same header, knobs, keyboard, pads and Send to pad. The keys and pads on the screen play the plug-in directly.</p>
         <dl class="controls">
           <dt>Automation</dt>
-          <dd>The host sees 103 parameters: the keyboard's sound, that is its 45 knobs and switches, 22 LFO amounts and 36 VEL amounts. Turning a knob in keyboard mode can be recorded as automation, and automation moves the knobs. The pads, their pitches and groups and the mode are not parameters: automation reaches the keyboard's sound only.</dd>
+          <dd>The host sees <!-- FILL: the numbers from Params.h: kNumParams parameters in all: the keyboard's sound, that is its kNumKnobs knobs and switches (14 of Master and the instrument's), 2 × the size of kLfoTargets LFO amounts and the size of kVelTargets VEL amounts; written "N parameters: the keyboard's sound, that is its K knobs and switches, L LFO amounts and V VEL amounts" --> Turning a knob in keyboard mode can be recorded as automation, and automation moves the knobs. The pads, their pitches and groups and the mode are not parameters: automation reaches the keyboard's sound only. A parameter keeps its number in the host from version to version, so automation recorded with this version still finds its knob after an update.</dd>
           <dt>Presets</dt>
-          <dd>The twelve programs are the plug-in's factory presets; they load into the keyboard's sound. Your own presets are in the window's Preset menu, shared with the app (see <a href="#presets">Presets</a>). When one is loaded into the keyboard, the host shows its name as the plug-in's preset; choosing a factory preset in the host ends that link.</dd>
+          <dd>The programs are the plug-in's factory presets; they load into the keyboard's sound. Your own presets are in the window's Preset menu, shared with the app (see <a href="#presets">Presets</a>). When one is loaded into the keyboard, the host shows its name as the plug-in's preset; choosing a factory preset in the host ends that link.</dd>
           <dt>Saved with the project</dt>
           <dd>The keyboard's sound and its program, the mode, all sixteen pads (sound, pitch and group), the preset each sound came from, the MIDI controllers and the selected pad. A pad edit marks the project as changed half a second after you stop, or when you close the window. The plug-in's window opens on the pad selected last.</dd>
           <dt>Latency</dt>
-          <dd>Below 88.2 kHz {{APP}} runs its voices at twice the host's rate, which delays the sound by 29 samples (0.6 ms at 48 kHz). The plug-in reports this to the host, which compensates. From 88.2 kHz up the latency is 0.</dd>
+          <dd>Below 88.2 kHz {{APP_NAME}} runs its voices at twice the host's rate, which delays the sound by 29 samples (0.6 ms at 48 kHz). The plug-in reports this to the host, which compensates. From 88.2 kHz up the latency is 0.</dd>
           <dt>Output</dt>
           <dd>Stereo. On a mono track the plug-in mixes both sides into one, so pads panned hard right are still heard.</dd>
         </dl>
@@ -635,8 +551,8 @@
 
       <section id="updates">
         <h2>Updates</h2>
-        <p>At every launch {{APP}} asks whether a newer version exists and, if
-        so, offers it; nothing is installed without your OK. <span class="ui">{{APP}}
+        <p>At every launch {{APP_NAME}} asks whether a newer version exists and, if
+        so, offers it; nothing is installed without your OK. <span class="ui">{{APP_NAME}}
         › Check for Updates…</span> asks right away.</p>
       </section>
     </article>
@@ -645,7 +561,7 @@
 
 <footer>
   <div class="wrap">
-    <span>{{APP}} by {{AUTHOR}}. {{LICENSE_LABEL}}. Manual for version {{VERSION}}.</span>
+    <span>{{APP_NAME}} by {{AUTHOR}}. {{LICENSE_LABEL}}. Manual for version {{VERSION}}.</span>
     <span><a href="index.html">Overview</a></span>
   </div>
 </footer>

@@ -3,9 +3,9 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>{{APP}} pro macOS</title>
+<title>{{APP_NAME}} pro macOS</title>
 <meta name="description" content="{{TAGLINE_CS}}">
-<meta property="og:title" content="{{APP}}">
+<meta property="og:title" content="{{APP_NAME}}">
 <meta property="og:description" content="{{TAGLINE_CS}}">
 <meta property="og:image" content="{{PAGES_URL}}assets/{{APP_LOWER}}-window.png">
 <meta property="og:type" content="website">
@@ -16,9 +16,12 @@
 <link rel="stylesheet" href="../assets/site.css">
 </head>
 <body>
+<!-- FILL: This page is a template, the Czech twin of docs/index.html: the same tags in the same
+     order, the same FILL comments in the same places. Write what each FILL comment asks for in
+     Czech, then delete the comment. The images are the English page's (docs/assets/). -->
 
 <header class="wrap masthead">
-  <a class="brand" href="#top"><img src="../assets/icon.png" alt="" width="32" height="32">{{APP}}</a>
+  <a class="brand" href="#top"><img src="../assets/icon.png" alt="" width="32" height="32">{{APP_NAME}}</a>
   <nav aria-label="Stránka">
     <a href="manual.html">Manuál</a>
     <a href="#get">Stáhnout</a>
@@ -32,7 +35,7 @@
     <div class="hero-intro">
       <img class="hero-art" src="../assets/hero-{{APP_LOWER}}.jpg" alt="" width="1920" height="819" fetchpriority="high">
       <div class="hero-copy">
-    <h1>{{APP}}</h1>
+    <h1>{{APP_NAME}}</h1>
     <p class="lede">{{TAGLINE_CS}}</p>
     <div class="actions">
       <a class="button" href="{{REPO_URL}}/releases/download/v{{VERSION}}/{{APP}}-{{VERSION}}.dmg">
@@ -44,7 +47,7 @@
       </div>
     </div>
     <figure class="shot">
-      <img src="../assets/{{APP_LOWER}}-window.png" alt="Okno aplikace {{APP}}" width="1400">
+      <img src="../assets/{{APP_LOWER}}-window.png" alt="Okno aplikace {{APP_NAME}}" width="1400">
     </figure>
   </div>
 
@@ -53,43 +56,28 @@
       <h2>Co umí</h2>
       <div class="grid">
         <div>
-          <h3>Třecí buben, na který se hraje</h3>
-          <p>Hliněný hrnec potažený blánou, kterou prochází dva svazky koňských
-          žíní, a po žíních táhnou mokré ruce: {{APP_LOWER}}, se kterým o Vánocích
-          chodí koledníci. Dvanáct vestavěných programů hraje na něj i na jeho
-          příbuzné: německý Brummtopf, španělskou zambombu, neapolské putipù,
-          brazilskou cuíku, venezuelské furruco a rumunský buhai, k tomu
-          vrzání a švihnutí.</p>
+          <h3><!-- FILL: in Czech, the heading of the English page's first card. --></h3>
+          <p><!-- FILL: in Czech, the text of the English page's first card (Czech names of the instrument and its relatives where Czech has them). --></p>
         </div>
         <div>
           <h3>Syntetizovaný, ne samplovaný</h3>
-          <p>Každý tah se počítá ve chvíli, kdy zní, nepřehrává se z nahrávky,
-          a proto se může hýbat: vyjet zdola do své výšky jako houknutí cuíky,
-          posouvat se, jak ruka táhne, nebo vyskočit na vyšší mód blány. Vary
-          se postará, aby žádné dva tahy nebyly úplně stejné.</p>
+          <p>Každá nota se počítá ve chvíli, kdy zní, nepřehrává se z nahrávky.<!-- FILL: in Czech, the English page's two sentences on what that lets this instrument do. --></p>
         </div>
         <div>
-          <h3>Dvě ruce, jeden buben</h3>
-          <p>Hráč táhne střídavě oběma rukama a slabší ruka zní o něco tišeji
-          a trochu jinak. Tah na znějící buben naváže tam, kde blána právě je,
-          takže tahy do sebe přecházejí s poklesem, ne s lupnutím. Při Drum
-          One je celá klaviatura jeden buben, při Drum Many je každá nota
-          samostatný buben.</p>
+          <h3><!-- FILL: in Czech, the heading of the English page's third card. --></h3>
+          <p><!-- FILL: in Czech, the text of the English page's third card. --></p>
         </div>
         <div>
           <h3>Klávesy i pady</h3>
-          <p>V režimu klaviatury hraje každá nota zvuk ve své výšce. V režimu
-          padů hrají noty 36–51 na šestnáct padů a každý má vlastní zvuk,
-          výšku i skupinu; pady jedné skupiny jsou jeden buben, na který hraje
-          jeden pár rukou. Send to pad udělá ze zvuku nastaveného na klaviatuře
-          pad.</p>
+          <p>V režimu klaviatury hraje každá nota zvuk ve své výšce: Poly pro akordy, Mono a Legato pro jednu melodickou linku, s klouzáním mezi notami (glide) a pedálem sustain. V režimu padů hrají noty 36–51 na šestnáct padů a každý má vlastní zvuk, výšku i skupinu; pady jedné skupiny sdílejí jeden hlas. Send to pad udělá ze zvuku nastaveného na klaviatuře pad.</p>
         </div>
         <div>
           <h3>Presety, sady a učení MIDI</h3>
           <p>Zvuk si uložíte jako preset a všech šestnáct padů jako sadu;
           aplikace i plugin je sdílejí. Dvě LFO a síla úderu hýbou knoby
-          o hodnoty, které nastavíte přímo na knobech. Každý knob a přepínač
-          sleduje MIDI ovladač a kliknutím se naučí nový.</p>
+          o hodnoty, které nastavíte přímo na knobech, a každý pad má své
+          vlastní. Každý knob a přepínač sleduje MIDI ovladač a kliknutím se
+          naučí nový.</p>
         </div>
         <div>
           <h3>Aplikace i Audio Unit</h3>
@@ -107,9 +95,9 @@
     <div class="wrap grid">
       <div>
         <h2>Stáhnout</h2>
-        <p>{{APP}} potřebuje macOS 27 nebo novější. Obraz disku je podepsaný
-        a notarizovaný Applem, takže se otevře bez bezpečnostních varování.
-        Přetáhněte {{APP}} do složky Aplikace.</p>
+        <p>Aplikace {{APP_NAME}} potřebuje macOS 27 nebo novější. Obraz disku
+        je podepsaný a notarizovaný Applem, takže se otevře bez bezpečnostních
+        varování. Přetáhněte aplikaci {{APP}} do složky Aplikace.</p>
         <div class="actions">
           <a class="button" href="{{REPO_URL}}/releases/download/v{{VERSION}}/{{APP}}-{{VERSION}}.dmg">Stáhnout verzi {{VERSION}}</a>
         </div>
@@ -129,7 +117,7 @@ cd {{APP_LOWER}}
 
 <footer>
   <div class="wrap">
-    <span>{{APP}}, autor {{AUTHOR}}. {{LICENSE_LABEL_CS}}.</span>
+    <span>{{APP_NAME}}, autor {{AUTHOR}}. {{LICENSE_LABEL_CS}}.</span>
     <span><a href="manual.html">Manuál</a> · <a href="{{REPO_URL}}">Zdrojový kód na GitHubu</a></span>
   </div>
 </footer>

@@ -1,15 +1,20 @@
-/* {{APP}} — Indigo Modrotisk: shared by both languages and the manual. */
+/* {{APP_NAME}}: shared by both languages and the manual.
+   FILL: the palette, the display font and the button of the site look approved in phase 05
+   (.planning/design/site/); keep the variable names. The values below are a neutral default
+   that reads well without any of the images. */
 :root {
-  --bg: #101d38;
-  --panel: #233653;
-  --line: #3d4a60;
-  --ink: #f6ecd8;
-  --ink2: #e5d8be;
-  --ink3: #dbc79f;
-  --accent: #e8a577;
-  --clay: #d88c5b;
-  --accent-ink: #101d38;
-  --display: "New York", ui-serif, Georgia, serif;
+  --bg: #15171c;
+  --bg2: #1b1e24;
+  --panel: #23262d;
+  --line: #3a3e47;
+  --ink: #f3f3f1;
+  --ink2: #d6d7d9;
+  --ink3: #a8acb4;
+  --accent: #8db4ff;
+  --button: #6f9cf2;
+  --button-line: #a6c3ff;
+  --accent-ink: #0d1016;
+  --display: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", sans-serif;
   --measure: 44rem;
   --gutter: clamp(1.25rem, 4vw, 3rem);
   color-scheme: dark;
@@ -48,7 +53,7 @@ h1, h2, h3 { font-family: var(--display); font-weight: 500; }
 .hero h1 { margin: 0; color: var(--ink); font-size: clamp(4.5rem, 8.2vw, 7.4rem); line-height: 1.03; letter-spacing: -.045em; }
 .lede { max-width: 29rem; margin: 1.5rem 0 0; font-size: 1.22rem; line-height: 1.65; text-wrap: pretty; }
 .actions { display: flex; flex-wrap: wrap; align-items: center; gap: 1rem 1.5rem; margin-top: 2rem; }
-.button { display: inline-flex; justify-content: center; align-items: center; gap: .65rem; min-height: 3.25rem; padding: .8rem 1.35rem; border: 1px solid #edb68e; border-radius: 7px; background: var(--clay); color: var(--accent-ink); font-weight: 650; text-decoration: none; box-shadow: 0 3px 18px #0003; }
+.button { display: inline-flex; justify-content: center; align-items: center; gap: .65rem; min-height: 3.25rem; padding: .8rem 1.35rem; border: 1px solid var(--button-line); border-radius: 7px; background: var(--button); color: var(--accent-ink); font-weight: 650; text-decoration: none; box-shadow: 0 3px 18px #0003; }
 .button:hover { background: var(--accent); color: var(--accent-ink); }
 .button svg { width: 1.1rem; height: 1.1rem; }
 .meta { color: var(--ink3); font-size: .86rem; }
@@ -65,9 +70,9 @@ section p, section li { max-width: var(--measure); }
 .grid h3 { margin: 0 0 .65rem; color: var(--ink); font-size: 1.65rem; line-height: 1.25; }
 .grid p { margin-block: .7rem 0; }
 #features h2 { margin-bottom: 2.5rem; }
-#get { background: #172641; }
+#get { background: var(--bg2); }
 /* The divider sits half on the section above and half on this one. */
-#get::before { background: url("ornament.png") no-repeat center / auto 32px, linear-gradient(var(--bg) 50%, #172641 50%); }
+#get::before { background: url("ornament.png") no-repeat center / auto 32px, linear-gradient(var(--bg) 50%, var(--bg2) 50%); }
 #get .actions { margin-top: 1.5rem; margin-bottom: 1.5rem; }
 pre { overflow-x: auto; padding: 1.25rem; border-radius: 7px; background: var(--bg); border: 1px solid var(--line); color: var(--ink2); font-size: .82rem; }
 footer { padding-block: 2rem 2.5rem; color: var(--ink3); font-size: .9rem; border-top: 1px solid var(--line); }

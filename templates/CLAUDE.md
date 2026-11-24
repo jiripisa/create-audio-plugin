@@ -1,4 +1,4 @@
-# {{APP}} — project notes for Claude
+# {{APP_NAME}} — project notes for Claude
 
 {{TAGLINE}}
 
@@ -24,6 +24,12 @@
   end of the instrument's; identifiers are never renamed; everything saved
   names parameters by identifier or ID. Validate every change of the Audio Unit with
   `auval` (`development_workflow.md` §2.1).
+- **The instrument lives in a few files**: `Sources/{{APP}}DSP/Params.h` (its knobs,
+  sections, programs, kit), `Voice.h` (its voice), `Tests/{{APP}}Reference/` and the
+  instrument tests (`PrototypeEquivalenceTests`, `SoundRegressionTests`,
+  `InstrumentTableTests`, `ReferenceTests`), plus the panel's `Artwork.swift` and
+  `SectionLayout` plans. Everything else is the platform the project was made from:
+  the platform tests must stay green without knowing the instrument's knobs.
 
 ## Releases
 
@@ -44,7 +50,10 @@
   in `docs/assets/manual/`.
 - **The site is bilingual.** Every change to `docs/index.html` or
   `docs/manual.html` must also go into `docs/cs/` (and the other way
-  round). Shared styles live in `docs/assets/`.
+  round): the same tags in the same order. Shared styles live in `docs/assets/`.
+- The pages were made from templates that mark what is the instrument's with
+  `<!-- FILL: … -->` comments, saying what goes there and from where. A release
+  has none left: `grep -rn 'FILL:' docs .planning` finds nothing.
 
 ## Planning
 
