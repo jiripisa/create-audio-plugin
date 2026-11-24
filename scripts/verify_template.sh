@@ -8,7 +8,10 @@
 #   --auval    also install the component for this run only, run `auval -v aumu Zkus JPis`,
 #              and remove the component again (also when something fails); builds the bundle
 #              even with --quick
-#   --capture  launch the app by path and capture its window by PID (not available yet)
+#   --capture  launch the built app by path and capture its window by PID into logs/window.png
+#              (scripts/capture_window.swift); builds the bundle even with --quick. Skipped, without
+#              failing, unless the default output device is a built-in one: the app opens an audio
+#              stream on it. Never changes the default output, never brings the app to the front.
 #
 # The dummy instrument is a directory named Zkusebnik (identity from scripts/identity.py, subtype
 # Zkus). It is rendered into $SCRATCH/verify-<timestamp>/ ($SCRATCH defaults to $TMPDIR) and kept
@@ -162,7 +165,7 @@ if [ "$QUICK" = false ]; then
     step "swift test -c release" swift test -c release
     tests_summary "$LAST_LOG"
 fi
-if [ "$QUICK" = false ] || [ "$AUVAL" = true ]; then
+if [ "$QUICK" = false ] || [ "$AUVAL" = true ] || [ "$CAPTURE" = true ]; then
     step "build.sh release" ./build.sh release
 fi
 
@@ -196,8 +199,44 @@ if [ "$AUVAL" = true ]; then
     echo "== removed $TARGET"
 fi
 
+# --- capture: the app's window, found by the PID we launched ---
+default_output() {
+    system_profiler SPAudioDataType 2>/dev/null | awk '
+        /^        [^ ].*:$/ { name = $0; sub(/^ +/, "", name); sub(/:$/, "", name) }
+        /Default Output Device: Yes/ { print name; exit }'
+}
+
 if [ "$CAPTURE" = true ]; then
-    echo "capture: not available yet (comes with scripts/capture_window.swift)"
+    OUTPUT_DEVICE=$(default_output)
+    case "$OUTPUT_DEVICE" in
+        *MacBook*|*Built-in*|*Speakers*|*Headphones*)
+            echo "== capture (default output: $OUTPUT_DEVICE)"
+            APP="$PROJ/build/release/$NAME.app"
+            "$APP/Contents/MacOS/$NAME" > "$LOGS/app.log" 2>&1 &
+            APP_PID=$!
+            set +e
+            swift "$SKILL_DIR/scripts/capture_window.swift" "$APP_PID" "$LOGS/window.png" --wait 15
+            CAPTURE_STATUS=$?
+            kill "$APP_PID" 2>/dev/null
+            for _ in $(seq 1 50); do
+                kill -0 "$APP_PID" 2>/dev/null || break
+                sleep 0.1
+            done
+            if kill -0 "$APP_PID" 2>/dev/null; then kill -9 "$APP_PID" 2>/dev/null; fi
+            wait "$APP_PID" 2>/dev/null
+            BUNDLE_ID=$(jq -r .BUNDLE_ID "$OUT/config.json")
+            rm -rf "$HOME/Library/Caches/$BUNDLE_ID" "$HOME/Library/HTTPStorages/$BUNDLE_ID"*
+            set -e
+            if [ "$CAPTURE_STATUS" -eq 0 ]; then
+                echo "   $LOGS/window.png"
+            else
+                echo "capture: no image (capture_window.swift exit $CAPTURE_STATUS); continuing"
+            fi
+            ;;
+        *)
+            echo "capture skipped: default output is ${OUTPUT_DEVICE:-unknown}, not a built-in device"
+            ;;
+    esac
 fi
 
 clean_up
