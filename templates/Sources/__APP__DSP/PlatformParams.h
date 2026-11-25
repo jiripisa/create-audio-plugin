@@ -180,7 +180,7 @@ constexpr int kMaxProgramOverrides = 16;
 struct ProgramDef { const char* name; Override overrides[kMaxProgramOverrides]; };
 
 // What a pad holds when the engine is created or the default kit is loaded: a program with a few
-// overrides and Octave 0, at a note, in a group (0 = Off).
+// overrides and Octave at its default, at a note, in a group (0 = Off).
 constexpr int kMaxKitOverrides = 4;
 struct KitPad { int program; int note; int group; Override overrides[kMaxKitOverrides]; };
 

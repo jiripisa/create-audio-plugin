@@ -90,6 +90,9 @@ The table in its permanent order; identifiers lowercase ASCII letters and digits
    `kLfoTargets` holds volume, pan, tune and <…>.
 4. VEL amounts (`vel<id>`) on every continuous instrument knob and volume, pan, tune, lfo1rate,
    lfo2rate; never velsens. All amounts -100 … 100 %, 0.
+   The default sound (program 0) carries no LFO or VEL amounts: every amount rests at 0 and
+   `kPlatformDefaults` covers only knobs 0-13, so a default vibrato or anything like it that the
+   approved renders have lives in `Voice.h`.
 Mod wheel and aftertouch: `{ knob, depth }` pairs <…>. Total: <n> parameters.
 Audio Unit IDs (`TEMPLATE_MANIFEST.md` "Stable IDs"): knob k → k; LFO l's amount on knob k →
 1000·(l + 1) + k; VEL amount on knob k → 3000 + k. After the first release knobs are only

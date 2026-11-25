@@ -106,7 +106,8 @@ table at the end maps each item to its guard and to the file that carries it.
   render's name, no instrument vocabulary; the source instrument's words (`drum`, `stick`, `skin`,
   …) and the siblings' are `scripts/template-words.txt`, for the template only (`phases.md`).
 - Neither list holds the placeholder engine's words: after phase 02,
-  `grep -rn 'kProgramTone\|"Soft Tone"' Sources/<APP>DSP Tests/<APP>Reference docs` → nothing.
+  `grep -rn 'kProgramTone\|"Soft Tone"\|placeholder instrument' Sources/<APP>DSP Tests/<APP>Reference docs`
+  → nothing.
 - A playing style other than Poly / Glide 0 / Bend 2 is the instrument's defaults of platform
   knobs, `kPlatformDefaults` in `Params.h` (`spec-template.md` §7), never a program: a fresh
   instance starts on the table's defaults and `kPrograms[0]` has no overrides.
