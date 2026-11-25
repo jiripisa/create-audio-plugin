@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Derive the permanent identity of an audio plugin from its directory name.
 
-Usage: identity.py <dir-path> [--taken Brml,Fanf] [--no-auval] [--owner <login>]
+Usage: identity.py <dir-path> [--taken Brml,Fanf] [--no-auval] [--projects <dir>]... [--owner <login>]
 
 Prints JSON: APP_NAME, APP, APP_LOWER, APP_C, APP_UPPER, BUNDLE_ID, AU_SUBTYPE, OWNER.
 Exits 2 with a message on stderr when the name holds anything but letters, digits, spaces and
@@ -22,12 +22,17 @@ candidate in this deterministic order that is not taken:
      in lexicographic order of their positions. A pool shorter than three is extended by
      cycling APP.
   3. The first letter followed by a three-digit number 000..999.
-Taken codes = --taken, the built-in list below, and (unless --no-auval) the subtypes reported
-by `auval -a`.
+Taken codes = --taken, the built-in list below, (unless --no-auval) the subtypes reported by
+`auval -a`, and the subtypes of the projects beside this one: every
+<projects>/*/Resources/AudioUnit-Info.plist, <projects> being each --projects directory (default:
+~/Development/Claude, where the instruments live; an earlier one may not be installed here, so
+auval does not know it). The directory being named is left out, so naming it again gives the same
+code. `--projects ""` scans none.
 """
 import argparse
 import itertools
 import json
+import plistlib
 import re
 import subprocess
 import sys
@@ -35,6 +40,7 @@ import unicodedata
 from pathlib import Path
 
 BUILT_IN_TAKEN = {"Brml", "Fanf", "Didg"}
+PROJECTS = Path.home() / "Development" / "Claude"
 VOWELS = set("aeiouAEIOU")
 
 
@@ -100,6 +106,25 @@ def auval_subtypes() -> set:
     return parse_auval(result.stdout)
 
 
+def project_subtypes(projects: Path, own: Path) -> set:
+    """Subtypes of the Audio Units of the projects in `projects`, the one at `own` left out."""
+    found = set()
+    for plist in sorted(projects.glob("*/Resources/AudioUnit-Info.plist")):
+        if plist.parent.parent.resolve() == own:
+            continue
+        try:
+            with plist.open("rb") as f:
+                components = plistlib.load(f).get("AudioComponents", [])
+        except (OSError, ValueError, plistlib.InvalidFileException) as e:
+            print(f"warning: could not read {plist} ({e}); its subtype is not checked", file=sys.stderr)
+            continue
+        for component in components if isinstance(components, list) else []:
+            subtype = component.get("subtype") if isinstance(component, dict) else None
+            if isinstance(subtype, str) and len(subtype) == 4:
+                found.add(subtype)
+    return found
+
+
 def github_login() -> str:
     try:
         result = subprocess.run(["gh", "api", "user", "--jq", ".login"],
@@ -116,11 +141,15 @@ def main() -> None:
     parser.add_argument("directory")
     parser.add_argument("--taken", default="", help="comma-separated AU subtypes already in use")
     parser.add_argument("--no-auval", action="store_true", help="do not ask auval for installed subtypes")
+    parser.add_argument("--projects", action="append", metavar="DIR",
+                        help="a directory of projects whose AudioUnit-Info.plist subtypes are taken "
+                             f"(default: {PROJECTS}; may be given more than once; an empty value scans none)")
     parser.add_argument("--owner", help="GitHub login (default: gh api user)")
     args = parser.parse_args()
 
     # NFC: a name typed or stored decomposed ("C" + combining caron) is the same name.
-    name = unicodedata.normalize("NFC", Path(args.directory).resolve().name)
+    own = Path(args.directory).resolve()
+    name = unicodedata.normalize("NFC", own.name)
     problem = name_problem(name)
     if problem:
         print(f"error: {problem}", file=sys.stderr)
@@ -134,6 +163,9 @@ def main() -> None:
     taken = set(BUILT_IN_TAKEN) | {t.strip() for t in args.taken.split(",") if t.strip()}
     if not args.no_auval:
         taken |= auval_subtypes()
+    for projects in (args.projects if args.projects is not None else [str(PROJECTS)]):
+        if projects:
+            taken |= project_subtypes(Path(projects).expanduser(), own)
     subtype = next(c for c in candidates(app) if c not in taken)
 
     json.dump({

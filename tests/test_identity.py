@@ -1,6 +1,7 @@
 """Tests for scripts/identity.py of the create-audio-plugin skill."""
 import importlib.util
 import json
+import plistlib
 import subprocess
 import tempfile
 import unicodedata
@@ -16,12 +17,21 @@ _spec.loader.exec_module(identity_mod)
 
 
 def run(name: str, *args: str) -> subprocess.CompletedProcess:
+    # --projects "": the tests do not depend on the projects of whoever runs them.
     with tempfile.TemporaryDirectory() as tmp:
         d = Path(tmp) / name
         d.mkdir()
         return subprocess.run(
-            ["python3", "-I", str(IDENTITY), str(d), "--no-auval", "--owner", "someone", *args],
+            ["python3", "-I", str(IDENTITY), str(d), "--no-auval", "--owner", "someone", "--projects", "", *args],
             capture_output=True, text=True)
+
+
+def audio_unit_plist(project: Path, subtype: str) -> None:
+    """A project's Resources/AudioUnit-Info.plist, as the template renders it."""
+    (project / "Resources").mkdir(parents=True)
+    (project / "Resources" / "AudioUnit-Info.plist").write_bytes(plistlib.dumps(
+        {"CFBundleName": project.name,
+         "AudioComponents": [{"type": "aumu", "subtype": subtype, "manufacturer": "JPis"}]}))
 
 
 def identity(name: str, *args: str) -> dict:
@@ -107,6 +117,39 @@ class IdentityTest(unittest.TestCase):
 
     def test_taken_entries_are_stripped(self):
         self.assertEqual(identity("Strunobijec", "--taken", "Brml, Stru")["AU_SUBTYPE"], "Strn")
+
+    def test_subtypes_of_the_projects_beside_it_are_taken(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            projects = Path(tmp)
+            audio_unit_plist(projects / "Strunka", "Stru")          # an earlier instrument, not installed
+            audio_unit_plist(projects / "Strunobijec", "Strn")      # the folder itself, already rendered once
+            (projects / "Notes").mkdir()                            # a project that is no instrument
+            (projects / "Broken" / "Resources").mkdir(parents=True)
+            (projects / "Broken" / "Resources" / "AudioUnit-Info.plist").write_text("not a plist")
+            def subtype(*extra: str) -> str:
+                result = subprocess.run(
+                    ["python3", "-I", str(IDENTITY), str(projects / "Strunobijec"), "--no-auval", "--owner", "someone", *extra],
+                    capture_output=True, text=True)
+                self.assertEqual(result.returncode, 0, result.stderr)
+                return json.loads(result.stdout)["AU_SUBTYPE"]
+            # "Stru" is another project's; its own "Strn" does not count against it.
+            self.assertEqual(subtype("--projects", str(projects)), "Strn")
+            self.assertEqual(subtype("--projects", ""), "Stru")
+            # Several directories; one that does not exist holds nothing.
+            self.assertEqual(subtype("--projects", str(projects / "nowhere"), "--projects", str(projects)), "Strn")
+
+    def test_unreadable_project_plist_is_a_warning(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            projects = Path(tmp)
+            (projects / "Broken" / "Resources").mkdir(parents=True)
+            (projects / "Broken" / "Resources" / "AudioUnit-Info.plist").write_text("not a plist")
+            (projects / "Strunobijec").mkdir()
+            result = subprocess.run(
+                ["python3", "-I", str(IDENTITY), str(projects / "Strunobijec"), "--no-auval", "--owner", "someone",
+                 "--projects", str(projects)], capture_output=True, text=True)
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertIn("could not read", result.stderr)
+            self.assertEqual(json.loads(result.stdout)["AU_SUBTYPE"], "Stru")
 
     def test_parse_auval(self):
         text = "aumu Fanf JPis  -  JPis: Fanfrnoch\nno match here\nAU Validation Tool\n"
