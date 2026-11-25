@@ -24,15 +24,27 @@
 // Method (rates, windows and thresholds are fixed so that numbers compare between runs):
 //   levels     dBFS = 20 log10(RMS), full scale 1.0 (a full-scale sine reads -3.0 dBFS);
 //              -200 stands for digital silence. Frames: 20 ms RMS every 5 ms.
-//   onsets     rectified complex-domain onset detection (see detectOnsets). Files whose lowest
-//              pitch is about 135 Hz or more: 20 ms frames, onsets within about 5 ms. Lower: 85 ms
-//              frames resolve the partials (in 20 ms ones they beat and fake onsets for hundreds
-//              of ms after a stroke), timed on 20 ms frames, within about 20 ms. Each onset
-//              starts a stroke that ends one frame before the next onset. strokeRate = 1 / the
-//              median interval. strokesSuspect (with suspectReasons, also printed as CAUTION):
-//              a quarter of the strokes or more cut while still rising, a median stroke under 4
-//              periods, or a file-level window under 4 periods with two strokes or more; then
-//              check the stroke rate against the research or measure with --window.
+//   onsets     rectified complex-domain onset detection (see detectOnsets for the thresholds).
+//              20 ms frames, onsets within about 5 ms. A file with notes under about 127 Hz
+//              (2.7 periods longer than 20 ms; 117 Hz at 44.1 kHz) also gets 85 ms frames, which
+//              resolve the partials of low notes (in 20 ms frames they beat and fake onsets for
+//              hundreds of ms after a stroke); those onsets are timed on 20 ms frames, within
+//              about 25 ms, and the 20 ms frames' onsets are kept where the note after them is
+//              high enough for them (mixed registers). Each onset starts a stroke that ends one
+//              frame before the next onset. strokeRate = 1 / the median interval.
+//              Limits: of onsets closer than 40 ms only the first is kept (a strum of 40 ms
+//              reads as 3 of its 4 notes); in a low file a peak within 60 ms of a much stronger
+//              onset (a quarter of it) or within 150 ms (a tenth) counts as that stroke; a
+//              note-off counts only when the level does not fall 10 dB within 40 ms (slow
+//              releases may count). Low chords whose partials nearly coincide (A1 with E2:
+//              3 x 55 = 2 x 82.4 Hz) beat in every frame and over-segment, about 13 strokes per s
+//              on one chord. Slow swells mask onsets inside them. Detection frames that run past
+//              the file's end are not used, so a sound cut at the end has no onset there.
+//              strokesSuspect (with suspectReasons, also printed as CAUTION), with two strokes
+//              or more: a quarter of them or more cut while still rising (the loudest frame in
+//              the last 25 ms, 6 dB over the first, the stroke 60 ms or longer: onsets inside a
+//              swell), or a median stroke under 4 periods; then check the stroke rate against
+//              the research or measure with --window.
 //   note       the file-level note: the stroke that holds the first frame within 3 dB of the
 //              loudest frame (in a phrase, not always the loudest note; before the first onset,
 //              the start of the file); with --window, the stroke where the window starts. Window,
@@ -483,10 +495,11 @@ func lowestPitch(_ x: [Float], rate: Double, levels: [Double], hop: Int, options
     return lowest
 }
 
-// Onsets from the detection function above. Two kinds of file:
-// - Frames of about 20 ms resolve the partials when the lowest pitch is about 135 Hz or more
-//   (2.7 periods fit): the timing comes from the detection frame itself (the attack lies about
-//   5 ms into a peak's frame), and the level must rise at least 0.25 dB across the peak.
+// Onsets from the detection function above. Two kinds of file (in a file with both, the
+// 20 ms frames' onsets of notes high enough for them are added to the long frames' ones):
+// - Frames of about 20 ms resolve the partials when the lowest pitch is about 127 Hz or more
+//   (2.7 periods fit, at 48 kHz): the timing comes from the detection frame itself (the attack
+//   lies about 5 ms into a peak's frame), and the level must rise 0.25 dB across the peak.
 // - Below that, low partials closer than a 20 ms frame resolves beat against each other and keep
 //   the function swinging for hundreds of ms after a stroke, so detection runs on frames of
 //   about 85 ms (resolving partials down to about 25 Hz) and the timing on 20 ms frames: the
@@ -505,57 +518,81 @@ func lowestPitch(_ x: [Float], rate: Double, levels: [Double], hop: Int, options
 // 40 ms the first is kept; on long frames a peak under a quarter of the onset before it (by the
 // median ratio) within 60 ms of it, or under a tenth within 150 ms, is that stroke still
 // settling (the level rise it shows is still that stroke's).
-func detectOnsets(_ x: [Float], rate: Double, hop: Int, levels: [Double], lowestPitch: Double?) -> [Int] {
+func detectOnsets(_ x: [Float], rate: Double, hop: Int, levels: [Double], lowestPitch: Double?,
+                  options o: Options) -> [Int] {
     let n = x.count
-    let shortSize = powerOfTwo(atLeast: 0.02 * rate)
-    let long = (lowestPitch.map { 2.7 * rate / $0 } ?? 0) > Double(shortSize)
-    let size = long ? powerOfTwo(atLeast: 0.08 * rate) : shortSize
-    guard n > shortSize else { return [] }
-    let odf = complexDomain(x, size: size, hop: hop)
-    let fine = long ? complexDomain(x, size: shortSize, hop: hop) : odf
-    guard let globalTop = odf.max(), globalTop > 0, !levels.isEmpty else { return [] }
+    let shortSize = powerOfTwo(atLeast: 0.02 * rate), longSize = powerOfTwo(atLeast: 0.08 * rate)
+    // The lowest pitch whose partials a 20 ms frame resolves (2.7 periods fit).
+    let shortPitch = 2.7 * rate / Double(shortSize)
+    let lowFile = (lowestPitch ?? .infinity) < shortPitch
+    guard n > shortSize, !levels.isEmpty else { return [] }
+    let fine = complexDomain(x, size: shortSize, hop: hop)
     let top = levels.max() ?? -200
     let frames = { (s: Double) in max(1, Int((s * rate / Double(hop)).rounded())) }
-    let near = frames(0.015), mid = frames(0.25), span = size / hop
+    let near = frames(0.015), mid = frames(0.25)
     let last = levels.count - 1
     let lv = { (i: Int) in levels[max(0, min(last, i))] }
-    // The loudest 20 ms frame inside detection frame t: is it sounding at all.
-    let sounding = { (t: Int) in (levels[min(last, t)...min(last, t + span)].max() ?? -200) >= top - 40 }
-    var picked: [(onset: Int, ratio: Double)] = []
-    for t in 0..<odf.count {
-        let lo = max(0, t - near), hi = min(odf.count - 1, t + near)
-        guard odf[t] > 0, odf[t] == odf[lo...hi].max(), odf[t] >= 0.01 * globalTop, sounding(t) else { continue }
-        let around = (max(0, t - mid)...min(odf.count - 1, t + mid)).filter { $0 <= t || sounding($0) }
-        let ratio = odf[t] / max(1e-300, median(around.map { odf[$0] }) ?? 0)
-        guard ratio >= 2 else { continue }
-        var u = t
-        if long {
-            let f0 = min(fine.count - 1, t + Int(0.3 * Double(size)) / hop), f1 = min(fine.count - 1, t + Int(0.75 * Double(size)) / hop)
-            u = (f0...f1).max(by: { fine[$0] < fine[$1] }) ?? t
-        }
-        let d = u > 0 && u + 1 < fine.count ? parabola(fine[u - 1], fine[u], fine[u + 1]).offset : 0
-        let onset = min(n - 1, max(0, Int(((Double(u) + d) * Double(hop) + 0.005 * rate).rounded())))
-        // The rise: frames that end before the attack against those that hold it (on 20 ms
-        // frames: the 30 ms before the peak's frame against the 30 ms after it).
-        let at = onset / hop
-        let before = long ? (at - frames(0.05)...at - frames(0.02)).map(lv).min() ?? -200
-                          : (t - frames(0.03)...t - 1).map(lv).min() ?? -200
-        let holding = long ? (at - frames(0.01)...at + frames(0.02)).map(lv).max() ?? -200
-                           : (t + 1...t + frames(0.03)).map(lv).max() ?? -200
-        let rise = holding - before
-        let later = min(lv(at + frames(0.03)), lv(at + frames(0.04)))
-        guard holding >= top - 40, later - ((at - frames(0.03)...at - frames(0.02)).map(lv).max() ?? -200) > -10,
-              ratio >= (long ? 5.5 : 4) || rise >= 6, long || rise >= 0.25 else { continue }
-        if let prev = picked.last {
-            let gap = onset - prev.onset
-            if gap < Int(0.040 * rate) { continue }
-            if long, (gap < Int(0.060 * rate) && ratio < 0.25 * prev.ratio) || (gap < Int(0.150 * rate) && ratio < 0.1 * prev.ratio) {
-                continue
+
+    func pass(_ odf: [Double], size: Int, long: Bool) -> [(onset: Int, ratio: Double)] {
+        guard let globalTop = odf.max(), globalTop > 0 else { return [] }
+        let span = size / hop
+        // The loudest 20 ms frame inside detection frame t: is it sounding at all.
+        let sounding = { (t: Int) in (levels[min(last, t)...min(last, t + span)].max() ?? -200) >= top - 40 }
+        var picked: [(onset: Int, ratio: Double)] = []
+        // Only frames that lie wholly inside the file: the zeros past its end look like a change.
+        for t in 0..<odf.count where t * hop + size <= n {
+            let lo = max(0, t - near), hi = min(odf.count - 1, t + near)
+            guard odf[t] > 0, odf[t] == odf[lo...hi].max(), odf[t] >= 0.01 * globalTop, sounding(t) else { continue }
+            let around = (max(0, t - mid)...min(odf.count - 1, t + mid)).filter { $0 <= t || sounding($0) }
+            let ratio = odf[t] / max(1e-300, median(around.map { odf[$0] }) ?? 0)
+            guard ratio >= 2 else { continue }
+            var u = t
+            if long {
+                let f0 = min(fine.count - 1, t + Int(0.3 * Double(size)) / hop), f1 = min(fine.count - 1, t + Int(0.75 * Double(size)) / hop)
+                u = (f0...f1).max(by: { fine[$0] < fine[$1] }) ?? t
             }
+            let d = u > 0 && u + 1 < fine.count ? parabola(fine[u - 1], fine[u], fine[u + 1]).offset : 0
+            let onset = min(n - 1, max(0, Int(((Double(u) + d) * Double(hop) + 0.005 * rate).rounded())))
+            // The rise: frames that end before the attack against those that hold it (on 20 ms
+            // frames: the 30 ms before the peak's frame against the 30 ms after it).
+            let at = onset / hop
+            let before = long ? (at - frames(0.05)...at - frames(0.02)).map(lv).min() ?? -200
+                              : (t - frames(0.03)...t - 1).map(lv).min() ?? -200
+            let holding = long ? (at - frames(0.01)...at + frames(0.02)).map(lv).max() ?? -200
+                               : (t + 1...t + frames(0.03)).map(lv).max() ?? -200
+            let rise = holding - before
+            let later = min(lv(at + frames(0.03)), lv(at + frames(0.04)))
+            guard holding >= top - 40, later - ((at - frames(0.03)...at - frames(0.02)).map(lv).max() ?? -200) > -10,
+                  ratio >= (long ? 5.5 : 4) || rise >= 6, long || rise >= 0.25 else { continue }
+            if let prev = picked.last {
+                let gap = onset - prev.onset
+                if gap < Int(0.040 * rate) { continue }
+                if long, (gap < Int(0.060 * rate) && ratio < 0.25 * prev.ratio) || (gap < Int(0.150 * rate) && ratio < 0.1 * prev.ratio) {
+                    continue
+                }
+            }
+            picked.append((onset, ratio))
         }
-        picked.append((onset, ratio))
+        return picked
     }
-    return picked.map { $0.onset }
+
+    let short = pass(fine, size: shortSize, long: false)
+    guard lowFile else { return short.map { $0.onset } }
+    // A file with low notes: the long pass, plus the short pass's onsets of notes high enough
+    // for it (f0 20-100 ms after the onset), as a fanfrnoch group's quieter high strokes between
+    // the low ones. Of onsets closer than 40 ms the first is kept.
+    let high = short.filter { c in
+        let s0 = min(n, c.onset + Int(0.02 * rate)), s1 = min(n, s0 + Int(0.08 * rate))
+        guard s1 - s0 >= Int(0.05 * rate) else { return false }
+        let seg = x[s0..<s1]
+        return (findPitch(seg, spectrum: spectrum(seg, rate: rate), rate: rate, fmin: o.fmin, fmax: o.fmax)?.f0 ?? 0) >= shortPitch
+    }
+    var merged: [Int] = []
+    for onset in (pass(complexDomain(x, size: longSize, hop: hop), size: longSize, long: true) + high).map({ $0.onset }).sorted() {
+        if let prev = merged.last, onset - prev < Int(0.040 * rate) { continue }
+        merged.append(onset)
+    }
+    return merged
 }
 
 // One note or stroke: x[start..<end] (end = the next onset), measured as the file-level note is.
@@ -573,7 +610,8 @@ struct Note {
     var noteTime: Double?
     var attackMs: Double?, decayMs: Double?, t60: Double?, t60Span: Double?
     var decayFitted = false
-    var peakAtEnd = false   // its loudest frame lies in its last 25 ms: still rising when cut
+    var peakAtEnd = false   // still rising when cut: its loudest frame in its last 25 ms, 6 dB or
+                            // more over its first, the stroke at least 60 ms long (a swell)
 }
 
 struct Frames {
@@ -606,7 +644,7 @@ func measureNote(_ x: [Float], frames fr: Frames, start: Int, end: Int, window: 
     while fe + 1 < lv.count, (fe + 1) * fr.hop + fr.win <= end { fe += 1 }
     let localTop = lv[fs...fe].max() ?? -200
     if let loudest = (fs...fe).max(by: { lv[$0] < lv[$1] }), fe > fs + 1 {
-        note.peakAtEnd = Double(fe - loudest) * hopS < 0.025
+        note.peakAtEnd = Double(fe - loudest) * hopS < 0.025 && lv[loudest] - lv[fs] >= 6 && end - start >= Int(0.06 * rate)
     }
     let anchor: Int
     if let w = window {
@@ -711,9 +749,9 @@ struct Measurement {
     var strokes: [Note]
     var tail: (start: Double, end: Double, rmsDb: Double, floorDb: Double, centroidHz: Double?)
     // Reasons to doubt the segmentation (empty: none), with two strokes or more: a quarter or more
-    // of the strokes cut while still rising (onsets in a swell: bursts of a rubbed or bowed sound,
-    // or a strum, rather than new strokes), a median stroke shorter than 4 periods, a file-level
-    // note whose window holds fewer than 4 periods.
+    // of the strokes cut while still rising (onsets in a swell: bursts of a rubbed or bowed sound
+    // rather than new strokes), a median stroke shorter than 4 periods. (A file-level window under
+    // 4 periods is fewPeriods, reported on its own: short low strokes have it without any doubt.)
     var strokesSuspect: [String] {
         var reasons: [String] = []
         let cut = strokes.dropLast().filter { $0.peakAtEnd }.count
@@ -724,7 +762,6 @@ struct Measurement {
         if strokes.count >= 2, let m = median(periods), m < 4 {
             reasons.append(String(format: "median stroke %.1f periods long", m))
         }
-        if strokes.count >= 2, note.fewPeriods { reasons.append("the file-level note's window holds fewer than 4 periods") }
         return reasons
     }
     var strokeRate: Double? {
@@ -764,7 +801,7 @@ func measure(_ path: String, index: Int, options o: Options) -> Measurement {
 
     // Onsets cut the file into strokes; each ends one frame before the next onset.
     let onsets = detectOnsets(x, rate: rate, hop: hop, levels: fr.levels,
-                              lowestPitch: lowestPitch(x, rate: rate, levels: fr.levels, hop: hop, options: o))
+                              lowestPitch: lowestPitch(x, rate: rate, levels: fr.levels, hop: hop, options: o), options: o)
     let bounds = onsets.isEmpty ? [(0, n)] : onsets.indices.map { i in
         (onsets[i], i + 1 < onsets.count ? max(onsets[i] + 1, onsets[i + 1] - hop) : n)
     }

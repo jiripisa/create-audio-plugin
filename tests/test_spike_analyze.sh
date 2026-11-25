@@ -37,7 +37,7 @@ for f in "$WORK"/renders/*.wav; do
     cmp -s "$f" "$WORK/again/$(basename "$f")" || fail "$(basename "$f") differs between two runs"
 done
 "$WORK/spike" "$WORK/checks" 00_check > /dev/null
-[ "$(find "$WORK/checks" -name '*.wav' | wc -l | tr -d ' ')" -eq 15 ] || fail "prefix 00_check did not select 15 renders"
+[ "$(find "$WORK/checks" -name '*.wav' | wc -l | tr -d ' ')" -eq 18 ] || fail "prefix 00_check did not select 18 renders"
 ok "all $COUNT renders are the same in two runs; a name prefix selects renders"
 
 TONE="$WORK/renders/00_check_A_tone_220Hz.wav"
@@ -139,17 +139,28 @@ for NAME in K_A1_even L_E2_even M_A1_accents N_E2_accents O_A1_accents_single_ra
     ok "$NAME: 8 onsets within 30 ms"
 done
 
-# The suspect-strokes caveat: a strum (notes 40 ms apart, each cut while the chord still swells)
-# is flagged, and printed as CAUTION; grooves and single strokes are not.
-STRUM="$WORK/renders/06_chord_strum_then_block.wav"
-[ "$("$ANALYZE" --json "$STRUM" | jq -r '.files[0].strokesSuspect')" = true ] || fail "the strum's strokes are not flagged as suspect"
-"$ANALYZE" --json "$STRUM" | jq -e '.files[0].suspectReasons | any(test("cut while still rising"))' > /dev/null \
-    || fail "the strum is not flagged for strokes cut while still rising"
-"$ANALYZE" "$STRUM" | grep -q "CAUTION" || fail "no CAUTION line for the strum"
-for NAME in 00_check_F_groove 00_check_G_one_stroke 00_check_I_A1_stroke 00_check_K_A1_even 00_check_M_A1_accents 00_check_N_E2_accents 01_default 04_velocity_ramp; do
+# A stroke cut at the file end while it rings: no onset at the cut.
+CUT=$("$ANALYZE" --json "$WORK/renders/00_check_P_E2_stroke_cut.wav" | jq -c '.files[0].onsets')
+[ "$(echo "$CUT" | jq length)" -eq 1 ] || fail "E2 stroke cut at the file end: onsets $CUT, want 1"
+ok "E2 stroke cut at the file end: 1 onset"
+
+# Mixed registers: loud low strokes (85 ms frames) with quieter high ones between (20 ms frames
+# where the local pitch allows), 0.184 s apart.
+MIX=$("$ANALYZE" --json "$WORK/renders/00_check_Q_low_and_high.wav" | jq -r '.files[0].onsets[]')
+[ "$(echo "$MIX" | wc -l | tr -d ' ')" -eq 16 ] || fail "mixed registers: $(echo "$MIX" | wc -l | tr -d ' ') onsets, want 16: $(echo $MIX)"
+echo "$MIX" | awk '{ e = $1 - (0.2 + 0.184 * (NR - 1)); if (e > 0.03 || e < -0.03) exit 1 }' || fail "mixed registers: an onset more than 30 ms off: $(echo $MIX)"
+ok "mixed registers: 16 onsets within 30 ms"
+
+# The suspect-strokes caveat: strokes cut while still swelling are flagged and printed as
+# CAUTION; grooves, phrases and single strokes are not.
+SWELLS="$WORK/renders/00_check_R_clicks_in_swells.wav"
+"$ANALYZE" --json "$SWELLS" | jq -e '.files[0].strokesSuspect and (.files[0].suspectReasons | any(test("cut while still rising")))' > /dev/null \
+    || fail "clicks in swells: not flagged for strokes cut while still rising: $("$ANALYZE" --json "$SWELLS" | jq -c '.files[0].suspectReasons')"
+"$ANALYZE" "$SWELLS" | grep -q "CAUTION" || fail "no CAUTION line for the clicks in swells"
+for NAME in 00_check_F_groove 00_check_G_one_stroke 00_check_I_A1_stroke 00_check_K_A1_even 00_check_M_A1_accents 00_check_N_E2_accents 00_check_Q_low_and_high 01_default 04_velocity_ramp 06_chord_strum_then_block; do
     [ "$("$ANALYZE" --json "$WORK/renders/$NAME.wav" | jq -r '.files[0].strokesSuspect')" = false ] || fail "$NAME is flagged as suspect: $("$ANALYZE" --json "$WORK/renders/$NAME.wav" | jq -c '.files[0].suspectReasons')"
 done
-ok "strokesSuspect: the strum flagged ($("$ANALYZE" --json "$STRUM" | jq -r '.files[0].suspectReasons | join("; ")')), grooves and single strokes not"
+ok "strokesSuspect: clicks in swells flagged ($("$ANALYZE" --json "$SWELLS" | jq -r '.files[0].suspectReasons | join("; ")')), grooves, phrases and single strokes not"
 
 # --- harmonics stay in their bands; the octave guard ignores a hum ----------------------------
 

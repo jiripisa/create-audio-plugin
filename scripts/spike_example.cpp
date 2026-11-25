@@ -13,7 +13,8 @@
 //   00_check_*   renders with a known answer, for checking the analysis chain (not for the ear):
 //                the score helpers' tone, noise in a tail, a weak fundamental, weak odd partials,
 //                a low short stroke, a groove and one of its strokes, a hum an octave under,
-//                damped low notes alone and in grooves
+//                damped low notes alone and in grooves, a stroke cut at the file end, mixed
+//                registers, clicks inside swells
 //   01..06       one group per question, decisive question first, each with a long tail
 //   P01_*        one render per planned program
 //
@@ -211,6 +212,54 @@ static Renders renders()
         {"00_check_M_A1_accents", [=] { return render(every300(33, true), D); }},
         {"00_check_N_E2_accents", [=] { return render(every300(40, true), D); }},
         {"00_check_O_A1_accents_single_rate", [=] { return render(every300(33, true), singleRate()); }},
+
+        // The end of the file: an E2 stroke cut while it rings (1 onset, none at the cut).
+        {"00_check_P_E2_stroke_cut", [=] {
+             Score s = stroke(kLead, 40, 0.95f);
+             s.length = 1.0;
+             return render(s, D);
+         }},
+        // Mixed registers, as a fanfrnoch group: loud A#1 (58 Hz) strokes that die within 0.1 s,
+        // each with rubbing noise 18 dB under it, and between them C#4 (277 Hz) strokes 18 dB
+        // quieter, one every 0.184 s: 16 onsets. The noise keeps the long frames busy, so the
+        // quiet high strokes are found only on 20 ms frames.
+        {"00_check_Q_low_and_high", [=] {
+             Params low = D, high = D;
+             low.ring = high.ring = 0.3f;
+             high.levelDb = D.levelDb - 18;
+             Score s;
+             for (int i = 0; i < 16; ++i) {
+                 Score one = stroke(kLead + 0.184 * i, i % 2 ? 61 : 34, 0.9f);
+                 s = s + (i % 2 ? one.onPart(1) : one);
+             }
+             Samples x = play(s, std::vector<Voice>{Voice(low, kRate), Voice(high, kRate)}, kRate);
+             std::mt19937 rng = seeded("00_check_Q_low_and_high");
+             const double g = dbToGain(D.levelDb - 18), fall = std::pow(10.0, -3.0 / (0.3 * kRate));
+             double rub = 0;
+             size_t next = 0;
+             for (size_t i = 0; i < x.size(); ++i) {
+                 if (next < 8 && i == size_t((kLead + 0.368 * double(next)) * kRate + 0.5)) { rub = 1; ++next; }
+                 x[i] += float(g * rub * white(rng));
+                 rub *= fall;
+             }
+             normalize(x);
+             return x;
+         }},
+        // Onsets inside swells: four strokes every 0.25 s, each a short high click on a C3 tone
+        // that swells over 0.7 s, so that each stroke is cut while still rising (as bursts of a
+        // rubbed sound); its strokes are flagged as suspect.
+        {"00_check_R_clicks_in_swells", [=] {
+             Params swell = checkTone(), click = D;
+             swell.attackMs = 700;
+             click.ring = 0.05f;
+             click.levelDb = D.levelDb - 6;
+             Score s;
+             for (int i = 0; i < 4; ++i)
+                 s = s + note(kLead + 0.25 * i, 48, 0.9f, 1.5) + stroke(kLead + 0.25 * i, 88, 0.9f).onPart(1);
+             Samples x = play(s, std::vector<Voice>{Voice(swell, kRate), Voice(click, kRate)}, kRate);
+             normalize(x);
+             return x;
+         }},
 
         // 01: the decisive question first - a struck bar or a synthesizer?
         {"01_default", [=] { return render(strokeThenPhrase(C4), D); }},
