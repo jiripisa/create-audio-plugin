@@ -1,0 +1,85 @@
+--- a/scripts/scaffold.py
++++ b/scripts/scaffold.py
+@@ -2,6 +2,7 @@
+ """Render the new-macos-app templates into a new project directory.
+ 
+     python3 scaffold.py --config app.json --out ~/Development/MyApp
++    python3 scaffold.py --config app.json --out ~/Development/MyApp --templates DIR
+ 
+ app.json keys (strings unless noted):
+   APP            target / executable name, PascalCase, no spaces ("TapeLoop")
+@@ -23,16 +24,30 @@
+ Template syntax: {{VAR}} substitutes; {{#FLAG}}…{{/FLAG}} keeps the block when
+ FLAG is true, {{^FLAG}}…{{/FLAG}} when it is false. A tag alone on its line
+ takes the line with it. "__APP__" in paths becomes APP.
++
++--templates DIR renders another template tree instead of the built-in one.
++Any extra keys in app.json (AU_SUBTYPE, APP_C, ...) are then available as
++{{VARS}} (config keys always are), and FILE_FLAGS, which name built-in paths,
++are not applied. Binary files (.png .jpg .car .icns, or anything that is not
++UTF-8) are copied unchanged, in both modes. What a build or a tool left at the
++top of DIR is not part of the template and is skipped: .build, build, .swiftpm
++and .git (SKIPPED_TOP).
+ """
+ import argparse
+ import json
+ import re
++import shutil
+ import subprocess
+ import sys
+ from datetime import date
+ from pathlib import Path
+ 
+ TEMPLATES = Path(__file__).resolve().parent.parent / "templates"
++BINARY_SUFFIXES = {".png", ".jpg", ".car", ".icns"}
++# Top-level entries of a --templates tree that are never rendered: SwiftPM's and
++# build.sh's output (an editor that indexes the tree as a package writes .build)
++# and the repository's own data.
++SKIPPED_TOP = {".build", "build", ".swiftpm", ".git"}
+ FLAGS = ["PUBLIC", "WEBSITE", "MANUAL", "CS", "SPARKLE", "PLANNING", "LICENSE"]
+ 
+ # Lowest swift-tools-version whose PackageDescription has `.macOS(.vNN)`
+@@ -132,22 +147,39 @@
+     parser = argparse.ArgumentParser()
+     parser.add_argument("--config", required=True, type=Path)
+     parser.add_argument("--out", required=True, type=Path)
++    parser.add_argument("--templates", type=Path, default=TEMPLATES,
++                        help="template directory (default: the built-in one)")
+     args = parser.parse_args()
++    templates = args.templates.expanduser().resolve()
++    custom = templates != TEMPLATES
++    if not templates.is_dir():
++        sys.exit(f"{templates} is not a directory")
+     cfg = load_config(args.config)
+     out = args.out.expanduser()
+     if out.exists() and any(out.iterdir()):
+         sys.exit(f"{out} exists and is not empty")
+ 
+     written = []
+-    for src in sorted(TEMPLATES.rglob("*")):
++    for src in sorted(templates.rglob("*")):
+         if src.is_dir() or src.name == ".DS_Store":
+             continue
+-        rel = src.relative_to(TEMPLATES).as_posix()
+-        if not wanted(rel, cfg):
++        rel = src.relative_to(templates).as_posix()
++        if custom and rel.split("/", 1)[0] in SKIPPED_TOP:
+             continue
++        if not custom and not wanted(rel, cfg):
++            continue
+         dest = out / rel.replace("__APP__", cfg["APP"])
+         dest.parent.mkdir(parents=True, exist_ok=True)
+-        dest.write_text(render(src.read_text(), cfg))
++        text = None
++        if src.suffix.lower() not in BINARY_SUFFIXES:
++            try:
++                text = src.read_text()
++            except UnicodeDecodeError:
++                pass
++        if text is None:
++            shutil.copyfile(src, dest)
++        else:
++            dest.write_text(render(text, cfg))
+         if src.suffix in (".sh", ".py"):
+             dest.chmod(0o755)
+         written.append(dest.relative_to(out).as_posix())

@@ -14,6 +14,8 @@ CONFIG = {
     "LICENSE_LABEL": "All rights reserved", "WEBSITE": True, "MANUAL": True,
     "PUBLIC": True, "CS": True, "TAGLINE_CS": "dělá x", "PLANNING": True,
 }
+# The change to scaffold.py (a file of the new-macos-app skill, outside this repo), kept here.
+PATCH = Path(__file__).parent.parent / "patches" / "new-macos-app-scaffold.diff"
 # Render of the built-in templates made before --templates existed, on 2026-11-24.
 BEFORE = Path(__file__).parent / "fixtures" / "builtin-render"
 FIXTURE_DATE = "2026-11-24"
@@ -66,6 +68,31 @@ class ScaffoldTemplatesTest(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
         pin_date(out)
         self.assertTrue(same_tree(filecmp.dircmp(BEFORE, out, ignore=[])))
+
+    def test_build_leftovers_at_the_top_are_skipped(self):
+        # What a build, an indexing editor or git leaves at the top of the template tree is not
+        # the template; the same names deeper down, and names that only start alike, are.
+        tpl = self.tmp / "tpl"
+        skipped = [".build/index-build/x.txt", "build/release/x.txt", ".swiftpm/x.txt", ".git/config",
+                   ".DS_Store", "docs/.DS_Store"]
+        kept = ["build.sh", ".gitignore", "docs/build/x.txt", "Sources/__APP__/.build/x.txt", ".claude/x.txt"]
+        for rel in skipped + kept:
+            (tpl / rel).parent.mkdir(parents=True, exist_ok=True)
+            (tpl / rel).write_text("{{APP}}")
+        out = self.tmp / "out"
+        result = scaffold(self.tmp, out, templates=tpl)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        rendered = sorted(p.relative_to(out).as_posix() for p in out.rglob("*") if p.is_file())
+        self.assertEqual(rendered, sorted(rel.replace("__APP__", "Foo") for rel in kept))
+        self.assertEqual((out / "build.sh").read_text(), "Foo")
+
+    def test_installed_scaffold_is_the_original_with_the_repo_patch(self):
+        # patches/new-macos-app-scaffold.diff taken back out of the installed scaffold.py leaves
+        # no rejected hunk: the patch in the repo is what the tests here run against.
+        result = subprocess.run(["patch", "-p1", "-R", "--dry-run", "-d", str(SCAFFOLD.parent.parent), "-i", str(PATCH)],
+                                capture_output=True, text=True)
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertNotIn("FAILED", result.stdout)
 
     def test_binary_files_copied(self):
         tpl = self.tmp / "tpl"
