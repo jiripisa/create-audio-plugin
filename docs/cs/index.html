@@ -1,0 +1,164 @@
+<!doctype html>
+<html lang="cs">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>create-audio-plugin — skill pro Claude Code</title>
+<meta name="description" content="Skill pro Claude Code, který z jedné věty udělá syntetizovaný nástroj pro Mac: Audio Unit a samostatnou aplikaci, podepsanou, notarizovanou a s vlastní stránkou ke stažení.">
+<meta property="og:title" content="create-audio-plugin">
+<meta property="og:description" content="Skill pro Claude Code, který z jedné věty udělá syntetizovaný nástroj pro Mac: Audio Unit a samostatnou aplikaci, podepsanou, notarizovanou a s vlastní stránkou ke stažení.">
+<meta property="og:image" content="https://jiripisa.github.io/create-audio-plugin/assets/create-audio-plugin-page.jpg">
+<meta property="og:type" content="website">
+<link rel="alternate" hreflang="en" href="https://jiripisa.github.io/create-audio-plugin/">
+<link rel="alternate" hreflang="cs" href="https://jiripisa.github.io/create-audio-plugin/cs/">
+<link rel="alternate" hreflang="x-default" href="https://jiripisa.github.io/create-audio-plugin/">
+<link rel="icon" href="../assets/icon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="../assets/site.css">
+</head>
+<body>
+
+<header class="wrap masthead">
+  <a class="brand" href="#top"><img src="../assets/icon.svg" alt="" width="38" height="38">create-audio-plugin</a>
+  <nav aria-label="Stránka">
+    <a href="#how">Jak to funguje</a>
+    <a href="#use">Použití</a>
+    <a href="https://github.com/jiripisa/create-audio-plugin">GitHub</a>
+    <a class="lang" href="../" hreflang="en" lang="en">English</a>
+  </nav>
+</header>
+
+<main id="top">
+  <div class="wrap hero">
+    <h1>create-audio-plugin</h1>
+    <p class="prompt">chci audio plugin pro elektrickou kytaru</p>
+    <p class="lede">Skill pro Claude Code, který z této jedné věty udělá syntetizovaný
+    nástroj pro Mac: Audio Unit a samostatnou aplikaci, podepsanou, notarizovanou a s vlastní
+    stránkou ke stažení. Vy schválíte, jak zní; zbytek se postaví za vás.</p>
+    <div class="actions">
+      <a class="button" href="https://github.com/jiripisa/create-audio-plugin">Zdrojový kód na GitHubu</a>
+      <span class="meta">Pro Claude Code na macOS 27. Pluginy jsou pro macOS 27.</span>
+    </div>
+
+    <figure class="made">
+      <div class="row">
+        <a href="https://jiripisa.github.io/brumle/cs/"><img src="https://jiripisa.github.io/brumle/assets/brumle-window.png" alt="Okno Brumle" loading="lazy"><span class="name">Brumle</span>brumle (drumbla)</a>
+        <a href="https://jiripisa.github.io/didgeridoo/cs/"><img src="https://jiripisa.github.io/didgeridoo/assets/didgeridoo-window.png" alt="Okno Didgeridoo" loading="lazy"><span class="name">Didgeridoo</span>didgeridoo</a>
+        <a href="https://jiripisa.github.io/fanfrnoch/cs/"><img src="https://jiripisa.github.io/fanfrnoch/assets/fanfrnoch-window.png" alt="Okno Fanfrnochu" loading="lazy"><span class="name">Fanfrnoch</span>český fanfrnoch</a>
+      </div>
+      <figcaption>Skill zapisuje, jak vznikly tyto tři nástroje, a každý nový nástroj začíná
+      z platformy, kterou sdílejí.</figcaption>
+    </figure>
+  </div>
+
+  <section id="how">
+    <div class="wrap">
+      <h2>Od jedné věty k vydání</h2>
+      <ol class="steps">
+        <li>
+          <h3>Zadání <span class="gate">vy</span></h3>
+          <p>Spustíte ho v prázdné složce pojmenované po nástroji. Jméno složky se stane
+          jménem produktu, jeho bundle id a kódem Audio Unitu; vy ho potvrdíte a vyberete, jestli
+          chcete tři vzhledy na výběr, nebo vzhled necháte na Claudovi.</p>
+        </li>
+        <li>
+          <h3>Průzkum</h3>
+          <p>Pět výzkumníků souběžně zkoumá nástroj: jak vzniká jeho zvuk, jak se na něj hraje,
+          jeho příbuzné a varianty, nahrávky k proměření a jak ho syntetizovali jiní.</p>
+        </li>
+        <li>
+          <h3>Zvuk ke schválení <span class="gate">vy</span></h3>
+          <p>Malý prototyp zahraje fráze nástroje tak, jak je bude hrát plugin, a každá
+          nahrávka se před poslechem změří. Dokud neřeknete, že zní správně, nic se nestaví;
+          do té doby říkáte, co změnit.</p>
+        </li>
+        <li>
+          <h3>Stavba</h3>
+          <p>Specifikace, pak engine, vlastní knoby nástroje, panel, grafika (kreslí ji Codex),
+          dvojjazyčný web a manuál a testy, fázi po fázi, každá zkontrolovaná a ověřená, než se
+          sloučí.</p>
+        </li>
+        <li>
+          <h3>Jedna otázka, než se cokoli zveřejní <span class="gate">vy</span></h3>
+          <p>Podepsaný a notarizovaný disk image, aktualizace přes Sparkle a web jsou připravené
+          lokálně. Jedna otázka vyjmenuje každý push; až vaše ano založí repozitář na GitHubu,
+          release, web a záznam v katalogu.</p>
+        </li>
+      </ol>
+    </div>
+  </section>
+
+  <section id="features">
+    <div class="wrap">
+      <h2>Co dostane každý nástroj</h2>
+      <div class="grid">
+        <div>
+          <h3>Vlastní zvuk a knoby</h3>
+          <p>Syntéza i seznam knobů se navrhují pro každý nástroj zvlášť, podle průzkumu
+          a schváleného prototypu; nic není samplované. Flétna a elektrická kytara skončí
+          s jinými ovládacími prvky.</p>
+        </div>
+        <div>
+          <h3>Platforma pro hraní</h3>
+          <p>Hlasy Poly, Mono a Legato, glide, ohyb výšky, sustain pedál, modulační kolečko
+          a aftertouch. Dvě LFO a velocity pohnou kterýmkoli knobem o míru nastavenou přímo na
+          knobu, na klávesnici i na šestnácti padech.</p>
+        </div>
+        <div>
+          <h3>Aplikace i Audio Unit</h3>
+          <p>Aplikace pro Mac s klávesnicí a pady na obrazovce a nástroj Audio Unit se stejným
+          oknem pro Logic Pro, Ableton Live a další hostitele. Presety, kity a MIDI learn,
+          společné pro obojí.</p>
+        </div>
+        <div>
+          <h3>Postavené, aby vydrželo</h3>
+          <p>ID parametrů, která se nikdy nemění, takže další verze mohou přidat knoby, aniž
+          by rozbily komukoli uložené projekty. Stovky testů platformy, test enginu proti
+          schválenému prototypu a Applova kontrola <code>auval</code> v každé fázi.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="use">
+    <div class="wrap grid">
+      <div>
+        <h2>Použití</h2>
+        <p>Nainstalujte ho jako osobní skill, pak otevřete Claude Code v prázdné složce
+        a napište:</p>
+<pre><code>git clone https://github.com/jiripisa/create-audio-plugin.git
+ln -s "$PWD/create-audio-plugin" ~/.claude/skills/create-audio-plugin
+
+mkdir ~/Music/Strunka && cd ~/Music/Strunka
+claude
+› chci audio plugin pro elektrickou kytaru</code></pre>
+        <p class="note">Spouštějte ho v auto mode: běh trvá hodiny a neměl by čekat na
+        povolení.</p>
+      </div>
+      <div>
+        <h2>Co potřebuje</h2>
+        <ul class="needs">
+          <li>Claude Code a plný Xcode kvůli ikoně aplikace (Xcode projekt se nepoužívá)</li>
+          <li>Skill <code>new-macos-app</code> s rendererem <code>--templates</code>;
+          změna je v <code>patches/</code></li>
+          <li>Certifikát Developer ID a profil notarytoolu <code>notary</code></li>
+          <li>Podpisový klíč Sparkle v login Keychainu</li>
+          <li>Přihlášené CLI <code>gh</code></li>
+          <li>Codex na grafiku; bez něj je vzhled čisté SwiftUI</li>
+        </ul>
+        <p class="note">Je napsaný pro moje vlastní prostředí: můj účet na GitHubu, moji
+        podpisovou identitu a můj kód výrobce Audio Unitů. Berte ho jako vyzkoušený postup,
+        nebo si tyhle věci změňte na svoje.</p>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <div class="wrap">
+    <span>create-audio-plugin, Jiří Píša.</span>
+    <span><a href="https://github.com/jiripisa/create-audio-plugin">Zdrojový kód na GitHubu</a> · <a href="https://jiripisa.github.io/">Všechny projekty</a></span>
+  </div>
+</footer>
+
+</body>
+</html>

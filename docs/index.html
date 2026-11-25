@@ -1,0 +1,164 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>create-audio-plugin — a Claude Code skill</title>
+<meta name="description" content="A Claude Code skill that turns one sentence into a synthesized instrument for the Mac: an Audio Unit and a standalone app, signed, notarized and on its own download page.">
+<meta property="og:title" content="create-audio-plugin">
+<meta property="og:description" content="A Claude Code skill that turns one sentence into a synthesized instrument for the Mac: an Audio Unit and a standalone app, signed, notarized and on its own download page.">
+<meta property="og:image" content="https://jiripisa.github.io/create-audio-plugin/assets/create-audio-plugin-page.jpg">
+<meta property="og:type" content="website">
+<link rel="alternate" hreflang="en" href="https://jiripisa.github.io/create-audio-plugin/">
+<link rel="alternate" hreflang="cs" href="https://jiripisa.github.io/create-audio-plugin/cs/">
+<link rel="alternate" hreflang="x-default" href="https://jiripisa.github.io/create-audio-plugin/">
+<link rel="icon" href="assets/icon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="assets/site.css">
+</head>
+<body>
+
+<header class="wrap masthead">
+  <a class="brand" href="#top"><img src="assets/icon.svg" alt="" width="38" height="38">create-audio-plugin</a>
+  <nav aria-label="Page">
+    <a href="#how">How it works</a>
+    <a href="#use">Use it</a>
+    <a href="https://github.com/jiripisa/create-audio-plugin">GitHub</a>
+    <a class="lang" href="cs/" hreflang="cs" lang="cs">Česky</a>
+  </nav>
+</header>
+
+<main id="top">
+  <div class="wrap hero">
+    <h1>create-audio-plugin</h1>
+    <p class="prompt">an audio plugin for an electric guitar</p>
+    <p class="lede">A Claude Code skill that turns that one sentence into a synthesized
+    instrument for the Mac: an Audio Unit and a standalone app, signed, notarized and on its
+    own download page. You approve how it sounds; the rest is built for you.</p>
+    <div class="actions">
+      <a class="button" href="https://github.com/jiripisa/create-audio-plugin">Source on GitHub</a>
+      <span class="meta">For Claude Code on macOS 27. Plug-ins are built for macOS 27.</span>
+    </div>
+
+    <figure class="made">
+      <div class="row">
+        <a href="https://jiripisa.github.io/brumle/"><img src="https://jiripisa.github.io/brumle/assets/brumle-window.png" alt="The Brumle window" loading="lazy"><span class="name">Brumle</span>a jaw harp</a>
+        <a href="https://jiripisa.github.io/didgeridoo/"><img src="https://jiripisa.github.io/didgeridoo/assets/didgeridoo-window.png" alt="The Didgeridoo window" loading="lazy"><span class="name">Didgeridoo</span>a didgeridoo</a>
+        <a href="https://jiripisa.github.io/fanfrnoch/"><img src="https://jiripisa.github.io/fanfrnoch/assets/fanfrnoch-window.png" alt="The Fanfrnoch window" loading="lazy"><span class="name">Fanfrnoch</span>a Czech friction drum</a>
+      </div>
+      <figcaption>The skill writes down how these three were made, and starts every new
+      instrument from the platform they share.</figcaption>
+    </figure>
+  </div>
+
+  <section id="how">
+    <div class="wrap">
+      <h2>From one sentence to a release</h2>
+      <ol class="steps">
+        <li>
+          <h3>Intake <span class="gate">you</span></h3>
+          <p>Run it in an empty folder named after the instrument. The folder's name becomes
+          the product's name, bundle id and Audio Unit code; you confirm it, and choose whether
+          you want three looks to pick from or leave the look to Claude.</p>
+        </li>
+        <li>
+          <h3>Research</h3>
+          <p>Five researchers work in parallel on the instrument: how it makes its sound, how
+          it is played, its relatives and variants, recordings to measure against, and how
+          others have synthesized it.</p>
+        </li>
+        <li>
+          <h3>A sound to approve <span class="gate">you</span></h3>
+          <p>A small prototype plays phrases of the instrument the way the plug-in will play
+          them, and every render is measured before you hear it. Nothing is built until you
+          say it sounds right; until then you say what to change.</p>
+        </li>
+        <li>
+          <h3>The build</h3>
+          <p>A spec, then the engine, the instrument's own knobs, the panel, the artwork
+          (drawn with Codex), the bilingual website and manual, and the tests, phase by phase,
+          each one reviewed and verified before it is merged.</p>
+        </li>
+        <li>
+          <h3>One question before anything goes public <span class="gate">you</span></h3>
+          <p>A signed and notarized disk image, Sparkle updates and the website are ready
+          locally. One question names every push; only your yes creates the GitHub repo,
+          the release, the website and the catalog entry.</p>
+        </li>
+      </ol>
+    </div>
+  </section>
+
+  <section id="features">
+    <div class="wrap">
+      <h2>What every instrument gets</h2>
+      <div class="grid">
+        <div>
+          <h3>Its own sound and knobs</h3>
+          <p>The synthesis and the list of knobs are designed for each instrument from the
+          research and the approved prototype; nothing is sampled. A flute and an electric
+          guitar end up with different controls.</p>
+        </div>
+        <div>
+          <h3>A playing platform</h3>
+          <p>Poly, Mono and Legato voices, glide, pitch bend, the sustain pedal, mod wheel
+          and aftertouch. Two LFOs and the velocity move any knob by an amount set on the knob,
+          on the keyboard and on the sixteen pads alike.</p>
+        </div>
+        <div>
+          <h3>App and Audio Unit</h3>
+          <p>A Mac app with an on-screen keyboard and pads, and an Audio Unit instrument with
+          the same window for Logic Pro, Ableton Live and other hosts. Presets, kits and MIDI
+          learn, shared by both.</p>
+        </div>
+        <div>
+          <h3>Built to last</h3>
+          <p>Parameter IDs that never change, so later versions can add knobs without
+          breaking anyone's saved projects. Hundreds of platform tests, a test of the engine
+          against the approved prototype, and Apple's <code>auval</code> check in every phase.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="use">
+    <div class="wrap grid">
+      <div>
+        <h2>Use it</h2>
+        <p>Install it as a personal skill, then open Claude Code in an empty folder and ask:</p>
+<pre><code>git clone https://github.com/jiripisa/create-audio-plugin.git
+ln -s "$PWD/create-audio-plugin" ~/.claude/skills/create-audio-plugin
+
+mkdir ~/Music/Strunka && cd ~/Music/Strunka
+claude
+› an audio plugin for an electric guitar</code></pre>
+        <p class="note">Run it in auto mode: a run takes hours and should not wait on
+        permission prompts.</p>
+      </div>
+      <div>
+        <h2>What it needs</h2>
+        <ul class="needs">
+          <li>Claude Code, and full Xcode for the app icon (no Xcode project is used)</li>
+          <li>A <code>new-macos-app</code> skill with the <code>--templates</code> renderer;
+          the change is in <code>patches/</code></li>
+          <li>A Developer ID certificate and a <code>notary</code> notarytool profile</li>
+          <li>A Sparkle signing key in the login Keychain</li>
+          <li>The <code>gh</code> CLI, logged in</li>
+          <li>Codex for the artwork; without it the look is plain SwiftUI</li>
+        </ul>
+        <p class="note">It is written for my own set-up: my GitHub account, my signing
+        identity and my Audio Unit manufacturer code. Take it as a worked method, or change
+        those to yours.</p>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <div class="wrap">
+    <span>create-audio-plugin by Jiří Píša.</span>
+    <span><a href="https://github.com/jiripisa/create-audio-plugin">Source on GitHub</a> · <a href="https://jiripisa.github.io/">All projects</a></span>
+  </div>
+</footer>
+
+</body>
+</html>
