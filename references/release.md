@@ -6,16 +6,19 @@ this skill needs around it. Where the two differ, the project skill wins, **exce
 always beat it: the user's global rules (`~/.claude/CLAUDE.md`), the single bold push question
 below (asked in this run whatever "yes" came earlier in the conversation), and the capture rule of
 `verification-kit.md` (the real app starts only when the default output's transport is
-Built-in). A step of the project skill that conflicts with them (its step 3 opens the app without
-that check; its header lets an earlier yes skip the question) is skipped or done the safe way, and
-recorded in the phase's `VERIFICATION.md`.
+Built-in). The project skill already holds both: its step 3 starts the app only on a `Built-in`
+default output, and its header asks the question in every run, whatever yes came before. A
+project made from an older template whose skill lacks either still follows these rules: that step
+is skipped or done the safe way, and recorded in the phase's `VERIFICATION.md`.
 
 ## Before step 1
 
 - Phases 01–05 merged; `main` clean.
 - `grep -rn "FILL:" docs .planning/ROADMAP.md .planning/STATE.md` → nothing.
 - `<skill>/scripts/check_leftovers.sh --skip-dir .planning <proj> <words>` → `no leftovers`
-  (`phases.md`, the words file).
+  (`phases.md`, the words file), and the placeholder engine's words apart:
+  `grep -rn 'kProgramTone\|"Soft Tone"\|placeholder instrument' Sources/<APP>DSP Tests/<APP>Reference docs`
+  → nothing.
 - Signing ready: `security find-identity -v -p codesigning | grep "Developer ID Application"`,
   `xcrun notarytool history --keychain-profile notary` succeeds, and
   `.build/artifacts/sparkle/Sparkle/bin/generate_keys -p` equals `SUPublicEDKey` in

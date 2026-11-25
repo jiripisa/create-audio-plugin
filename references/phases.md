@@ -29,12 +29,17 @@ Names: `<skill>`, `<scratch>`, `<proj>`, and the identity's `<APP>`, `<APP_NAME>
 A subagent that reports "could not run the tests" (Docker, network, a tool) has not passed: the
 main session fixes the environment and runs them before the phase goes on.
 
-**The words file.** `<words>` is `<skill>/scripts/leftover-words.txt`, unless the new
-instrument's own vocabulary is in it (a drum would hit `drum`, `skin`, `stick`): then copy it to
-`.planning/leftover-words.txt`, delete only the instrument's own words with a comment saying why
-[call], and use that copy. The list does not hold the placeholder engine's words; check those
-separately after phase 02: `grep -rn 'kProgramTone\|"Soft Tone"\|placeholder instrument' Sources/<APP>DSP Tests/<APP>Reference docs`
-→ nothing ("Soft Tone" stays as example text in platform comments and tests).
+**The words file.** `<words>` is `<skill>/scripts/leftover-words.txt`: the template source's
+identity (`fanfrnoch`, …) and the template's test render (`Zkusebnik`, `Zkušebník`). It holds no
+instrument vocabulary, so a new instrument's own words (a drum, a skin, a stick) never trip it;
+the source instrument's words and its siblings' are `<skill>/scripts/template-words.txt`, which
+only `verify_template.sh` checks the template with, never a run. Should the new instrument's name
+or words still be in `leftover-words.txt`, copy it to `.planning/leftover-words.txt`, delete only
+those words with a comment saying why [call], and use that copy. The list cannot hold the
+placeholder engine's words (the template and phase 01 are made of them); check those separately
+after phase 02: `grep -rn 'kProgramTone\|"Soft Tone"\|placeholder instrument' Sources/<APP>DSP Tests/<APP>Reference docs`
+→ nothing ("Soft Tone" stays as example text in platform comments and tests), and `FILL:` as its
+phase and the release say.
 
 ## Global constraints (paste into every subagent brief)
 
@@ -150,8 +155,11 @@ TASKS (write PLAN.md first; test-first where a test can say it):
 2. Sources/<APP>DSP/Params.h from spec §6-§8: InstrumentKnob, kInstrumentKnobs (identifiers,
    names, ranges, defaults, units, CCs exactly as the spec), kLfoTargets, kVelTargets (every
    continuous instrument knob plus volume, pan, tune, lfo1rate, lfo2rate), kModWheelTargets,
-   kAftertouchTargets, kSections, kPrograms (kPrograms[0] with no overrides), kDefaultKit,
-   kRehitContinues, kOutputLevel, kTailSeconds. The static_asserts of ParamTable.h must hold.
+   kAftertouchTargets, kPlatformDefaults (the spec §7 playing style: each platform knob whose
+   default the instrument changes, e.g. { kVoiceMode, kVoiceLegato }, { kGlide, 80.0f }; only
+   { kNoTarget, 0 } when it plays as the platform does), kSections, kPrograms (kPrograms[0] with
+   no overrides), kDefaultKit (no override of a kPlatformDefaults knob), kRehitContinues,
+   kOutputLevel, kTailSeconds. The static_asserts of ParamTable.h must hold.
 3. Sources/<APP>DSP/Voice.h: the spike's voice behind start(knobs, note, velocity, continuing),
    release(), render(out, frames), finished(); pitch from knobs.hz(note) (bend, glide); level
    free of velocity (the platform applies Vel Sens and VEL>Volume); random generators ported draw
@@ -170,7 +178,8 @@ TASKS (write PLAN.md first; test-first where a test can say it):
 6. Listening renders measured: <APP_UPPER>_LISTEN_DIR=<proj>/.planning/research/spike/renders/engine
    swift test --filter ListeningRenders, then <scratch>/analyze <those files> --json (compile it
    from <skill>/scripts/analyze.swift), with the tail rules of prototype.md ("Measuring"): every
-   tail falling, not flat (`tail.centroidHz` for hiss or hum), windows computed from each file's
+   tail falling, not flat, except a render that has reached digital silence (-200 dBFS, which
+   cannot fall further) (`tail.centroidHz` for hiss or hum), windows computed from each file's
    `durationS` (`--tail` counts from the start); -80 dBFS or below (-200 passes) only where the
    voice is over, so render the prototype's `S…_silence_*` scores with enough tail (after
    `finished()`); stroke counts; levels. Name in VERIFICATION.md every render that is "measured, not heard".

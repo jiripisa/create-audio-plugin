@@ -102,12 +102,14 @@ table at the end maps each item to its guard and to the file that carries it.
 
 ## Guards of the template (not from the reports)
 
-- `check_leftovers.sh`'s list holds the source instrument's words (`drum`, `stick`, `skin`, …): an
-  instrument whose own words are in it uses a copy without them (`phases.md`).
-- The list does not hold the placeholder engine's words: after phase 02,
+- A run's words file (`scripts/leftover-words.txt`) holds the source's identity and the test
+  render's name, no instrument vocabulary; the source instrument's words (`drum`, `stick`, `skin`,
+  …) and the siblings' are `scripts/template-words.txt`, for the template only (`phases.md`).
+- Neither list holds the placeholder engine's words: after phase 02,
   `grep -rn 'kProgramTone\|"Soft Tone"' Sources/<APP>DSP Tests/<APP>Reference docs` → nothing.
-- A fresh instance starts on the table's defaults: `kPrograms[0]` has no overrides; a playing
-  style other than Poly / Glide 0 / Bend 2 lives in the other programs (`spec-template.md` §7).
+- A playing style other than Poly / Glide 0 / Bend 2 is the instrument's defaults of platform
+  knobs, `kPlatformDefaults` in `Params.h` (`spec-template.md` §7), never a program: a fresh
+  instance starts on the table's defaults and `kPrograms[0]` has no overrides.
 - `scaffold.py` refuses a non-empty target: render into the scratchpad and copy in (`phases.md`).
 - Taglines hold no `"`, `\`, `$`, backtick or `": "` (`TEMPLATE_MANIFEST.md` "Taglines").
 

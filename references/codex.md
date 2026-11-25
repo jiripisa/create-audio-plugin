@@ -80,9 +80,12 @@ Keep that structure; the look is new and must be the product's own.
 **Knob sections, each titled, every label once, each knob with its name above and its value below:**
 - **<Section>:** <Name> <value unit>, … (one line per kSections entry, every knob, switches as
   "a 2-way switch **A | B**")
-- **Master:** Volume 0.0 dB, Pan 0 %, Tune 0 ct, Octave 0, Bend Up 2 st, Bend Down 2 st, a switch
-  **Voice Mode: Poly | Mono | Legato**, Glide 0 ms, a switch **LFO Start: Hit | Free**, LFO 1 Rate
-  6.0 Hz + LFO 1 Shape (small menu "Sine"), LFO 2 Rate 2.0 Hz + LFO 2 Shape, Vel Sens 70 %.
+- **Master:** Volume 0.0 dB, Pan 0 %, Tune 0 ct, Octave 0, Bend Up <bend up> st, Bend Down
+  <bend down> st, a switch **Voice Mode: Poly | Mono | Legato** (showing <voice mode>), Glide
+  <glide> ms, a switch **LFO Start: Hit | Free**, LFO 1 Rate 6.0 Hz + LFO 1 Shape (small menu
+  "Sine"), LFO 2 Rate 2.0 Hz + LFO 2 Shape, Vel Sens 70 %. (The values are the spec's defaults:
+  the platform's, Bend 2 / 2 st, Poly, Glide 0 ms, except where §7's `kPlatformDefaults` sets the
+  instrument's own; the same for any other Master knob it sets.)
 That is <n> knobs. They must stay readable (modest knob caps, strong contrast for labels and
 values). Arrange the sections in a balanced grid; every control visible.
 **Mode area, below the knobs:**

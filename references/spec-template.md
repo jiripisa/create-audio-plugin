@@ -97,10 +97,13 @@ appended; nothing is renamed, removed or reordered.
 
 ## 7. Modes and voices
 Keyboard mode: the playing style [call from the report's "Playing style"]: the Voice Mode, Glide
-and bend range the instrument wants. The platform block's defaults are fixed (Poly, Glide 0, Bend
-2/2, `ParameterTableTests`) and a fresh instance starts on the table's defaults, not on a
-program's overrides, so `kPrograms[0]` (the default sound) has no overrides; the programs that
-need another playing style set Voice Mode, Glide and Bend Up/Down as overrides. `kRehitContinues` (true: a re-hit continues the
+and bend range the instrument wants, written as its defaults of platform knobs, the table
+`kPlatformDefaults` in `Params.h`: `{ knob, plain value }` for each one that differs from the
+platform's own (Poly, Glide 0 ms, Bend Up/Down 2 st; a flute: `{ kVoiceMode, kVoiceLegato }`,
+`{ kGlide, <ms> }`), none for an instrument that plays as the platform does. It is the only way to
+change a platform knob's default: the table, a fresh instance, the Audio Unit, "reset to default"
+and the panel all take it. `kPrograms[0]` (the default sound) has no overrides; another program may
+set Voice Mode, Glide or the bend range as overrides, the default kit none of them. `kRehitContinues` (true: a re-hit continues the
 sounding voice; false: it fades out in 3 ms and a fresh voice starts). Sustain pedal as the
 platform does it. What the voice does with `continuing`.
 Pads: 16 pads, each one frozen key press (one program and knob set, one note, a group); every
