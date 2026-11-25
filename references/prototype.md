@@ -55,8 +55,13 @@ spike has none.
 - `P01_<program>` … one per planned program; `K01_kit` a groove over the planned default kit when
   the instrument is played on pads.
 - Every group plays the instrument's typical material (strokes and a phrase, or a melody, or
-  chords), at the register the report names. Include long tails (the harness renders 2 s after
-  the last note), a quiet passage, a soft note with its full release, and a held note.
+  chords), at the register the report names. Include long tails, a quiet passage, a soft note
+  with its full release, and a held note.
+- `S01_silence_<case>` …: one render per way a voice ends (a note-off, a choke by a re-hit, a stroke
+  ringing out), followed by enough tail that the voice is over for good (`finished()`): at least
+  the longest T60 of the case plus 1 s (`Score::withTail(seconds)`; the harness's default
+  `kTail` is only 2 s). These are the renders the silence bar below applies to; LISTENING.md lists them as
+  measurement renders (the user may skip them).
 - Peak-normalise each render to -1 dBFS (`normalize()`), so files differ in colour, not level.
 - Later rounds: A/B on the same score, level-matched: `R2_<topic>_A_before`, `R2_<topic>_B_after`.
 
@@ -73,19 +78,27 @@ Every file is measured before the user hears anything:
 swiftc -O <skill>/scripts/analyze.swift -o <scratch>/analyze
 <scratch>/analyze renders/*.wav --json > <scratch>/measure-renders.json
 <scratch>/analyze renders/01a_default.wav --ref renders/references/R1_<…>.wav
-<scratch>/analyze renders/<file>.wav --tail <a-b>     # an earlier and a later tail window
+<scratch>/analyze renders/<file>.wav --tail <a-b>     # seconds from the file's START
 ```
+
+`--tail a-b` counts from the start of the file; for windows near the end compute them from the
+file's length (`durationS` in the JSON): the last 0.5 s is `--tail <d-0.5>-<d>`, an earlier one
+`--tail <d-1.5>-<d-1>`.
 
 Check and write down:
 - against the recordings (same register): H2…H8 within about 3 dB of the recording's, HNR and
   centroid inside the recordings' ranges, attack, decay/T60 and release against the measured
   ones, f0 found where it should be (the tool finds the pitch first; a "too good" match is
   re-checked by hand);
-- **the tail floor** of every render: `tail.floorDb` of the last 0.5 s at or below -80 dBFS, and
-  falling between an earlier and a later tail window (for example `--tail 2-2.5` and
-  `--tail 3-3.5`). A floor that stays flat while the note should be dying is noise left in the
-  voice (Brumle's hiss); its `tail.centroidHz` says hiss (high) or hum (low). Fix it in the spike
-  before sending;
+- **the tails** (Brumle's hiss was found only by the ear):
+  - every render: the level falls between an earlier and a later window near the end (above),
+    never flat while the note should be dying; a flat floor is noise left in the voice, and
+    `tail.centroidHz` says hiss (high) or hum (low). A ringing instrument may still be loud at the
+    file's end (a pluck at -40…-50 dBFS 2 s on): that is fine as long as it falls at the rate its
+    T60 says;
+  - the `S…_silence_*` renders, where the voice is over: `tail.floorDb` of the last 0.5 s at or
+    below -80 dBFS; -200 (digital silence) is a pass;
+  - fix a flaw in the spike before sending;
 - for phrases and grooves: `strokes.count` equals the notes of the score, `strokeRate` against
   the research's; `strokesSuspect` true means the count is not to be trusted (re-measure one
   stroke with `--window`);

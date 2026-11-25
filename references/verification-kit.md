@@ -9,7 +9,7 @@ and views, not the app.
 
 | What had to be shown | How |
 |---|---|
-| The audio output follows the hardware | The app's real `AudioOutput.swift` compiled with a stand-in synth. "A device is plugged in" is an aggregate device private to the process (`kAudioAggregateDeviceIsPrivateKey`). Only silence is rendered |
+| The audio output follows the hardware | The app's real `AudioOutput.swift` compiled with a stand-in synth. "A device is plugged in" is an aggregate device private to the process (`kAudioAggregateDeviceIsPrivateKey`) whose only sub-device, if any, is a built-in one (never the user's interface). Only silence is rendered |
 | MIDI input survives devices coming and going | The real `MIDIInput.swift` against virtual sources (`MIDISourceCreateWithProtocol`). A replugged device is a new source with the old unique ID |
 | A text field's behaviour | The view in an `NSHostingView` inside a window that is never shown, typed into through the field editor |
 | The plug-in's window on the real unit | The template's tests register the Audio Unit inside the test process and drive it through the window's model (`AudioUnitWindowTests`) |
@@ -19,7 +19,7 @@ and views, not the app.
 | An open menu, a popover | The app or stand-in started in the background, driven through AX: press the menu, read its items and ticks, capture the menu's window (same PID) |
 | The window as the released app draws it | The stand-in marked with the release's `LC_BUILD_VERSION` (below) |
 | The icon as the system shows it | `NSWorkspace.shared.icon(forFile:)` with an **absolute** path (a relative one gives the generic icon), drawn into a bitmap |
-| The website | Playwright screenshots at 1440 and 400 px; EN and CS compared tag for tag |
+| The website | Playwright screenshots at 1440 and 400 px (no browser installed by the run: without one it is "Not verified"); EN and CS compared tag for tag |
 | The sound | `scripts/analyze.swift` on WAVs the engine wrote (`ListeningRenders`, a scratch program over `Synth`): pitch found first, then harmonics, levels, tails, strokes |
 
 ## Before starting the real app

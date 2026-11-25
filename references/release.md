@@ -2,7 +2,13 @@
 
 The procedure and every check are the project's own skill: **`<proj>/.claude/skills/release/SKILL.md`**
 (rendered from the template). Follow it step by step; this file adds only what a first run of
-this skill needs around it. Where the two seem to differ, the project skill wins.
+this skill needs around it. Where the two differ, the project skill wins, **except** that these
+always beat it: the user's global rules (`~/.claude/CLAUDE.md`), the single bold push question
+below (asked in this run whatever "yes" came earlier in the conversation), and the capture rule of
+`verification-kit.md` (the real app starts only when the default output's transport is
+Built-in). A step of the project skill that conflicts with them (its step 3 opens the app without
+that check; its header lets an earlier yes skip the question) is skipped or done the safe way, and
+recorded in the phase's `VERIFICATION.md`.
 
 ## Before step 1
 

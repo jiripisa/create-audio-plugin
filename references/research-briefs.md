@@ -61,7 +61,8 @@ you could not find, the notes path.
 
 ## Download rules
 
-Paste into every brief (all five may download papers; the recordings topic downloads audio):
+Paste into every brief, the report writer's too (all may download papers; the recordings topic
+downloads audio):
 
 ```
 DOWNLOADS (any file you fetch: audio, PDF, archive).
@@ -197,6 +198,7 @@ You write the research report for <APP_NAME>, a synthesized <instrument>.
 Read the five notes in <proj>/.planning/research/research_notes/<Title>/ in full. Write
 <proj>/.planning/research/reports/<Title>.md. Research further only to check a number against its
 source. Write nothing else. Do not stop to ask questions.
+<paste the DOWNLOAD RULES block>
 
 FORM, in this order:
 1. A declarative headline: "# " and a claim about how the instrument makes its sound ("The reed

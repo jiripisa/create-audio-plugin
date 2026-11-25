@@ -17,8 +17,9 @@ to whoever builds, who records the choice in the phase's `VERIFICATION.md`.
 Status: written <date> after the user's listening. The user approved the prototype's renders
 ("<verdict, verbatim>", <date>) [user]. The user started this run with the create-audio-plugin
 skill, which builds and prepares the release autonomously: approval of this document is
-delegated, and every [call] below is open to the user's correction at any point. The only
-question still to come is the push question at the end.
+delegated, and every [call] below is open to the user's correction at any point. Still to
+come from the user: <in a "three concepts" run: the pick of the look, and> the push question at
+the end.
 
 Sources: `.planning/research/reports/<Title>.md` (and its notes), the listening prototype
 `.planning/research/spike/<slug>_spike.cpp` with `LISTENING.md`. Platform: the create-audio-plugin

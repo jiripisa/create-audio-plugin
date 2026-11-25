@@ -62,8 +62,8 @@ GLOBAL CONSTRAINTS (binding).
   bring an app to the front, never send keystrokes or clicks through System Events; drive only
   through AX actions on your own PID. Never open an audio stream unless the default output's
   transport is Built-in (system_profiler SPAudioDataType); never change the default output.
-  Copy the AU component to ~/Library/Audio/Plug-Ins/Components only for an auval run and remove
-  it right after. Never write to connected hardware.
+  Copy the AU component to ~/Library/Audio/Plug-Ins/Components only for an auval run or the
+  scratch AU host, and remove it right after. Never write to connected hardware.
 - Clean up what you start or write outside <proj>: quit the processes, `defaults delete` the
   domains your runs created (the app's, stand-ins', helpers'), remove their plists, Application
   Support, Caches, Saved Application State and HTTPStorages entries; list them in VERIFICATION.md.
@@ -85,7 +85,13 @@ jq --arg a "$(git config user.name)" '. + {AUTHOR: $a, TAGLINE: "<EN>", TAGLINE_
   <scratch>/identity.json > <scratch>/app.json
 ```
 
-Taglines: one sentence each, what the instrument is; `printf '%s\n' "<EN>" "<CS>" | grep -nE '["\\$`]|: '`
+Taglines: one sentence each, what the instrument is. Check them from the file, so the shell
+expands nothing:
+
+```
+jq -r '.TAGLINE, .TAGLINE_CS' <scratch>/app.json | grep -nE '["\\$`]|: '
+```
+
 must print nothing.
 
 1. Render into the scratchpad (scaffold refuses a non-empty target, and `<proj>` already holds
@@ -163,8 +169,11 @@ TASKS (write PLAN.md first; test-first where a test can say it):
    one core); kTailSeconds against InstrumentTableTests.tail.
 6. Listening renders measured: <APP_UPPER>_LISTEN_DIR=<proj>/.planning/research/spike/renders/engine
    swift test --filter ListeningRenders, then <scratch>/analyze <those files> --json (compile it
-   from <skill>/scripts/analyze.swift): tail floors at or below -80 dBFS and falling, stroke
-   counts, levels. Name in VERIFICATION.md every render that is "measured, not heard".
+   from <skill>/scripts/analyze.swift), with the tail rules of prototype.md ("Measuring"): every
+   tail falling, not flat (`tail.centroidHz` for hiss or hum), windows computed from each file's
+   `durationS` (`--tail` counts from the start); -80 dBFS or below (-200 passes) only where the
+   voice is over, so render the prototype's `S…_silence_*` scores with enough tail (after
+   `finished()`); stroke counts; levels. Name in VERIFICATION.md every render that is "measured, not heard".
 7. Any change to the approved sound found necessary (a flaw found by measurement) goes into the
    spike, the reference copy and the engine alike; the approved renders stay identical up to
    where the flaw starts; amend the spec with a date. List it as "measured, not heard".
@@ -262,7 +271,8 @@ CHANGELOG.md; <skill>/references/verification-kit.md.
 <GLOBAL CONSTRAINTS>
 
 TASKS:
-1. The icon: <scratch>/codex-icon/AppIcon.png → Resources/AppIcon.png; `sips -g pixelWidth
+1. The icon: <scratch>/codex-icon/AppIcon.png (no Codex: <scratch>/icon/AppIcon.png, the main
+   session's opaque full-bleed icon, codex.md "No Codex") → Resources/AppIcon.png; `sips -g pixelWidth
    -g pixelHeight -g hasAlpha` gives 1024, 1024, no. The fill colour in
    Resources/AppIcon.icon/icon.json may follow the art. ./build.sh release (actool). Render
    NSWorkspace.shared.icon(forFile:) of the built app, by its ABSOLUTE path, into a 256 px PNG:
@@ -272,7 +282,9 @@ TASKS:
    written by you from the manual, the CHANGELOG and the code, in the template's plain tone. Leave
    the version and download links as they are (the release replaces them).
 3. docs/assets/<slug>-window.png: a capture of the real release app by PID (capture rule), else a
-   stand-in picture, labelled in VERIFICATION.md.
+   stand-in picture, labelled in VERIFICATION.md. No Codex: that capture is also the hero,
+   `sips -s format jpeg docs/assets/<slug>-window.png --out docs/assets/hero-<slug>.jpg`, and the
+   ornament's uses are replaced by a CSS rule, tag for tag in EN and CS (codex.md "No Codex").
 4. Hand back after 1-3. The main session runs the Codex site job, then continues you to apply and
    review it.
 5. Review: headless Chromium through Playwright (or the webapp-testing skill) at 1440 and 400 px,
@@ -280,6 +292,8 @@ TASKS:
    file://<proj>/docs/index.html <scratch>/site/en-400.png`; the PNG is as wide as the viewport
    (no horizontal overflow); no failed image; contrast of text, links and the button checked; the
    manual's marks still on their controls; EN and CS tag for tag (the diff above for both pages).
+   The run never installs a browser: when Playwright has no Chromium (or `npx` is refused), the
+   site review is "Not verified" (say which checks), and the tag-for-tag diff is still run.
 6. `grep -rn "FILL:" docs .planning/ROADMAP.md .planning/STATE.md` → nothing in docs; in
    ROADMAP.md only phase 05's own row, which the main session fills at the merge.
 

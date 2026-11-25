@@ -17,8 +17,9 @@ table at the end maps each item to its guard and to the file that carries it.
 
 - No product code before the user has approved renders laid next to real recordings: research,
   then the spike, then the gate. (D1)
-- Renders include long tails and quiet passages; every render's tail floor is measured (two tail
-  windows, at or below -80 dBFS and falling) before anything is sent. (B3)
+- Renders include long tails and quiet passages; before anything is sent every tail is measured
+  falling, not flat (two windows from the file's end; `tail.centroidHz` for hiss), and the
+  `S…_silence_*` renders, where the voice is over, reach -80 dBFS or below (-200 passes). (B3)
 - The analyser finds the pitch first and reads harmonics at that pitch, never at the key's
   nominal pitch; numbers that look too good are checked again. (D12)
 - The same aspect rejected twice: stop tuning; ask for a reference the user finds right, or offer
