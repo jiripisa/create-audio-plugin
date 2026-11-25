@@ -2,18 +2,20 @@
 //
 // A run's prototype, .planning/research/spike/<slug>_spike.cpp, holds only the instrument (a
 // Params struct with the defaults, a Voice, one function per program) and its list of renders.
-// Everything else is here: notes and scores, a voice pool that plays a score, deterministic
-// randomness, a 24-bit WAV writer, and the command line. Copy this file next to the spike so the
-// spike folder builds on its own; scripts/spike_example.cpp is the pattern to follow.
+// Everything else is here: notes and scores, the platform around a voice (play: what the plug-in's
+// engine will do with the same notes), a 24-bit WAV writer, and the command line. Copy this file
+// next to the spike so the spike folder builds on its own; scripts/spike_example.cpp is the
+// pattern to follow.
 //
-//   clang++ -std=c++17 -O2 <slug>_spike.cpp -o <slug>_spike
-//   ./<slug>_spike <dir> [prefix...]     writes <dir>/<name>.wav for every render (or only those
-//                                        whose name starts with one of the prefixes), then says
-//                                        which listed references are in <dir>/references/
-//   ./<slug>_spike --analyze [prefix] [--at seconds]
+//   clang++ -std=c++17 -O2 <slug>_spike.cpp -o <scratch>/<slug>_spike     (the binary never beside
+//                                        the source: the spike folder is committed)
+//   <scratch>/<slug>_spike <dir> [prefix...]   writes <dir>/<name>.wav for every render (or only
+//                                        those whose name starts with one of the prefixes), then
+//                                        says which listed references are in <dir>/references/
+//   <scratch>/<slug>_spike --analyze [prefix] [--at seconds]
 //                                        renders one render (the first that matches, default the
 //                                        first of all) in memory and prints a quick harmonic table
-//   ./<slug>_spike --list                prints the render names
+//   <scratch>/<slug>_spike --list        prints the render names
 //
 // --analyze is a built-in check while tuning, so that no file has to be written and nothing but
 // this header is needed. For one note it uses the same rules as scripts/analyze.swift (steady
@@ -22,26 +24,58 @@
 // onsets, so in a phrase its window may run into the next stroke. analyze.swift on the written
 // WAVs is the measurement that goes into reports and is compared with the recordings.
 //
+// play() is the platform: what the user approves on these renders is what the plug-in plays from
+// the same notes, so the pool here follows the template's engine rule for rule (its
+// <APP>Engine.cpp; TEMPLATE_MANIFEST.md "Melodic playing"):
+//   - a Voice has the engine's four calls (start, release, render, finished) and reads its pitch
+//     from Knobs::hz(note), which carries the pitch bend and the glide;
+//   - a note-on on a key whose voice sounds continues that voice (Playing::rehitContinues, the
+//     instrument's kRehitContinues) or fades it out in 3 ms and starts a fresh one;
+//   - Poly, Mono (last-note priority, every note attacked anew, a return to a key still held
+//     continues) and Legato (an overlapping note continues), with the engine's glide: from where
+//     the voice was to the new note in Glide ms, evenly in semitones, a control tick of 16
+//     samples at a time;
+//   - the sustain pedal, the pitch bend by Bend Up / Bend Down, Vel Sens on the level (the voice
+//     itself never scales its level by the velocity), 16 voices with the quietest stolen;
+//   - pads (Playing::pads): a pad is a key press with a voice of its own or of its group; no
+//     voice mode, glide, bend or pedal.
+// Not played here: the LFO and VEL amounts and the wheels, which rest at 0 in the default sound
+// (the engine's ListeningRenders play them), and the 2x stage below 88.2 kHz (the reference copy
+// of the prototype runs play() at the engine's rate, phase 02).
+//
 // Conventions:
 //   - mono, float samples, default 48 kHz (kRate); every helper takes the rate where it matters
-//   - keys are MIDI note numbers (60 = C4, 69 = A4 = 440 Hz), velocities 0..1, times in seconds
+//   - keys are MIDI note numbers (60 = C4, 69 = A4 = 440 Hz), velocities 0..1, times in seconds;
+//     play() puts every event on a whole sample and takes velocities and bends as MIDI carries
+//     them (velocity round(v * 127) / 127 and at least 1 / 127, a 14-bit bend)
 //   - an Event with dur < 0 is a stroke: no note-off is sent, the voice rings out by itself
 //   - dBFS = 20 log10(RMS) with full scale 1.0 (a full-scale sine reads -3.0 dBFS); -200 stands
 //     for digital silence
-//   - randomness only from std::mt19937 seeded explicitly (seeded(), seedOf()) and turned into
-//     numbers by uniform()/white() here, because std's distributions differ between libraries:
-//     the same source gives the same files on every machine
+//   - randomness: a voice that needs random numbers owns a std::mt19937 and seeds it with
+//     kVoiceSeed at every fresh start (continuing == false); a continuing start goes on in the
+//     same stream. Numbers only through uniform()/white() here, because std's distributions
+//     differ between libraries. The engine does the same (the template's VoiceRandom.h holds the
+//     same constant and the same two functions), so two equal notes are equal samples in the
+//     prototype and in the plug-in, and the port is draw for draw. Nothing else is random: no
+//     generator shared between voices, no clock, no count of hits. (seeded()/seedOf() are for
+//     test signals mixed into a render, as the example's 00_check_* do, never for a voice.)
 //   - the WAV writer does not normalise; call normalize() in the spike's render function
 //     (-1 dBFS peak, so that the listener compares colour, not level)
 //   - nothing is written outside <dir>; the references folder is never created, only looked at
 
 #pragma once
 
+// A product and a sum stay two roundings in everything that includes this file, whatever the
+// build: the engine and the reference copy of the prototype are built this way, so the approved
+// renders are computed as the reference computes them (phase 02 compares the two files).
+#pragma clang fp contract(off)
+
 #include <algorithm>
 #include <cmath>
 #include <cstdint>
 #include <cstdio>
 #include <cstdlib>
+#include <deque>
 #include <filesystem>
 #include <functional>
 #include <random>
@@ -64,7 +98,11 @@ inline double gainToDb(double gain) { return gain > 1e-10 ? 20.0 * std::log10(ga
 
 // ---- randomness -------------------------------------------------------------------------------
 
-// FNV-1a of a text: a seed per render or per part that does not move when renders are reordered.
+// The seed of every voice's generator, at every fresh start (see "randomness" above). The same
+// constant as the template's VoiceRandom.h: change neither.
+inline constexpr uint32_t kVoiceSeed = 0x51ED270Bu;
+
+// FNV-1a of a text: a seed for a test signal that does not move when renders are reordered.
 inline uint32_t seedOf(std::string_view text)
 {
     uint32_t h = 2166136261u;
@@ -89,30 +127,71 @@ struct Event
     int key;        // MIDI note number
     float vel;      // 0..1
     double dur;     // s until the note-off; < 0 = a stroke (no note-off)
-    int part = 0;   // which voice prototype plays it (a program, a pad, a drum of a kit)
+    int part = 0;   // which voice prototype plays it: on the pads the pad, else a program to hear
+};
+
+// What a player does besides the notes: the sustain pedal and the pitch bend.
+struct Control
+{
+    enum Kind { Pedal, Bend };
+    double time;    // s
+    Kind kind;
+    float value;    // Pedal: 1 down, 0 up; Bend: -1 (all the way down) ... +1 (all the way up)
 };
 
 struct Score
 {
     std::vector<Event> events;
-    double length = 0;  // s rendered
+    std::vector<Control> controls;
+    double length = 0;      // s rendered
+    double ringOut = -1;    // >= 0: rendered until every voice is over, and this long after (untilOver)
+    double ringOutCap = 0;  // ... but no longer than this after the last note ends
 
-    // End of the last note (a stroke counts from its start).
+    // End of the last note (a stroke counts from its start) or control.
     double lastEnd() const
     {
         double end = 0;
         for (const Event& e : events) end = std::max(end, e.time + std::max(0.0, e.dur));
+        for (const Control& c : controls) end = std::max(end, c.time);
         return end;
     }
     // The render lasts until `seconds` after the last note ends.
-    Score& withTail(double seconds) { length = lastEnd() + seconds; return *this; }
+    Score& withTail(double seconds) { length = lastEnd() + seconds; ringOut = -1; return *this; }
+    // The render lasts until every voice is over for good (finished()), and `after` seconds of
+    // silence more: what a silence render needs (S01_silence_*), whatever the voice's T60. Never
+    // longer than `atMost` seconds after the last note ends (a voice that never ends).
+    Score& untilOver(double after = 0.5, double atMost = 60.0)
+    {
+        ringOut = after;
+        ringOutCap = atMost;
+        length = lastEnd() + atMost;
+        return *this;
+    }
     // Every event is played by voice prototype `p`.
     Score& onPart(int p) { for (Event& e : events) e.part = p; return *this; }
+    // The sustain pedal down at `down` and up again at `up`.
+    Score& pedal(double down, double up)
+    {
+        controls.push_back({down, Control::Pedal, 1.0f});
+        controls.push_back({up, Control::Pedal, 0.0f});
+        return *this;
+    }
+    // The pitch bend at `amount` (-1 ... +1) from `t` on; bend(t, 0) lets it go.
+    Score& bend(double t, float amount) { controls.push_back({t, Control::Bend, amount}); return *this; }
+    // The bend moved evenly from `from` to `to` between t0 and t1, a message every 5 ms.
+    Score& bendSlide(double t0, double t1, float from, float to)
+    {
+        const int steps = std::max(1, int((t1 - t0) / 0.005 + 0.5));
+        for (int i = 0; i <= steps; ++i)
+            bend(t0 + (t1 - t0) * double(i) / double(steps), from + (to - from) * float(i) / float(steps));
+        return *this;
+    }
     // Later by dt seconds (length too).
     Score shifted(double dt) const
     {
         Score s = *this;
         for (Event& e : s.events) e.time += dt;
+        for (Control& c : s.controls) c.time += dt;
         s.length += dt;
         return s;
     }
@@ -120,6 +199,7 @@ struct Score
     Score& add(const Score& other)
     {
         events.insert(events.end(), other.events.begin(), other.events.end());
+        controls.insert(controls.end(), other.controls.begin(), other.controls.end());
         length = std::max(length, other.length);
         return *this;
     }
@@ -155,7 +235,8 @@ inline Score chord(double t, const std::vector<int>& keys, float vel, double dur
 // One long note after kLead: for sustain, decay and the tail's noise floor.
 inline Score held(int key, float vel, double dur) { return note(kLead, key, vel, dur); }
 
-// The keys one after another, every `step` seconds, each held for `dur` (< 0: strokes).
+// The keys one after another, every `step` seconds, each held for `dur` (< 0: strokes). With
+// dur > step the notes overlap: what Legato continues and Mono and Legato glide between.
 inline Score phrase(double startT, const std::vector<int>& keys, double step, double dur, float vel = 0.8f)
 {
     Score s;
@@ -164,70 +245,444 @@ inline Score phrase(double startT, const std::vector<int>& keys, double step, do
     return s.withTail(kTail);
 }
 
-// ---- playing a score --------------------------------------------------------------------------
+// ---- playing a score: the platform around a voice ---------------------------------------------
 
-// Plays a score on a pool of copies of the parts' voice prototypes (event.part picks one).
-// A new event takes a free voice; when maxVoices are busy, the oldest is cut and reused. A Voice
-// needs:
-//   void strike(const Event& e, std::mt19937& rng);   start a note (the pool's seeded generator)
-//   void release();                                   the note-off
-//   float process();                                  the next sample
-//   bool active() const;                              false once it is silent for good
-template <class Voice>
-Samples play(const Score& score, const std::vector<Voice>& parts, double rate = kRate,
-             uint32_t seed = 1, size_t maxVoices = 32)
+// The engine's numbers (the template's <APP>Engine.cpp and <APP>DSP.h): change none of them here.
+inline constexpr int kControlFrames = 16;        // samples of a control tick: bend and glide move once a tick
+inline constexpr int kMaxVoices = 16;            // voices that sound at once; a 17th steals the quietest
+inline constexpr int kMaxHeld = 16;              // keys Mono and Legato remember, newest last
+inline constexpr float kStealMs = 3.0f;          // a stolen or re-hit voice falls 40 dB in this long
+inline constexpr double kFollowSeconds = 0.02;   // the fall of the peak follower that stealing compares
+inline constexpr int kFirstPadNote = 36;         // the note that hits pad 0
+
+enum class Mode { Poly, Mono, Legato };
+
+// How the instrument is played: the spec's playing style (the platform knobs whose defaults the
+// instrument sets, kPlatformDefaults) and its choice for a re-hit (kRehitContinues). The
+// defaults are the platform's own.
+struct Playing
 {
-    struct Off { double time; size_t slot; uint64_t gen; };
-    std::vector<Event> events = score.events;
-    std::stable_sort(events.begin(), events.end(), [](const Event& a, const Event& b) { return a.time < b.time; });
-    std::vector<Off> offs;
-    std::vector<Voice> voices;
-    std::vector<uint64_t> gens;  // which strike a slot is playing (a note-off finds only its own)
-    uint64_t counter = 0;
-    std::mt19937 rng = seeded(seed);
-    const size_t n = size_t(std::max(0.0, score.length) * rate + 0.5);
-    Samples out(n, 0.0f);
-    size_t next = 0;
-    for (size_t i = 0; i < n; ++i)
+    Mode mode = Mode::Poly;         // Voice Mode
+    double glideMs = 0.0;           // Glide (Mono and Legato)
+    int bendUp = 2, bendDown = 2;   // Bend Up / Bend Down, semitones at the ends of the bend
+    float velSens = 0.7f;           // Vel Sens: a note at velocity v plays at 1 - velSens (1 - v)
+    bool rehitContinues = false;    // a note-on on a sounding voice: true continues it, false
+                                    // fades it out in 3 ms and starts a fresh one
+    bool pads = false;              // pad mode: event.part is the pad (0 ... 15) and event.key the
+                                    // pitch it sounds at; no voice mode, glide, bend or pedal
+    std::vector<int> groups;        // pad mode: the group of each pad, 0 = Off (the default); the
+                                    // pads of a group share one voice
+    bool layered = false;           // test signals only: every event a voice of its own that
+                                    // nothing cuts (no re-hit rule, no stealing), released by its
+                                    // own note-off. Never for a render the user hears: the
+                                    // plug-in does not play like this.
+};
+
+// What a voice reads while it sounds: the engine's Knobs without the instrument's own knobs (the
+// spike's Params). The pool updates it before every render() call.
+struct Knobs
+{
+    double rate = kRate;    // the voice's sample rate
+    float bend = 0.0f;      // the pitch bend, in semitones
+    float glide = 0.0f;     // how far the pitch still is from the note while it glides, in semitones
+
+    // A note's frequency with the bend and the glide (Octave 0, Tune 0). Fractional notes are fine.
+    double hz(double note) const { return 440.0 * std::exp2((note + double(bend) + double(glide) - 69.0) / 12.0); }
+};
+
+// One thing the platform is told, as MIDI would tell it. A score becomes a list of these
+// (messagesOf); a reference copy of the prototype may hand play() the engine's own MIDI.
+struct Message
+{
+    enum Kind { NoteOn, NoteOff, Pedal, Bend };
+    double time;        // s; played on the nearest whole sample
+    Kind kind;
+    int key = 0;        // NoteOn, NoteOff: the MIDI note (on the pads: the pitch the pad sounds at)
+    float value = 0;    // NoteOn: velocity 0..1; Pedal: >= 0.5 is down; Bend: -1 ... +1
+    int part = 0;       // NoteOn: the voice prototype; on the pads the pad, for NoteOff too
+    int id = -1;        // layered only: a NoteOff releases the NoteOn of the same id
+};
+
+// A score as messages: the controls, then the note-offs, then the note-ons, each in the score's
+// order, so that messages on the same sample are played in that order (a note that ends as the
+// next begins on the same key is let go before the key is pressed again).
+inline std::vector<Message> messagesOf(const Score& score)
+{
+    std::vector<Message> m;
+    for (const Control& c : score.controls)
+        m.push_back({c.time, c.kind == Control::Pedal ? Message::Pedal : Message::Bend, 0, c.value, 0, -1});
+    for (size_t i = 0; i < score.events.size(); ++i)
     {
-        const double now = double(i) / rate;
-        for (; next < events.size() && events[next].time <= now; ++next)
+        const Event& e = score.events[i];
+        if (e.dur >= 0) m.push_back({e.time + e.dur, Message::NoteOff, e.key, 0.0f, e.part, int(i)});
+    }
+    for (size_t i = 0; i < score.events.size(); ++i)
+    {
+        const Event& e = score.events[i];
+        m.push_back({e.time, Message::NoteOn, e.key, e.vel, e.part, int(i)});
+    }
+    return m;
+}
+
+namespace detail {
+
+// The voice pool, the keys and the pedal: the engine's rules under the engine's names
+// (<APP>Engine.cpp: slotFor, freshSlot, monoNoteOn, moveTo, glideFrom, noteOff, pedalUp, control,
+// renderSlot). A fresh note starts on a copy of its part's voice prototype.
+template <class Voice>
+struct Performer
+{
+    struct Slot
+    {
+        bool active = false, choking = false;
+        bool fromKey = true;            // a key's voice: it follows the bend and the pedal holds it
+        int key = 0;                    // what it belongs to: a key, a group of pads, a pad, the mono voice
+        int note = 0;                   // the note (on the pads: the pad) whose note-off releases it
+        int id = -1;                    // layered: the event that started it
+        bool sustained = false;         // its key is up, the sustain pedal holds it
+        bool released = false;
+        float velocity = 1.0f;
+        float glide = 0.0f;             // semitones the pitch still is from the note (Knobs::glide)
+        float glideStep = 0.0f;         // what a control tick takes off it
+        int ctl = 0;                    // samples left in this control tick
+        float outGain = 1.0f;           // Vel Sens
+        float chokeGain = 1.0f, chokeMul = 1.0f;
+        float level = 0.0f;             // a peak follower on the output: what voice stealing compares
+        Knobs knobs;
+        Voice voice;
+
+        explicit Slot(const Voice& prototype) : voice(prototype) {}
+
+        // Fades the voice out: it falls 40 dB in `ms`.
+        void choke(float ms, double rate)
         {
-            const Event& e = events[next];
-            if (e.part < 0 || size_t(e.part) >= parts.size()) continue;
-            size_t slot = voices.size();
-            for (size_t v = 0; v < voices.size(); ++v)
-                if (!voices[v].active()) { slot = v; break; }
-            if (slot == voices.size() && voices.size() >= maxVoices)
-                slot = size_t(std::min_element(gens.begin(), gens.end()) - gens.begin());
-            if (slot == voices.size()) { voices.push_back(parts[size_t(e.part)]); gens.push_back(0); }
-            else voices[slot] = parts[size_t(e.part)];
-            gens[slot] = ++counter;
-            voices[slot].strike(e, rng);
-            if (e.dur >= 0) offs.push_back({e.time + e.dur, slot, counter});
+            if (choking) return;
+            choking = true;
+            const float tc = std::max(ms, 1.0f) * 0.001f / 4.6f;
+            chokeMul = float(std::exp(-1.0 / (tc * rate)));
         }
-        for (size_t k = 0; k < offs.size();)
+    };
+
+    static constexpr int kKeyMono = -1, kKeyFirstNote = 0, kKeyFirstGroup = 1000, kKeyFirstPad = 1000000;
+
+    const std::vector<Voice>& parts;
+    const Playing& playing;
+    const double rate;
+    const float followMul;
+    std::deque<Slot> slots;             // a deque: a slot's Knobs stay where its voice found them
+    int held[kMaxHeld] = {};
+    int numHeld = 0;
+    bool sustain = false;
+    float bend = 0.0f;                  // -1 ... +1
+
+    Performer(const std::vector<Voice>& voices, const Playing& how, double sampleRate)
+        : parts(voices), playing(how), rate(sampleRate), followMul(float(std::exp(-1.0 / (kFollowSeconds * sampleRate)))) {}
+
+    bool poly() const { return playing.pads || playing.layered || playing.mode == Mode::Poly; }
+
+    // Where the bend and the glide of `s` stand now.
+    void viewFor(Slot& s) const
+    {
+        s.knobs.bend = s.fromKey ? bend * (bend >= 0.0f ? float(playing.bendUp) : float(playing.bendDown)) : 0.0f;
+        s.knobs.glide = s.glide;
+        s.knobs.rate = rate;
+    }
+
+    // A control tick of `s`: its Knobs as they stand now, its glide a tick on, its gain.
+    void control(Slot& s) const
+    {
+        viewFor(s);
+        if (s.glide != 0.0f)
         {
-            if (offs[k].time <= now)
+            const float next = s.glide - s.glideStep;
+            s.glide = (next > 0.0f) == (s.glide > 0.0f) ? next : 0.0f;     // there once it would pass the note
+        }
+        s.outGain = 1.0f - playing.velSens * (1.0f - s.velocity);
+    }
+
+    // Before a new voice: if kMaxVoices voices sound, the quietest of them is faded out.
+    void makeRoom()
+    {
+        int sounding = 0;
+        Slot* quietest = nullptr;
+        for (Slot& s : slots)
+        {
+            if (!s.active || s.choking) continue;
+            ++sounding;
+            if (!quietest || s.level < quietest->level) quietest = &s;
+        }
+        if (sounding >= kMaxVoices) quietest->choke(kStealMs, rate);
+    }
+
+    // A slot for a fresh voice of `part` that belongs to `key`.
+    Slot& freshSlot(int key, int part)
+    {
+        if (!playing.layered) makeRoom();
+        Slot* slot = nullptr;
+        for (Slot& s : slots) if (!s.active) { slot = &s; break; }
+        if (slot) *slot = Slot(parts[size_t(part)]);
+        else slot = &slots.emplace_back(parts[size_t(part)]);
+        slot->active = true;
+        slot->key = key;
+        return *slot;
+    }
+
+    // The slot a note-on on `key` plays: the voice that sounds for it when the instrument
+    // continues one, else a fresh one, the sounding one faded out.
+    Slot& slotFor(int key, int part, bool& continuing)
+    {
+        continuing = false;
+        if (!playing.layered)
+            for (Slot& s : slots)
+                if (s.active && !s.choking && s.key == key)
+                {
+                    if (playing.rehitContinues) { continuing = true; return s; }
+                    s.choke(kStealMs, rate);
+                    break;
+                }
+        return freshSlot(key, part);
+    }
+
+    void startVoice(Slot& s, int pitch, bool continuing)
+    {
+        s.sustained = s.released = false;
+        s.voice.start(s.knobs, pitch, s.velocity, continuing);
+    }
+
+    void start(Slot& s, bool continuing, int note, int pitch, float velocity)
+    {
+        s.note = note;
+        s.velocity = velocity;
+        viewFor(s);
+        s.ctl = 0;
+        startVoice(s, pitch, continuing);
+    }
+
+    void releaseVoice(Slot& s)
+    {
+        s.sustained = false;
+        s.released = true;
+        s.voice.release();
+    }
+
+    Slot* monoSlot()
+    {
+        for (Slot& s : slots) if (s.active && !s.choking && s.key == kKeyMono) return &s;
+        return nullptr;
+    }
+
+    // The pitch of `s` starts at `from` (a fractional note) and reaches `note` in Glide ms, at an
+    // even number of semitones per second, a control tick at a time.
+    void glideFrom(Slot& s, float from, int note) const
+    {
+        const float distance = from - float(note);
+        const double ticks = playing.glideMs / 1000.0 * rate / double(kControlFrames);
+        if (distance == 0.0f || ticks < 1.0) { s.glide = s.glideStep = 0.0f; return; }
+        s.glide = distance;
+        s.glideStep = float(double(distance) / ticks);
+    }
+
+    // The voice goes on at `note` without a new attack, gliding there from where it is.
+    void moveTo(Slot& s, int note)
+    {
+        glideFrom(s, float(s.note) + s.glide, note);
+        s.note = note;
+        viewFor(s);
+        s.ctl = 0;
+        startVoice(s, note, true);
+    }
+
+    void unhold(int note) { numHeld = int(std::remove(held, held + numHeld, note) - held); }
+    void hold(int note)
+    {
+        unhold(note);
+        if (numHeld == kMaxHeld) { std::copy(held + 1, held + kMaxHeld, held); --numHeld; }
+        held[numHeld++] = note;
+    }
+
+    void pedalUp()
+    {
+        sustain = false;
+        for (Slot& s : slots)
+            if (s.active && s.sustained)
             {
-                if (gens[offs[k].slot] == offs[k].gen) voices[offs[k].slot].release();
-                offs.erase(offs.begin() + std::ptrdiff_t(k));
+                if (s.choking) s.sustained = false;
+                else releaseVoice(s);
             }
-            else ++k;
+    }
+
+    void noteOn(const Message& m)
+    {
+        if (m.part < 0 || size_t(m.part) >= parts.size()) return;
+        // The velocity as MIDI carries it: 1 ... 127.
+        const float velocity = float(std::clamp(int(std::lround(m.value * 127.0f)), 1, 127)) / 127.0f;
+        if (playing.layered)
+        {
+            Slot& s = freshSlot(kKeyFirstNote + m.key, m.part);
+            s.id = m.id;
+            start(s, false, m.key, m.key, velocity);
         }
-        float sum = 0.0f;
-        for (Voice& v : voices)
-            if (v.active()) sum += v.process();
-        out[i] = sum;
+        else if (playing.pads)
+        {
+            const int group = size_t(m.part) < playing.groups.size() ? playing.groups[size_t(m.part)] : 0;
+            bool continuing = false;
+            Slot& s = slotFor(group != 0 ? kKeyFirstGroup + group : kKeyFirstPad + m.part, m.part, continuing);
+            s.fromKey = false;
+            start(s, continuing, m.part, m.key, velocity);
+        }
+        else if (playing.mode == Mode::Poly)
+        {
+            hold(m.key);
+            bool continuing = false;
+            Slot& s = slotFor(kKeyFirstNote + m.key, m.part, continuing);
+            start(s, continuing, m.key, m.key, velocity);
+        }
+        else
+        {
+            // Mono and Legato: the one voice plays the newest key. Legato takes the voice over
+            // while another key is held; otherwise a fresh voice attacks, gliding (Mono) from
+            // where the voice it replaces was.
+            const bool legato = playing.mode == Mode::Legato;
+            hold(m.key);
+            Slot* current = monoSlot();
+            if (legato && current && numHeld > 1) { moveTo(*current, m.key); return; }
+            const float from = current ? float(current->note) + current->glide : 0.0f;
+            if (current) current->choke(kStealMs, rate);
+            Slot& s = freshSlot(kKeyMono, m.part);
+            if (current && !legato) glideFrom(s, from, m.key);
+            start(s, false, m.key, m.key, velocity);
+        }
+    }
+
+    // A released key releases the voice it started; the pedal holds a key's voice. In Mono and
+    // Legato the voice of the newest key goes back to the newest key still held.
+    void noteOff(const Message& m)
+    {
+        const int note = playing.pads ? m.part : m.key;
+        if (!playing.pads && !playing.layered) unhold(note);
+        for (Slot& s : slots)
+        {
+            if (!s.active || s.choking || s.released) continue;
+            if (playing.layered ? s.id != m.id : s.note != note) continue;
+            if (s.key == kKeyMono && !poly() && numHeld > 0) moveTo(s, held[numHeld - 1]);
+            else if (s.fromKey && sustain) s.sustained = true;
+            else releaseVoice(s);
+        }
+    }
+
+    void handle(const Message& m)
+    {
+        switch (m.kind)
+        {
+            case Message::NoteOn: noteOn(m); break;
+            case Message::NoteOff: noteOff(m); break;
+            case Message::Pedal:
+                if (playing.pads) break;
+                if (m.value >= 0.5f) sustain = true;
+                else pedalUp();
+                break;
+            case Message::Bend:
+            {
+                // The bend as MIDI carries it: 14 bits, -8192 ... 8191.
+                const int b = std::clamp(int(std::lround(double(m.value) * (m.value >= 0.0f ? 8191.0 : 8192.0))), -8192, 8191);
+                bend = float(b) / (b >= 0 ? 8191.0f : 8192.0f);
+                break;
+            }
+        }
+    }
+
+    // `n` samples of one voice, added into out. The voice renders up to the end of its control
+    // tick at a time; it leaves the pool when it is finished or faded out.
+    void renderSlot(Slot& s, float* out, size_t n)
+    {
+        float buffer[kControlFrames];
+        size_t pos = 0;
+        while (pos < n && s.active)
+        {
+            if (s.ctl <= 0) { control(s); s.ctl = kControlFrames; }
+            const int m = int(std::min(size_t(s.ctl), n - pos));
+            s.voice.render(buffer, m);
+            for (int j = 0; j < m; ++j)
+            {
+                const float o = buffer[j] * s.outGain * s.chokeGain;
+                out[pos + size_t(j)] += o;
+                s.level = std::max(std::fabs(o), s.level * followMul);
+                if (s.choking) s.chokeGain *= s.chokeMul;
+            }
+            s.ctl -= m;
+            pos += size_t(m);
+            if (s.voice.finished() || (s.choking && s.chokeGain < 1e-5f)) s.active = false;
+        }
+    }
+
+    bool sounding() const
+    {
+        for (const Slot& s : slots) if (s.active) return true;
+        return false;
+    }
+};
+
+}  // namespace detail
+
+// Plays messages on a pool of copies of the parts' voice prototypes, as the engine would
+// (Playing, and the rules at the top of this file), for `length` seconds. With ringOut >= 0 the
+// render ends `ringOut` seconds after the last voice is over, and at `length` at the latest.
+// A Voice is written as the engine will run it (the template's Voice.h), with the same four calls:
+//   void start(const Knobs& knobs, int note, float velocity, bool continuing);
+//       a note-on. `knobs` stays valid while the voice sounds and is updated before every
+//       render(); the pitch is knobs.hz(note), read in render(), so that the voice bends and
+//       glides. `velocity` 0..1 may colour the sound; the level by velocity is the pool's (Vel
+//       Sens). `continuing` is true when the note-on takes over this voice while it sounds (a
+//       re-hit the instrument continues, a legato note, a return to a key still held): go on at
+//       the new note with no new attack. A voice that draws random numbers seeds its generator
+//       with kVoiceSeed here when `continuing` is false.
+//   void release();                          the note-off
+//   void render(float* out, int frames);     the next 1 ... 16 samples at knobs.rate, written
+//   bool finished() const;                   true once it is silent for good
+// and it can be copied and assigned: every fresh note starts on a copy of its part's prototype
+// (which carries the spike's Params, as a pointer).
+template <class Voice>
+Samples perform(std::vector<Message> messages, const std::vector<Voice>& parts, const Playing& playing,
+                double rate, double length, double ringOut = -1.0)
+{
+    auto sampleOf = [rate](const Message& m) { return size_t(std::max(0LL, std::llround(m.time * rate))); };
+    std::stable_sort(messages.begin(), messages.end(),
+                     [&](const Message& a, const Message& b) { return sampleOf(a) < sampleOf(b); });
+    detail::Performer<Voice> pool(parts, playing, rate);
+    const size_t n = size_t(std::max(0.0, length) * rate + 0.5);
+    Samples out(n, 0.0f);
+    size_t pos = 0, next = 0;
+    while (pos < n)
+    {
+        for (; next < messages.size() && sampleOf(messages[next]) <= pos; ++next) pool.handle(messages[next]);
+        size_t until = next < messages.size() ? std::min(n, sampleOf(messages[next])) : n;
+        if (ringOut >= 0 && next == messages.size())
+        {
+            // No message is left: go on a control tick at a time until the last voice is over.
+            if (!pool.sounding())
+            {
+                out.resize(std::min(n, pos + size_t(ringOut * rate + 0.5)));
+                break;
+            }
+            until = std::min(until, pos + size_t(kControlFrames));
+        }
+        for (auto& s : pool.slots) if (s.active) pool.renderSlot(s, out.data() + pos, until - pos);
+        pos = until;
     }
     return out;
 }
 
+// Plays a score: event.part picks the voice prototype.
 template <class Voice>
-Samples play(const Score& score, const Voice& voice, double rate = kRate, uint32_t seed = 1,
-             size_t maxVoices = 32)
+Samples play(const Score& score, const std::vector<Voice>& parts, const Playing& playing = {}, double rate = kRate)
 {
-    return play(score, std::vector<Voice>{voice}, rate, seed, maxVoices);
+    return perform(messagesOf(score), parts, playing, rate, score.length, score.ringOut);
+}
+
+template <class Voice>
+Samples play(const Score& score, const Voice& voice, const Playing& playing = {}, double rate = kRate)
+{
+    return play(score, std::vector<Voice>{voice}, playing, rate);
 }
 
 // ---- levels and files -------------------------------------------------------------------------

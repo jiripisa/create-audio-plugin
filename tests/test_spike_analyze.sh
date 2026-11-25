@@ -1,7 +1,9 @@
 #!/bin/bash
 # Check the spike harness (scripts/spike_harness.h, through scripts/spike_example.cpp) and the
 # analysis tool (scripts/analyze.swift) against renders whose answer is known (the example's
-# 00_check_* renders: tones, a tail with noise, octave traps, a low short stroke, a groove).
+# 00_check_* renders: tones, a tail with noise, octave traps, a low short stroke, a groove), and
+# that the harness plays by the platform's rules (tests/harness_rules.cpp on probe voices, and
+# the example's glide, pedal, bend and silence renders by measurement).
 #
 #   tests/test_spike_analyze.sh
 #
@@ -39,6 +41,11 @@ done
 "$WORK/spike" "$WORK/checks" 00_check > /dev/null
 [ "$(find "$WORK/checks" -name '*.wav' | wc -l | tr -d ' ')" -eq 18 ] || fail "prefix 00_check did not select 18 renders"
 ok "all $COUNT renders are the same in two runs; a name prefix selects renders"
+
+clang++ -std=c++17 -O2 -Wall -Wextra -Werror -I "$ROOT/scripts" "$ROOT/tests/harness_rules.cpp" -o "$WORK/harness_rules" \
+    || fail "tests/harness_rules.cpp does not build without warnings"
+"$WORK/harness_rules" || fail "the harness does not play by the platform's rules"
+ok "the harness plays by the platform's rules (re-hit, Poly/Mono/Legato, glide, pedal, bend, Vel Sens, stealing, pads, equal notes)"
 
 TONE="$WORK/renders/00_check_A_tone_220Hz.wav"
 NOISE="$WORK/renders/00_check_B_noise_tail.wav"
@@ -89,6 +96,39 @@ within "$EF0" 220 0.5 || fail "weak odd partials: f0 $EF0 Hz, want 220 (octave e
 [ "$(field '.files[0].octaveGuard')" = none ] || fail "the plain tone was halved"
 ok "weak odd partials: f0 $EF0 Hz, guard $EG; the plain tone is not halved"
 
+# --- the platform's rules in the example's renders, by measurement ----------------------------
+
+# f0 of <render> over <a-b> seconds, and the interval between two pitches in semitones. The
+# example's bar is a little inharmonic (stretch), so its pitch reads a few cents above the key's:
+# the checks compare pitches of the same render.
+pitch() { "$ANALYZE" --json --window "$2" "$WORK/renders/$1.wav" | jq -r '.files[0].f0Hz'; }
+semitones() { awk -v a="$1" -v b="$2" 'BEGIN { if (a == "null" || b == "null" || a <= 0 || b <= 0) print "null"; else print 12 * log(a / b) / log(2) }'; }
+# C4 held, C5 played over it at 1.2 s and let go at 2.2 s, Glide 200 ms: halfway (6 semitones
+# up) 100 ms in, an octave up once the glide is over, and back at the C4 still held.
+for NAME in 08_glide_A_legato_200ms 08_glide_B_mono_200ms; do
+    P0=$(pitch $NAME 0.6-1.1); P1=$(pitch $NAME 1.29-1.31); P2=$(pitch $NAME 1.5-2.1); P3=$(pitch $NAME 2.6-3.1)
+    within "$P0" 261.63 4 || fail "$NAME: $P0 Hz before the second note, want C4 (261.63 Hz)"
+    within "$(semitones "$P1" "$P0")" 6 0.5 || fail "$NAME: $P1 Hz halfway through the glide, want 6 semitones above $P0 Hz"
+    within "$(semitones "$P2" "$P0")" 12 0.03 || fail "$NAME: $P2 Hz after the glide, want an octave above $P0 Hz"
+    within "$(semitones "$P3" "$P0")" 0 0.03 || fail "$NAME: $P3 Hz after the return, want $P0 Hz"
+    ok "$NAME: C4 $P0 Hz, halfway $P1 Hz, C5 $P2 Hz, back at C4 $P3 Hz"
+done
+B0=$(pitch 10_bend_up_2_semitones 0.3-0.6); B1=$(pitch 10_bend_up_2_semitones 1.4-1.9); B2=$(pitch 10_bend_up_2_semitones 2.1-2.6)
+within "$(semitones "$B1" "$B0")" 2 0.03 || fail "bend: $B1 Hz at the top of the bend, want 2 semitones (Bend Up) above $B0 Hz"
+within "$(semitones "$B2" "$B0")" 0 0.03 || fail "bend: $B2 Hz after the bend is let go, want $B0 Hz"
+ok "bend: C4 $B0 Hz, bent up 2 semitones $B1 Hz, let go $B2 Hz"
+HELD=$("$ANALYZE" --json --tail 2.0-2.4 "$WORK/renders/09_sustain_pedal.wav" | jq -r '.files[0].tail.floorDb')
+UP=$("$ANALYZE" --json "$WORK/renders/09_sustain_pedal.wav" | jq -r '.files[0].tail.floorDb')
+below -70 "$HELD" || fail "sustain pedal: $HELD dBFS at 2.0-2.4 s, the 0.2 s notes do not ring under the pedal"
+below "$UP" -100 || fail "sustain pedal: $UP dBFS at the end, the pedal's coming up did not release the notes"
+ok "sustain pedal: the notes ring at $HELD dBFS while it is down and are over ($UP dBFS) after it came up"
+for NAME in S01_silence_note_off S02_silence_stroke_rings_out S03_silence_rehit; do
+    S=$("$ANALYZE" --json "$WORK/renders/$NAME.wav" | jq -c '.files[0] | [.tail.floorDb, .durationS]')
+    [ "$(echo "$S" | jq '.[0]')" = -200 ] || fail "$NAME: tail floor $(echo "$S" | jq '.[0]') dBFS, want -200 (rendered until the voice is over)"
+    below "$(echo "$S" | jq '.[1]')" 10 || fail "$NAME: $(echo "$S" | jq '.[1]') s long, the render did not stop when the voice was over"
+done
+ok "silence renders end in digital silence, half a second after the voice is over"
+
 # --- phrases: onsets, strokes, the file-level note stops at the next onset ------------------
 
 GROOVE="$WORK/renders/00_check_F_groove.wav"
@@ -116,7 +156,8 @@ within "$GH" "$OH" 6 || fail "groove: HNR $GH dB, one stroke $OH dB"
 ok "groove: file-level decay null, window ends $WEND s before the next onset $O2 s, f0 $GF0 Hz, HNR $GH dB (one stroke $OF0 Hz, $OH dB)"
 for f in 00_check_A_tone_220Hz 00_check_H_hum_an_octave_under 03_tilt_C_-12dB_dark 05_range_C2_C3_C4_C5_C6; do
     N=$("$ANALYZE" --json "$WORK/renders/$f.wav" | jq -r '.files[0].onsets | length')
-    WANT=$(case $f in 00_*) echo 1 ;; 03_*) echo 8 ;; 05_*) echo 5 ;; esac)
+    # Patterns with an opening parenthesis: /bin/bash 3.2 cannot parse a bare `pattern)` inside $( ).
+    WANT=$(case $f in (00_*) echo 1 ;; (03_*) echo 8 ;; (05_*) echo 5 ;; esac)
     [ "$N" -eq "$WANT" ] || fail "$f: $N onsets, want $WANT (note-offs, releases and steady tones are no onsets)"
 done
 ok "no onsets from note-offs, releases or a steady tone with a hum"
@@ -170,8 +211,9 @@ LWIN=$(echo "$LQ" | awk '$1 == "window" { print $2 }')
 L=$("$ANALYZE" --json --window "$LWIN" "$LOW" | jq -c '.files[0]')
 [ "$(echo "$L" | jq -r .fewPeriods)" = true ] || fail "low stroke: fewPeriods not set"
 "$ANALYZE" "$LOW" | grep -q "periods (under 4)" || fail "low stroke: no few-periods note in the plain output"
+# (0.9699 ... 1.0301: a harmonic found at the very edge of its band is printed rounded to 0.01 Hz.)
 echo "$L" | jq -e '.f0Hz as $f | [.harmonicsHz | to_entries[] | select(.value != null)
-    | (.value / ((.key + 1) * $f))] | all(. >= 0.97 and . <= 1.03)' > /dev/null \
+    | (.value / ((.key + 1) * $f))] | all(. >= 0.9699 and . <= 1.0301)' > /dev/null \
     || fail "low stroke: a harmonic outside its +-3 % band: $(echo "$L" | jq -c .harmonicsHz)"
 for k in $(seq 2 10); do
     A=$(echo "$L" | jq -r ".harmonicsDb[$((k - 1))]"); Q=$(echo "$LQ" | awk -v h="H$k" '$1 == h { print $2 }')

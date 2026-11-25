@@ -4,22 +4,32 @@
 // its renders are new, everything else is the harness. The "instrument" here is a toy struck bar:
 //   strike  a short attack ramp, then each partial rings out on its own (upper ones faster)
 //   colour  partials k = 1..16 at k * f0 * sqrt(1 + B k^2), falling tiltDb per octave, the
-//           fundamental set apart by fundamentalDb; velocity brightens and adds level
+//           fundamental set apart by fundamentalDb; velocity brightens (its level is the
+//           platform's: Vel Sens, applied by the harness)
 //   release a note-off damps the bar (releaseMs T60), and the voice goes silent for good
 // A real spike takes its model and starting numbers from the research report's "Recommendation
 // for the engine", and one render group per "Question for the user's ear".
+//
+// The voice is written as the engine will run it (the template's Voice.h): start, release, render,
+// finished; the pitch from knobs.hz(note) in render(), so that it bends and glides; its random
+// numbers from a generator of its own, seeded with kVoiceSeed at every fresh start.
 //
 // Renders 48 kHz / 24-bit mono WAV files, peak-normalised to -1 dBFS:
 //   00_check_*   renders with a known answer, for checking the analysis chain (not for the ear):
 //                the score helpers' tone, noise in a tail, a weak fundamental, weak odd partials,
 //                a low short stroke, a groove and one of its strokes, a hum an octave under,
 //                damped low notes alone and in grooves, a stroke cut at the file end, mixed
-//                registers, clicks inside swells
+//                registers, clicks inside swells. They are layered (Playing::layered): strokes
+//                ring over each other as in a recording of a real instrument, which is what the
+//                analysis tool is checked on; a render for the ear never is
 //   01..06       one group per question, decisive question first, each with a long tail
+//   07..10       how it plays, as the plug-in will: a re-hit of a sounding key, Legato and Mono
+//                with Glide, the sustain pedal, the pitch bend
 //   P01_*        one render per planned program
+//   S01.., S02.. silence renders: the ways a voice ends, rendered until it is over
 //
-//   clang++ -std=c++17 -O2 spike_example.cpp -o spike_example && ./spike_example <outdir>
-//   ./spike_example --analyze 01      quick harmonic table of 01_default
+//   clang++ -std=c++17 -O2 spike_example.cpp -o <scratch>/spike_example && <scratch>/spike_example <outdir>
+//   <scratch>/spike_example --analyze 01      quick harmonic table of 01_default
 
 #include "spike_harness.h"
 
@@ -39,63 +49,81 @@ struct Params
     float fundamentalDb = 0.0f;  // the fundamental against the tilt
     float stretch = 0.0003f;     // inharmonicity B
     float velBright = 6.0f;      // dB per octave darker at velocity 0 than at velocity 1
-    float vary = 0.5f;           // dB rms of strike-to-strike level spread
     float levelDb = -12.0f;
 };
+
+// How the bar is played: the platform's own style (Poly, no glide, Bend 2), and a re-hit of a
+// sounding key fades the old voice out and strikes anew (kRehitContinues = false).
+static const Playing kPlaying;
 
 struct Voice
 {
     static constexpr size_t kPartials = 16;
     const Params* p = nullptr;
-    double rate = kRate;
-    std::array<double, kPartials> phase{}, inc{}, amp{}, decay{};
-    double env = 0, attackStep = 0, releaseMul = 1;
+    const Knobs* knobs = nullptr;
+    int note = 60;
+    std::mt19937 rng;
+    std::array<double, kPartials> phase{}, amp{};
+    double env = 0;
     bool on = false, releasing = false;
 
-    Voice(const Params& params, double sampleRate) : p(&params), rate(sampleRate) {}
+    explicit Voice(const Params& params) : p(&params) {}
 
-    void strike(const Event& e, std::mt19937& rng)
+    void start(const Knobs& k, int n, float velocity, bool continuing)
     {
-        const double f0 = noteHz(e.key);
-        const double tilt = p->tiltDb - p->velBright * (1.0 - e.vel);
-        const double level = p->levelDb + 20.0 * std::log10(0.2 + 0.8 * e.vel) + p->vary * white(rng);
+        knobs = &k;
+        note = n;
+        if (continuing) return;     // a legato note or a return: the bar rings on, at the new pitch
+        rng.seed(kVoiceSeed);       // every fresh voice draws the same numbers: equal notes are equal
+        const double tilt = p->tiltDb - p->velBright * (1.0 - velocity);
         for (size_t i = 0; i < kPartials; ++i)
         {
-            const double k = double(i + 1);
-            const double hz = k * f0 * std::sqrt(1.0 + p->stretch * k * k);
-            const double db = level + tilt * std::log2(k) + (i == 0 ? p->fundamentalDb : 0.0);
-            amp[i] = hz < 0.45 * rate ? dbToGain(db) : 0.0;
-            inc[i] = 2 * kPi * hz / rate;
+            const double db = p->levelDb + tilt * std::log2(double(i + 1)) + (i == 0 ? p->fundamentalDb : 0.0);
+            amp[i] = dbToGain(db);
             phase[i] = 2 * kPi * uniform(rng);
-            const double t60 = p->ring / (1.0 + p->damping * (k - 1.0));
-            decay[i] = p->ring > 0 ? std::pow(10.0, -3.0 / (t60 * rate)) : 1.0;
         }
         env = 0;
-        attackStep = 1.0 / std::max(1.0, p->attackMs * 0.001 * rate);
-        releaseMul = std::pow(10.0, -3.0 / (std::max(1.0f, p->releaseMs) * 0.001 * rate));
         on = true;
         releasing = false;
     }
 
     void release() { releasing = true; }
 
-    float process()
+    // Every coefficient from knobs->rate and knobs->hz(note), worked out for this call: the pool
+    // moves the bend and the glide between calls.
+    void render(float* out, int frames)
     {
-        if (releasing) env *= releaseMul;
-        else env = std::min(1.0, env + attackStep);
-        double s = 0;
+        const double rate = knobs->rate, f0 = knobs->hz(note);
+        const double attackStep = 1.0 / std::max(1.0, p->attackMs * 0.001 * rate);
+        const double releaseMul = std::pow(10.0, -3.0 / (std::max(1.0f, p->releaseMs) * 0.001 * rate));
+        std::array<double, kPartials> inc, decay, heard;
         for (size_t i = 0; i < kPartials; ++i)
         {
-            s += amp[i] * std::sin(phase[i]);
-            phase[i] += inc[i];
-            if (phase[i] > 2 * kPi) phase[i] -= 2 * kPi;
-            amp[i] *= decay[i];
+            const double k = double(i + 1);
+            const double hz = k * f0 * std::sqrt(1.0 + p->stretch * k * k);
+            inc[i] = 2 * kPi * hz / rate;
+            heard[i] = hz < 0.45 * rate ? 1.0 : 0.0;
+            const double t60 = p->ring / (1.0 + p->damping * (k - 1.0));
+            decay[i] = p->ring > 0 ? std::pow(10.0, -3.0 / (t60 * rate)) : 1.0;
         }
-        if ((releasing && env < 1e-7) || (p->ring > 0 && amp[0] * env < 1e-7 && env >= 1.0)) on = false;
-        return float(s * env);
+        for (int f = 0; f < frames; ++f)
+        {
+            if (releasing) env *= releaseMul;
+            else env = std::min(1.0, env + attackStep);
+            double s = 0;
+            for (size_t i = 0; i < kPartials; ++i)
+            {
+                s += heard[i] * amp[i] * std::sin(phase[i]);
+                phase[i] += inc[i];
+                if (phase[i] > 2 * kPi) phase[i] -= 2 * kPi;
+                amp[i] *= decay[i];
+            }
+            if ((releasing && env < 1e-7) || (p->ring > 0 && amp[0] * env < 1e-7 && env >= 1.0)) on = false;
+            out[f] = on ? float(s * env) : 0.0f;
+        }
     }
 
-    bool active() const { return on; }
+    bool finished() const { return !on; }
 };
 
 // Programs: one function each, the defaults changed only where the program differs.
@@ -109,12 +137,20 @@ static Params softMallet()
     return p;
 }
 
-// The spike's render function: play, then peak-normalise to -1 dBFS.
-static Samples render(const Score& s, const Params& p, uint32_t seed = 1)
+// The spike's render function: play as the plug-in will, then peak-normalise to -1 dBFS.
+static Samples render(const Score& s, const Params& p, const Playing& how = kPlaying)
 {
-    Samples x = play(s, Voice(p, kRate), kRate, seed);
+    Samples x = play(s, Voice(p), how);
     normalize(x);
     return x;
+}
+
+// For the 00_check_* test signals only: every stroke a voice of its own that rings on.
+static Playing layered()
+{
+    Playing how;
+    how.layered = true;
+    return how;
 }
 
 // One stroke, then a short phrase: what every question group plays.
@@ -130,7 +166,6 @@ static Params checkTone()
     p.ring = 0;
     p.damping = 0;
     p.stretch = 0;
-    p.vary = 0;
     p.attackMs = 8;
     p.releaseMs = 30;
     return p;
@@ -143,7 +178,6 @@ static Params singleRate()
     Params p;
     p.damping = 0;
     p.stretch = 0;
-    p.vary = 0;
     return p;
 }
 
@@ -159,9 +193,9 @@ static Renders renders()
         return s;
     };
     return {
-        {"00_check_A_tone_220Hz", [=] { return render(check, checkTone()); }},
+        {"00_check_A_tone_220Hz", [=] { return render(check, checkTone(), layered()); }},
         {"00_check_B_noise_tail", [=] {
-             Samples x = render(check, checkTone());
+             Samples x = render(check, checkTone(), layered());
              std::mt19937 rng = seeded("00_check_B_noise_tail");
              const double g = dbToGain(-60.0);  // white noise at -60 dBFS RMS in the last second
              for (size_t i = x.size() - size_t(kRate); i < x.size(); ++i) x[i] += float(g * white(rng));
@@ -170,7 +204,7 @@ static Renders renders()
         {"00_check_C_weak_fundamental", [=] {
              Params p = checkTone();
              p.fundamentalDb = -26;  // H1 20 dB under H2: the pitch is still 220 Hz
-             return render(check, p);
+             return render(check, p, layered());
          }},
         {"00_check_D_even_partials", [=] {
              // Written out, not played: 220 Hz whose odd partials are weak (H1 -20 dB, H3, H5 ...
@@ -185,18 +219,18 @@ static Renders renders()
          }},
         {"00_check_E_low_short_stroke", [=] {
              // E1 (41 Hz) dying in 0.25 s: the window holds two periods (fewPeriods).
-             return render(stroke(kLead, 28, 0.9f), with([](Params& p) { p.ring = 0.25f; p.fundamentalDb = -10; }));
+             return render(stroke(kLead, 28, 0.9f), with([](Params& p) { p.ring = 0.25f; p.fundamentalDb = -10; }), layered());
          }},
         {"00_check_F_groove", [=] {
              // 16 C3 strokes every 150 ms, accents on the beats: 16 onsets, 6.67 strokes per s.
              Score s;
              for (int i = 0; i < 16; ++i) s = s + stroke(kLead + 0.15 * i, 48, i % 4 == 0 ? 0.95f : 0.75f);
-             return render(s, singleRate());
+             return render(s, singleRate(), layered());
          }},
-        {"00_check_G_one_stroke", [=] { return render(stroke(kLead, 48, 0.95f), singleRate()); }},
+        {"00_check_G_one_stroke", [=] { return render(stroke(kLead, 48, 0.95f), singleRate(), layered()); }},
         {"00_check_H_hum_an_octave_under", [=] {
              // G2 with a 49 Hz hum at -45 dBFS: the pitch is still 98 Hz.
-             Samples x = render(held(43, 1.0f, 1.5).withTail(1.0), checkTone());
+             Samples x = render(held(43, 1.0f, 1.5).withTail(1.0), checkTone(), layered());
              for (size_t i = 0; i < x.size(); ++i)
                  x[i] += float(dbToGain(-45) * std::sin(2 * kPi * 49.0 * double(i) / kRate));
              return x;
@@ -205,22 +239,22 @@ static Renders renders()
         // Damped low notes of the default instrument, whose partials a 20 ms frame does not
         // resolve: one stroke each, an even groove and an accented one (0.3 / 0.95) every 300 ms,
         // and the accented A1 groove with one decay rate. 1 or 8 onsets each.
-        {"00_check_I_A1_stroke", [=] { return render(stroke(kLead, 33, 0.95f), D); }},
-        {"00_check_J_E2_stroke", [=] { return render(stroke(kLead, 40, 0.95f), D); }},
-        {"00_check_K_A1_even", [=] { return render(every300(33, false), D); }},
-        {"00_check_L_E2_even", [=] { return render(every300(40, false), D); }},
-        {"00_check_M_A1_accents", [=] { return render(every300(33, true), D); }},
-        {"00_check_N_E2_accents", [=] { return render(every300(40, true), D); }},
-        {"00_check_O_A1_accents_single_rate", [=] { return render(every300(33, true), singleRate()); }},
+        {"00_check_I_A1_stroke", [=] { return render(stroke(kLead, 33, 0.95f), D, layered()); }},
+        {"00_check_J_E2_stroke", [=] { return render(stroke(kLead, 40, 0.95f), D, layered()); }},
+        {"00_check_K_A1_even", [=] { return render(every300(33, false), D, layered()); }},
+        {"00_check_L_E2_even", [=] { return render(every300(40, false), D, layered()); }},
+        {"00_check_M_A1_accents", [=] { return render(every300(33, true), D, layered()); }},
+        {"00_check_N_E2_accents", [=] { return render(every300(40, true), D, layered()); }},
+        {"00_check_O_A1_accents_single_rate", [=] { return render(every300(33, true), singleRate(), layered()); }},
 
         // The end of the file: an E2 stroke cut while it rings (1 onset, none at the cut).
         {"00_check_P_E2_stroke_cut", [=] {
              Score s = stroke(kLead, 40, 0.95f);
              s.length = 1.0;
-             return render(s, D);
+             return render(s, D, layered());
          }},
-        // Mixed registers, as a fanfrnoch group: loud A#1 (58 Hz) strokes that die within 0.1 s,
-        // each with rubbing noise 18 dB under it, and between them C#4 (277 Hz) strokes 18 dB
+        // Mixed registers: loud A#1 (58 Hz) strokes that die within 0.1 s, each with a burst of
+        // noise 18 dB under it, and between them C#4 (277 Hz) strokes 18 dB
         // quieter, one every 0.184 s: 16 onsets. The noise keeps the long frames busy, so the
         // quiet high strokes are found only on 20 ms frames.
         {"00_check_Q_low_and_high", [=] {
@@ -232,7 +266,7 @@ static Renders renders()
                  Score one = stroke(kLead + 0.184 * i, i % 2 ? 61 : 34, 0.9f);
                  s = s + (i % 2 ? one.onPart(1) : one);
              }
-             Samples x = play(s, std::vector<Voice>{Voice(low, kRate), Voice(high, kRate)}, kRate);
+             Samples x = play(s, std::vector<Voice>{Voice(low), Voice(high)}, layered());
              std::mt19937 rng = seeded("00_check_Q_low_and_high");
              const double g = dbToGain(D.levelDb - 18), fall = std::pow(10.0, -3.0 / (0.3 * kRate));
              double rub = 0;
@@ -256,7 +290,7 @@ static Renders renders()
              Score s;
              for (int i = 0; i < 4; ++i)
                  s = s + note(kLead + 0.25 * i, 48, 0.9f, 1.5) + stroke(kLead + 0.25 * i, 88, 0.9f).onPart(1);
-             Samples x = play(s, std::vector<Voice>{Voice(swell, kRate), Voice(click, kRate)}, kRate);
+             Samples x = play(s, std::vector<Voice>{Voice(swell), Voice(click)}, layered());
              normalize(x);
              return x;
          }},
@@ -284,8 +318,40 @@ static Renders renders()
              return render(chord(kLead, {48, 55, 60, 64}, 0.8f, 1.5, 40) + chord(3.0, {48, 55, 60, 64}, 0.8f, 1.5), D);
          }},
 
+        // 07-10: how it plays, as the plug-in will from the same notes.
+        // 07: a key struck again while it rings: the old voice fades out in 3 ms, a fresh one
+        // strikes (kRehitContinues = false; an instrument that continues sets rehitContinues).
+        {"07_rehit_same_key", [=] { return render(phrase(kLead, {C4, C4, C4, C4}, 0.35, -1, 0.85f), D); }},
+        // 08: C4 held, C5 played over it at 1.2 s and let go at 2.2 s, Glide 200 ms. Legato goes
+        // on without a new strike and glides up; Mono strikes anew and glides; both glide back to
+        // the C4 still held.
+        {"08_glide_A_legato_200ms", [=] {
+             Playing how;
+             how.mode = Mode::Legato;
+             how.glideMs = 200;
+             return render(note(kLead, C4, 0.9f, 3.0) + note(1.2, C4 + 12, 0.9f, 1.0), with([](Params& p) { p.ring = 0; }), how);
+         }},
+        {"08_glide_B_mono_200ms", [=] {
+             Playing how;
+             how.mode = Mode::Mono;
+             how.glideMs = 200;
+             return render(note(kLead, C4, 0.9f, 3.0) + note(1.2, C4 + 12, 0.9f, 1.0), with([](Params& p) { p.ring = 0; }), how);
+         }},
+        // 09: short notes with the sustain pedal down from 0.1 s to 2.5 s: they ring until it comes up.
+        {"09_sustain_pedal", [=] { return render(phrase(kLead, {48, 55, 60, 64}, 0.3, 0.2).pedal(0.1, 2.5).withTail(kTail), D); }},
+        // 10: a held note bent up by Bend Up (2 semitones) over half a second, then let go.
+        {"10_bend_up_2_semitones", [=] {
+             return render(held(C4, 0.9f, 2.5).bendSlide(0.7, 1.2, 0.0f, 1.0f).bend(2.0, 0.0f), with([](Params& p) { p.ring = 0; }));
+         }},
+
         // Programs
         {"P01_soft_mallet", [=] { return render(strokeThenPhrase(48), softMallet()); }},
+
+        // Silence renders: one per way a voice ends, rendered until the voice is over (finished())
+        // and half a second more, whatever its T60; the tail floor bar applies to these.
+        {"S01_silence_note_off", [=] { return render(note(kLead, C4, 0.9f, 0.5).untilOver(), D); }},
+        {"S02_silence_stroke_rings_out", [=] { return render(stroke(kLead, C4, 0.9f).untilOver(), D); }},
+        {"S03_silence_rehit", [=] { return render(phrase(kLead, {C4, C4}, 0.3, -1).untilOver(), D); }},
     };
 }
 
