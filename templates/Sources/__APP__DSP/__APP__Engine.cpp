@@ -984,6 +984,10 @@ float {{APP_C}}_program_value(int p, int param)
     return p >= 0 && p < {{APP_C}}_num_programs() && validParam(param) ? programs()[(size_t)p].values[param] : 0.0f;
 }
 
+int {{APP_C}}_num_platform_defaults(void) { return kNumPlatformDefaults; }
+int {{APP_C}}_platform_default_param(int i) { return platformDefault(i).param; }
+float {{APP_C}}_platform_default_value(int i) { return platformDefault(i).value; }
+
 // ---------------------------------------------------------------------------------------------
 // C interface: the engine. Every call tolerates a null engine and indices out of range.
 // ---------------------------------------------------------------------------------------------

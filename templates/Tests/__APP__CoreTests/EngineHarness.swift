@@ -26,11 +26,17 @@ extension EngineHarness {
     }
 
     /// A fresh engine at `rate` in keyboard mode, with `knobs` (plain values) in the keyboard set.
+    /// The keyboard set plays as the platform does on its own: the knobs the instrument gives a
+    /// default of its own (`TestKnobs.platformDefaults`: Voice Mode, Glide, ...) are put back to
+    /// the platform's (`TestKnobs.platformOwn`) before `knobs`, so that a test of the platform
+    /// holds whatever playing style the instrument chose. A test of the instrument's defaults
+    /// makes its engine with `{{APP_C}}_create`.
     func makeEngine(_ knobs: [String: Float] = [:], rate: Double = Self.rate) -> OpaquePointer {
         let engine = {{APP_C}}_create()!
         {{APP_C}}_prepare(engine, rate)
         {{APP_C}}_reset(engine)
         {{APP_C}}_set_mode(engine, Int32({{APP_UPPER}}_MODE_KEYBOARD))
+        setKnobs(engine, TestKnobs.platformStyle)
         setKnobs(engine, knobs)
         return engine
     }
@@ -122,6 +128,31 @@ enum TestKnobs {
     /// The platform block, the first knobs of every instrument's table, in their permanent order.
     static let platform = ["volume", "pan", "tune", "octave", "bendup", "benddown", "voicemode", "glide", "lfostart",
                            "lfo1rate", "lfo1shape", "lfo2rate", "lfo2shape", "velsens"]
+
+    /// The platform block's own defaults (`PlatformParams.h`), before an instrument sets any of
+    /// its own.
+    static let platformOwn: [String: Float] = [
+        "volume": 0, "pan": 0, "tune": 0, "octave": 0, "bendup": 2, "benddown": 2, "voicemode": 0, "glide": 0,
+        "lfostart": 0, "lfo1rate": 6, "lfo1shape": 0, "lfo2rate": 2, "lfo2shape": 0, "velsens": 70,
+    ]
+
+    /// The platform's own values of the knobs the instrument gives defaults of its own.
+    static var platformStyle: [String: Float] { platformOwn.filter { platformDefaults[$0.key] != nil } }
+
+    /// The instrument's own defaults of platform knobs (`kPlatformDefaults`, its playing style),
+    /// by identifier, as the engine lists them.
+    static let platformDefaults: [String: Float] = Dictionary(
+        (0..<{{APP_C}}_num_platform_defaults()).compactMap { i -> (String, Float)? in
+            let index = Int({{APP_C}}_platform_default_param(i))
+            guard Parameters.all.indices.contains(index) else { return nil }
+            return (Parameters.all[index].identifier, {{APP_C}}_platform_default_value(i))
+        },
+        uniquingKeysWith: { first, _ in first })
+
+    /// A platform knob's default: the instrument's where it sets one, else the platform's own.
+    static func platformDefault(_ identifier: String) -> Float? {
+        platformDefaults[identifier] ?? platformOwn[identifier]
+    }
 
     /// Every knob, in table order: the parameters that come with a MIDI controller.
     static let all = Parameters.all.filter { Controllers.standard(for: $0) != nil }

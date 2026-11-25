@@ -359,8 +359,10 @@ struct AudioUnitWindowTests {
         let instrument = try Instrument()
         let engine = try instrument.engine()
         let model = try model(of: instrument)
-        // The two keys are two voices; letting go of them releases both (the engine's probe).
+        // The two keys are two voices (Poly); letting go of them releases both (the engine's probe).
         var probe = {{APP}}VoiceProbe()
+        try instrument.setParameter("voicemode", to: VoiceModeTests.poly)
+        _ = try instrument.render()
 
         model.keyDown(50, velocity: 100)
         model.keyDown(57, velocity: 100)

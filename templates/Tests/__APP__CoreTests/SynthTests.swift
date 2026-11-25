@@ -137,6 +137,7 @@ struct SynthTests {
     func voicesAndLatency() throws {
         let synth = Synth(sampleRate: 48_000)
         #expect(synth.latency == Int({{APP_C}}_latency(synth.engine)) && synth.latency > 0)
+        synth.setValue(VoiceModeTests.poly, of: TestKnobs.named("voicemode"))    // two keys, two voices
         synth.noteOn(48)
         synth.noteOn(55)
         _ = render(synth, frames: 512)

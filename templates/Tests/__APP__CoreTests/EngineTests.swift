@@ -197,6 +197,28 @@ struct EngineTests: EngineHarness {
         #expect(out[37...].contains { $0 != 0 })
     }
 
+    @Test("A new engine starts on the table's defaults, the instrument's defaults of platform knobs included; its pads on their programs")
+    func freshEngineDefaults() {
+        let engine = {{APP_C}}_create()!
+        defer { {{APP_C}}_destroy(engine) }
+        func near(_ value: Float, _ want: Float) -> Bool { abs(value - want) <= 1e-4 * max(1, abs(want)) }
+        for parameter in Parameters.all {
+            let value = {{APP_C}}_get_plain(engine, Self.keyboard, Int32(parameter.index))
+            #expect(near(value, parameter.defaultValue), "\(parameter.identifier): \(value)")
+        }
+        #expect({{APP_C}}_get_program(engine, Self.keyboard) == 0)
+        for (identifier, want) in TestKnobs.platformDefaults {
+            let index = Self.index(identifier)
+            #expect(near({{APP_C}}_get_plain(engine, Self.keyboard, index), want), "\(identifier)")
+            // The kit leaves these knobs to the pads' programs; the first program is the defaults.
+            for pad: Int32 in 1...Int32({{APP_UPPER}}_NUM_PADS) {
+                let program = Int({{APP_C}}_get_program(engine, pad)), value = {{APP_C}}_get_plain(engine, pad, index)
+                #expect(near(value, Programs.value(program: program, parameter: TestKnobs.named(identifier))), "\(identifier), pad \(pad)")
+                if program == 0 { #expect(near(value, want), "\(identifier), pad \(pad): \(value)") }
+            }
+        }
+    }
+
     @Test("Each set keeps its own knobs and program")
     func setsAreSeparate() {
         let engine = makeEngine()
@@ -465,6 +487,7 @@ struct EngineTests: EngineHarness {
         for set: Int32 in 0..<Int32({{APP_UPPER}}_NUM_SETS) {
             {{APP_C}}_set_program(engine, set, 0)
         }
+        setKnobs(engine, TestKnobs.platformStyle)       // the program brought the instrument's playing style back
         for pad: Int32 in 0..<Int32({{APP_UPPER}}_NUM_PADS) { {{APP_C}}_set_pad_group(engine, pad, 0); {{APP_C}}_set_pad_note(engine, pad, 36) }
         let total = Self.frames(4, at: rate)
         var out = [Float](repeating: 0, count: total)

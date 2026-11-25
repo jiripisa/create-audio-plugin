@@ -10,6 +10,8 @@
 //   * the LFOs move Volume, Pan and Tune and the velocity Volume, Pan, Tune and both LFO rates,
 //     among the continuous knobs the instrument adds; Vel Sens moves no further;
 //   * each wheel target is a continuous knob with a depth in (0, 1];
+//   * its defaults of platform knobs (kPlatformDefaults) name knobs of the platform block, each
+//     once, within its range, and the default kit leaves them to its pads' programs;
 //   * each instrument knob is in exactly one section;
 //   * the programs and the default kit name valid programs, notes, groups and parameters.
 
@@ -17,6 +19,7 @@
 
 #include "Params.h"
 
+#include <array>
 #include <cmath>
 #include <vector>
 
@@ -31,8 +34,41 @@ constexpr int kNumModWheelTargets = (int)(sizeof(kModWheelTargets) / sizeof(kMod
 constexpr int kNumAftertouchTargets = (int)(sizeof(kAftertouchTargets) / sizeof(kAftertouchTargets[0]));
 constexpr int kNumSections = (int)(sizeof(kSections) / sizeof(kSections[0]));
 
-// A knob of the table: the platform block's or the instrument's.
-constexpr const Param& knob(int i) { return i < kNumPlatformKnobs ? kPlatformKnobs[i] : kInstrumentKnobs[i - kNumPlatformKnobs]; }
+// ----- the instrument's defaults of platform knobs -------------------------------------------
+// The entries of kPlatformDefaults that set a knob ({ kNoTarget, 0 } sets none).
+constexpr int countPlatformDefaults()
+{
+    int n = 0;
+    for (const PlatformDefault& d : kPlatformDefaults) if (d.param != kNoTarget) ++n;
+    return n;
+}
+constexpr int kNumPlatformDefaults = countPlatformDefaults();
+
+// The i-th of them; { kNoTarget, 0 } past the end.
+constexpr PlatformDefault platformDefault(int i)
+{
+    for (const PlatformDefault& d : kPlatformDefaults)
+        if (d.param != kNoTarget && i-- == 0) return d;
+    return { kNoTarget, 0.0f };
+}
+
+// The platform block with the instrument's defaults in place of the platform's: what the table,
+// a fresh engine, the programs, the Audio Unit and the panel take as these knobs' defaults.
+constexpr std::array<Param, kNumPlatformKnobs> platformBlock()
+{
+    std::array<Param, kNumPlatformKnobs> block{};
+    for (int i = 0; i < kNumPlatformKnobs; ++i) block[(size_t)i] = kPlatformKnobs[i];
+    for (int i = 0; i < kNumPlatformDefaults; ++i)
+    {
+        const PlatformDefault d = platformDefault(i);
+        if (d.param >= 0 && d.param < kNumPlatformKnobs) block[(size_t)d.param].def = d.value;
+    }
+    return block;
+}
+inline constexpr std::array<Param, kNumPlatformKnobs> kPlatformBlock = platformBlock();
+
+// A knob of the table: the platform block's (with the instrument's defaults) or the instrument's.
+constexpr const Param& knob(int i) { return i < kNumPlatformKnobs ? kPlatformBlock[(size_t)i] : kInstrumentKnobs[i - kNumPlatformKnobs]; }
 constexpr bool isKnob(int i) { return i >= 0 && i < kNumKnobs; }
 
 // The parameter that says how far LFO `lfo` moves `param`; -1 when it cannot move it.
@@ -177,9 +213,35 @@ constexpr bool sectionsAreSound()
     return true;
 }
 
+// Each entry a knob of the platform block, none twice, its value in the knob's range and, for a
+// switch or a whole number, a whole one.
+constexpr bool platformDefaultsAreSound()
+{
+    for (int i = 0; i < kNumPlatformDefaults; ++i)
+    {
+        const PlatformDefault d = platformDefault(i);
+        if (d.param < 0 || d.param >= kNumPlatformKnobs) return false;
+        const Param& p = kPlatformKnobs[d.param];
+        if (!(d.value >= p.min && d.value <= p.max)) return false;
+        if (p.kind != {{APP_UPPER}}_KIND_FLOAT && d.value != (float)(int)d.value) return false;
+        for (int j = 0; j < i; ++j) if (platformDefault(j).param == d.param) return false;
+    }
+    return true;
+}
+
 constexpr bool overridesAreSound(const Override* overrides, int n)
 {
     for (int i = 0; i < n; ++i) if (overrides[i].param < -1 || overrides[i].param >= kNumKnobs + kNumLfoAmounts + kNumVelAmounts) return false;
+    return true;
+}
+
+// The default kit leaves the knobs of kPlatformDefaults to its pads' programs.
+constexpr bool kitLeavesPlatformDefaults()
+{
+    for (const KitPad& pad : kDefaultKit)
+        for (const Override& o : pad.overrides)
+            for (int i = 0; i < kNumPlatformDefaults; ++i)
+                if (o.param != -1 && o.param == platformDefault(i).param) return false;
     return true;
 }
 
@@ -211,6 +273,8 @@ static_assert(!check::listed(kVelTargets, kNumVelTargets, kVelSens), "Vel Sens i
 static_assert(check::wheelTargets(kModWheelTargets, kNumModWheelTargets), "a mod wheel target is no continuous knob, or its depth is not in (0, 1]");
 static_assert(check::wheelTargets(kAftertouchTargets, kNumAftertouchTargets), "an aftertouch target is no continuous knob, or its depth is not in (0, 1]");
 static_assert(check::controllersAreSound(), "a knob's standard controller is missing, reserved or shared");
+static_assert(check::platformDefaultsAreSound(), "a platform default names no knob of the platform block, one twice, or a value out of its range");
+static_assert(check::kitLeavesPlatformDefaults(), "a pad of the default kit sets a knob of kPlatformDefaults: leave it to the pad's program");
 static_assert(check::sectionsAreSound(), "an instrument knob is in no section or in two, or a section holds no knob");
 static_assert(kNumPrograms >= 1 && check::programsAndKitAreSound(), "a program or a pad of the default kit is out of range");
 

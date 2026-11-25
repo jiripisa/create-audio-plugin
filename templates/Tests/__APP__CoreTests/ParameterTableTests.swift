@@ -39,19 +39,26 @@ struct ParameterTableTests {
     @Test("The platform block's ranges, defaults and choices")
     func platformBlock() {
         func knob(_ id: String) -> Parameter { TestKnobs.named(id) }
-        #expect(knob("volume").range == -40...6 && knob("volume").defaultValue == 0 && knob("volume").unit == "dB")
-        #expect(knob("pan").range == -100...100 && knob("pan").defaultValue == 0 && knob("pan").unit == "%")
-        #expect(knob("tune").range == -100...100 && knob("tune").defaultValue == 0 && knob("tune").unit == "ct")
-        #expect(knob("octave").range == -2...2 && knob("octave").kind == .integer)
+        // The platform's own default, or the instrument's where it sets one (`kPlatformDefaults`).
+        func hasDefault(_ id: String, _ platform: Float) -> Bool {
+            TestKnobs.platformOwn[id] == platform && knob(id).defaultValue == TestKnobs.platformDefault(id)
+        }
+        #expect(Set(TestKnobs.platformOwn.keys) == Set(TestKnobs.platform))
+        #expect(knob("volume").range == -40...6 && hasDefault("volume", 0) && knob("volume").unit == "dB")
+        #expect(knob("pan").range == -100...100 && hasDefault("pan", 0) && knob("pan").unit == "%")
+        #expect(knob("tune").range == -100...100 && hasDefault("tune", 0) && knob("tune").unit == "ct")
+        #expect(knob("octave").range == -2...2 && knob("octave").kind == .integer && hasDefault("octave", 0))
         #expect(knob("bendup").range == 0...24 && knob("benddown").range == 0...24 && knob("bendup").kind == .integer)
-        #expect(knob("bendup").defaultValue == 2 && knob("benddown").defaultValue == 2)
-        #expect(knob("voicemode").kind == .choice(["Poly", "Mono", "Legato"]) && knob("voicemode").defaultValue == 0)
-        #expect(knob("glide").range == 0...2000 && knob("glide").defaultValue == 0 && knob("glide").unit == "ms")
-        #expect(knob("lfostart").kind == .choice(["Hit", "Free"]))
-        #expect(knob("lfo1rate").range == 0.02...20 && knob("lfo1rate").defaultValue == 6)
-        #expect(knob("lfo2rate").range == 0.02...20 && knob("lfo2rate").defaultValue == 2)
+        #expect(hasDefault("bendup", 2) && hasDefault("benddown", 2))
+        #expect(knob("voicemode").kind == .choice(["Poly", "Mono", "Legato"]) && hasDefault("voicemode", 0))
+        #expect(knob("glide").range == 0...2000 && hasDefault("glide", 0) && knob("glide").unit == "ms")
+        #expect(knob("lfostart").kind == .choice(["Hit", "Free"]) && hasDefault("lfostart", 0))
+        #expect(knob("lfo1rate").range == 0.02...20 && hasDefault("lfo1rate", 6))
+        #expect(knob("lfo1shape").kind == knob("lfo2shape").kind && hasDefault("lfo1shape", 0))
+        #expect(knob("lfo2rate").range == 0.02...20 && hasDefault("lfo2rate", 2))
         #expect(knob("lfo2shape").kind == .choice(["Sine", "Triangle", "Ramp Up", "Ramp Down", "Square", "Steps", "Wander"]))
-        #expect(knob("velsens").range == 0...100 && knob("velsens").defaultValue == 70)
+        #expect(hasDefault("lfo2shape", 0))
+        #expect(knob("velsens").range == 0...100 && hasDefault("velsens", 70))
         for id in ["glide", "lfo1rate", "lfo2rate"] {
             var info = {{APP}}ParamInfo()
             {{APP_C}}_param_info(Int32(knob(id).index), &info)
@@ -65,6 +72,27 @@ struct ParameterTableTests {
         #expect(glide.plain(0) == 0 && abs(glide.plain(1) - 2000) < 0.01)
         #expect(abs(glide.plain(0.5) - 2 * ((1001 as Float).squareRoot() - 1)) < 0.01)
         #expect(abs(glide.plain(glide.normalised(100)) - 100) < 0.01)
+    }
+
+    @Test("The instrument's defaults of platform knobs name knobs of the platform block, once each, in range; the table reports them")
+    func instrumentPlatformDefaults() {
+        let count = Int({{APP_C}}_num_platform_defaults())
+        var seen: Set<Int32> = []
+        for i in 0..<Int32(count) {
+            let index = {{APP_C}}_platform_default_param(i), value = {{APP_C}}_platform_default_value(i)
+            #expect(index >= 0 && Int(index) < TestKnobs.platform.count, "entry \(i): knob \(index)")
+            #expect(seen.insert(index).inserted, "entry \(i): knob \(index) twice")
+            guard index >= 0 && Int(index) < TestKnobs.platform.count else { continue }
+            let knob = Parameters.all[Int(index)]
+            #expect(knob.range.contains(value), "\(knob.identifier): \(value)")
+            if knob.kind != .continuous { #expect(value == value.rounded(), "\(knob.identifier): \(value)") }
+            var info = {{APP}}ParamInfo()
+            {{APP_C}}_param_info(index, &info)
+            #expect(info.defaultValue == value && knob.defaultValue == value, "\(knob.identifier)")
+        }
+        #expect(TestKnobs.platformDefaults.count == count)
+        #expect({{APP_C}}_platform_default_param(Int32(count)) == -1 && {{APP_C}}_platform_default_param(-1) == -1)
+        #expect({{APP_C}}_platform_default_value(Int32(count)) == 0)
     }
 
     @Test("Every amount is -100 ... 100 % and 0 at rest")
@@ -128,8 +156,18 @@ struct ParameterTableTests {
         for parameter in Parameters.all where parameter.identifier != "octave" {
             #expect({{APP_C}}_program_sets(Int32(parameter.index)) == 1, "\(parameter.identifier)")
         }
+        let octave = TestKnobs.named("octave")
         for program in Programs.names.indices {
-            #expect(Programs.value(program: program, parameter: TestKnobs.named("octave")) == 0)
+            #expect(Programs.value(program: program, parameter: octave) == octave.defaultValue)
+        }
+    }
+
+    // A fresh keyboard set holds the defaults and names the first program (the Audio Unit shows
+    // it as its preset): the first program is the defaults, the instrument's playing style included.
+    @Test("The first program is the table's defaults")
+    func firstProgramIsTheDefaults() {
+        for parameter in Parameters.all {
+            #expect(Programs.value(program: 0, parameter: parameter) == parameter.defaultValue, "\(parameter.identifier)")
         }
     }
 

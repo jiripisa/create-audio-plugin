@@ -183,10 +183,14 @@ stays as it is. The contract below is checked at compile time by `static_assert`
 `ParamTable.h` (identifiers lowercase ASCII and unique; a controller per knob, unreserved and
 unique; LFO targets continuous, once each, with Volume, Pan and Tune; VEL targets continuous, once
 each, with Volume, Pan, Tune and both LFO rates and without Vel Sens; wheel targets continuous
-with depths in (0, 1]; every instrument knob in exactly one section; programs and kit in range;
+with depths in (0, 1]; the instrument's defaults of platform knobs (`kPlatformDefaults`) name
+knobs of the platform block, each once, within its range (a whole number for a switch or an
+integer knob), and the default kit sets none of them; every instrument knob in exactly one section; programs and kit in range;
 fewer than 1000 knobs and at most two LFOs; every stable ID round-trips), and at test time by
-`ParameterTableTests` (the platform block's identifiers, order, ranges, defaults, choices and
-units; knobs, then LFO 1's, LFO 2's and the VEL amounts; amounts at -100 … 100 %, 0; Master last
+`ParameterTableTests` (the platform block's identifiers, order, ranges, choices and units; its
+defaults the platform's own, `TestKnobs.platformOwn`, except where the instrument sets one, which
+the table then reports, `{{APP_C}}_param_info`, as the C list `{{APP_C}}_platform_default_*` says;
+the first program is the defaults; knobs, then LFO 1's, LFO 2's and the VEL amounts; amounts at -100 … 100 %, 0; Master last
 with the platform block; every continuous instrument knob a VEL target; at least two programs,
 none setting Octave), `AudioUnitTests.stableParameterIDs` (the IDs below) and
 `.unknownParameterRefused` (the unit refuses a global ID the table does not have, also before
@@ -195,7 +199,10 @@ Initialize, where the SDK's parameter map would otherwise add it: `__APP__AU::Se
 **The parameter table** (the engine's index; the Audio Unit's IDs and saved state do not depend
 on it, see "Stable IDs" below):
 
-1. The platform block, IDs 0-13, the same for every instrument (`PlatformParams.h`):
+1. The platform block, IDs 0-13, the same for every instrument (`PlatformParams.h`). The
+   defaults below are the platform's own; an instrument's spec may choose its own for any of
+   them (its playing style: a flute Legato with glide, a guitar Poly with Bend 2), in
+   `kPlatformDefaults` only (see "What a run writes in `Params.h`"):
 
    | ID | Identifier | Name | Range, default | CC |
    |---|---|---|---|---|
@@ -242,9 +249,10 @@ after it moves on) or an LFO or VEL target is added; what hosts and saved state 
 
 After a first release a run **may**: append instrument knobs at the end of the instrument block
 (new IDs `kNumKnobs`, …), add LFO or VEL targets (new amounts, new IDs), add sections, programs
-(at the end of `kPrograms`, whose index presets and projects keep) and change defaults, ranges or
-the kit. It **may never**: rename an identifier, remove or reorder knobs, change the platform
-block, or change what an ID names. Tests `AudioUnitTests.stableParameterIDs`,
+(at the end of `kPrograms`, whose index presets and projects keep) and change defaults (its own
+knobs' and those of `kPlatformDefaults`), ranges or the kit. It **may never**: rename an
+identifier, remove or reorder knobs, change the platform block (`PlatformParams.h`), or change
+what an ID names. Tests `AudioUnitTests.stableParameterIDs`,
 `.stateFromAnotherTable`, `.statePadValuesByIdentifier`, `.stateControllersAreChecked` and
 `KitTests.kitFromAnotherTable` hold this.
 
@@ -257,8 +265,9 @@ block, or change what an ID names. Tests `AudioUnitTests.stableParameterIDs`,
 | `kLfoTargets[]` | the knobs an LFO may move | continuous knobs, each once; must hold `kVolume`, `kPan`, `kTune` |
 | `kVelTargets[]` | the knobs the velocity may move | every continuous instrument knob, and `kVolume`, `kPan`, `kTune`, `kLfo1Rate`, `kLfo2Rate`; never `kVelSens` |
 | `kModWheelTargets[]`, `kAftertouchTargets[]` | `{ param, depth }`: what the wheel moves on a keyboard voice, `depth` the part of the knob's travel at the top | continuous knobs, depth in (0, 1]; `{ kNoTarget, 0 }` for none |
+| `kPlatformDefaults[]` | `{ platform knob, plain value }`: the instrument's own default of a platform knob (Voice Mode, Glide, Bend Up/Down, …), from the spec's playing style; `{ kNoTarget, 0 }` for none (Tone) | the only way an instrument changes a platform default: `ParamTable.h` puts it into the platform block (`kPlatformBlock`), so the table's default (`{{APP_C}}_param_info`), a fresh engine's sets, the programs (which start from the defaults), the Audio Unit's parameters, "reset to default", presets and the panel all agree; a platform knob each, once, in its range; the default kit sets none of them; `ParameterTableTests`, `EngineTests.freshEngineDefaults`, `AudioUnitTests.freshUnitDefaults` |
 | `kSections[]` | `{ name, { knobs… } }`, in the order shown; Master (the platform block) follows | every instrument knob in exactly one; at most 16 a section |
-| `enum ProgramIndex`, `kPrograms[]` | `{ name, { { param, plain value }… } }`: the defaults with up to 16 overrides | at least two (the platform tests load the last); a program never sets Octave |
+| `enum ProgramIndex`, `kPrograms[]` | `{ name, { { param, plain value }… } }`: the defaults with up to 16 overrides | at least two (the platform tests load the last); a program never sets Octave; `kPrograms[0]` has no overrides (a fresh set holds the defaults and names program 0, which the Audio Unit shows as its preset: `ParameterTableTests.firstProgramIsTheDefaults`) |
 | `kDefaultKit[16]` | `{ program, note, group, { overrides… } }` per pad | valid programs, notes 0-127, groups 0-16 (0 = Off) |
 | `kRehitContinues` | a note-on on a sounding voice (same key, or a pad of the same group): `true` continues it (`start(…, continuing = true)`), `false` fades it out in 3 ms and starts a fresh one | |
 | `kOutputLevel` | the voice's units to the engine's | the default note at full velocity peaks around 0.5 (-6 dBFS), under the limiter's 0.6 |
@@ -368,10 +377,10 @@ keyboard set's Voice Mode:
 
 | File | Kind | What it is / what a run puts there |
 |---|---|---|
-| `Sources/__APP__DSP/include/__APP__DSP.h` | platform | C interface to the engine (and its probe for tests, `{{APP_C}}_voice_probe`) |
+| `Sources/__APP__DSP/include/__APP__DSP.h` | platform | C interface to the engine (and, for tests, its probe, `{{APP_C}}_voice_probe`, and the list of the instrument's defaults of platform knobs, `{{APP_C}}_platform_default_*`) |
 | `Sources/__APP__DSP/__APP__Engine.cpp` | platform | voice pool, voice modes, glide, sustain, pads, sets, LFOs, VEL, wheels, MIDI, oversampling, limiter; names no instrument knob |
-| `Sources/__APP__DSP/PlatformParams.h` | platform | `Param`, the platform block, the shapes of the instrument's tables |
-| `Sources/__APP__DSP/ParamTable.h`, `ParamTable.cpp` | platform | the whole table put together, `Knobs`, the seam's `static_assert`s |
+| `Sources/__APP__DSP/PlatformParams.h` | platform | `Param`, the platform block with the platform's own defaults, the shapes of the instrument's tables (`PlatformDefault` among them) |
+| `Sources/__APP__DSP/ParamTable.h`, `ParamTable.cpp` | platform | the whole table put together (the platform block with the instrument's `kPlatformDefaults`, `kPlatformBlock`), `Knobs`, the seam's `static_assert`s |
 | `Sources/__APP__DSP/Params.h` | instrument | the instrument's knobs and tables (§"The instrument seam") |
 | `Sources/__APP__DSP/Voice.h` | instrument | the instrument's voice from the approved prototype |
 | `Sources/__APP__DSP/Lfo.h` | platform | LFO phase and its seven shapes |
@@ -425,9 +434,9 @@ keyboard set's Voice Mode:
 | `Tests/__APP__CoreTests/Grooves.swift` | instrument | scores over the instrument's default kit |
 | `Tests/__APP__CoreTests/ReferenceTests.swift` | instrument | the reference renders its own scores |
 | `Tests/__APP__CoreTests/InstrumentTableTests.swift` | instrument | the instrument's knobs, controllers, targets, wheels, sections, programs, kit, tail, level |
-| `Tests/__APP__CoreTests/EngineHarness.swift` | platform | engine test helpers and measures; `TestKnobs` (the platform block, the instrument's knobs by position) |
+| `Tests/__APP__CoreTests/EngineHarness.swift` | platform | engine test helpers and measures; `TestKnobs` (the platform block and its own defaults, `platformOwn`; the instrument's defaults of platform knobs, `platformDefaults`; the instrument's knobs by position); `makeEngine` plays as the platform does on its own (`platformStyle`) |
 | `Tests/__APP__CoreTests/EngineTests.swift` | platform | engine promises for every instrument |
-| `Tests/__APP__CoreTests/ParameterTableTests.swift` | platform | table invariants: the platform block, order, amounts, sections |
+| `Tests/__APP__CoreTests/ParameterTableTests.swift` | platform | table invariants: the platform block (with the instrument's defaults of platform knobs), order, amounts, sections, the first program the defaults |
 | `Tests/__APP__CoreTests/ModulationTests.swift`, `ControllerTests.swift`, `PadTests.swift` | platform | LFO/VEL, controllers, pads (the pad VEL test included) |
 | `Tests/__APP__CoreTests/VoiceModeTests.swift` | platform | Poly, Mono, Legato, Glide, the sustain pedal, the resets, the stack's edges (16 keys, a key twice, a key not held), mode changes with keys and pedal down, pads unaffected, the AU state keeping Voice Mode and Glide; on the engine's probe |
 | `Tests/__APP__CoreTests/AudioUnitTests.swift`, `AudioUnitWindowTests.swift` | platform | the AU in-process, its window model |
@@ -444,15 +453,21 @@ knob with a VEL amount (`TestKnobs.firstVelTarget`) that, moved over its whole t
 changes a note's level over its first 0.3 s by more than 6 dB (the pad VEL test; Tone's Attack
 does); no velocity in the voice's level besides Vel Sens
 and VEL>Volume (the VEL>Volume and Vel Sens tests); a voice over within `kTailSeconds` of its
-note-off. Beyond that the platform tests are independent of the instrument: what the platform
+note-off. A fresh engine of `makeEngine` and the pads of `PadTests` play as the platform does on
+its own: the knobs the instrument gives defaults of its own (`kPlatformDefaults`) are put back to
+the platform's (`TestKnobs.platformStyle`), and a test that needs a voice per key or a held key's
+release on the Audio Unit or `Synth` sets Poly itself; only the tests of the defaults
+(`ParameterTableTests`, `EngineTests.freshEngineDefaults`, `AudioUnitTests.freshUnitDefaults`)
+read the instrument's. Beyond that the platform tests are independent of the instrument: what the platform
 decides (a fresh or a continuing start, a release, what the pedal holds, the note the voice of
 Mono and Legato plays and how far its glide has to go) is read from the engine's probe
 (`{{APP_C}}_voice_probe`, a test and diagnostic call), a sound is compared with the same notes
 played another way, and a pitch is measured within 0.2 s of the event that sets it. Checked by
 running the whole suite with three stand-ins for Tone: an organ-like voice (no decay while
-held), Release 1.2 s, and a pluck (Decay 0.3 s): only the instrument tests
-(`PrototypeEquivalenceTests`, `SoundRegressionTests`, `InstrumentTableTests`, `ReferenceTests`)
-fail there.
+held), Release 1.2 s, and a pluck (Decay 0.3 s), and with Tone given the defaults of platform
+knobs Legato, Glide 120 ms, Bend Up 12, Octave -1, Vel Sens 40 and LFO 1 Rate 3 Hz: only the
+instrument tests (`PrototypeEquivalenceTests`, `SoundRegressionTests`, `InstrumentTableTests`,
+`ReferenceTests`) fail there.
 
 ### Website (`docs/`)
 
@@ -484,7 +499,7 @@ text, not FILL, so they stay.
 | File | FILL comments | What they ask for |
 |---|---|---|
 | `docs/index.html`, `docs/cs/index.html` | 6 each | the page's images (one comment), the first and third feature cards, what "synthesized" lets the instrument do |
-| `docs/manual.html`, `docs/cs/manual.html` | 35 each | the contents' and the panel's section names, what the instrument is, the programs, each section of knobs, re-hit and start-only knobs, the wheels, groups and the default kit, the LFO/VEL target lists, the knobs centred on 0, the standard and free controllers, the Audio Unit's parameter counts, each figure's screenshot and caption |
+| `docs/manual.html`, `docs/cs/manual.html` | 36 each | the contents' and the panel's section names, what the instrument is, the programs, each section of knobs, Master's defaults that `kPlatformDefaults` sets, re-hit and start-only knobs, the wheels, groups and the default kit, the LFO/VEL target lists, the knobs centred on 0, the standard and free controllers, the Audio Unit's parameter counts, each figure's screenshot and caption |
 | `docs/assets/site.css` | 1 | the approved site look's palette, display font and button (the template's is a neutral dark one) |
 | `.planning/ROADMAP.md` | 6 | file names of the report and the spec, what phases 02–05 made |
 | `.planning/STATE.md` | 4 | the research, prototype and spec entry (date, file names, approval date) |
@@ -492,7 +507,8 @@ text, not FILL, so they stay.
 Checked by rendering (`Zkušebník Test`) and opening the four pages in headless Chrome
 (Playwright 1.65.1, its Chromium 1255) at 1440 and 400 px: no page is wider than its viewport, the
 in-page anchors all resolve, no script error, and the English and Czech pages have the same
-sequence of elements and FILL comments (87 for the overview, 720 for the manual). The only failed
+sequence of elements and FILL comments (87 for the overview, 720 for the manual; the Master
+defaults' FILL came later, at the same place in both languages). The only failed
 requests are the images a run makes: `assets/icon.png`, `assets/hero-<app>.jpg`,
 `assets/<app>-window.png`, `assets/ornament.png` and the ten `assets/manual/*.png`.
 

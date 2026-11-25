@@ -12,13 +12,15 @@ struct PadTests: EngineHarness {
     static let firstPadNote = Int32({{APP_UPPER}}_FIRST_PAD_NOTE)
 
     /// A fresh engine in pad mode. Every pad plays the first program with `knobs`, at note 47
-    /// (B2) with its group Off; the keyboard set has the same knobs.
+    /// (B2) with its group Off; the keyboard set has the same knobs. Like the keyboard set of
+    /// `makeEngine`, the pads' sets play as the platform does on its own (`TestKnobs.platformStyle`).
     private func makePads(_ knobs: [String: Float] = [:]) -> OpaquePointer {
         let sound = knobs
         let engine = makeEngine(sound)
         {{APP_C}}_set_mode(engine, Self.pads)
         for pad: Int32 in 0..<Int32({{APP_UPPER}}_NUM_PADS) {
             {{APP_C}}_set_program(engine, pad + 1, 0)
+            setKnobs(engine, TestKnobs.platformStyle, set: pad + 1)
             setKnobs(engine, sound, set: pad + 1)
             {{APP_C}}_set_pad_note(engine, pad, 47)
             {{APP_C}}_set_pad_group(engine, pad, 0)
@@ -270,7 +272,7 @@ struct PadTests: EngineHarness {
         }
     }
 
-    @Test("A new engine's pads hold the default kit: a program in every set, Octave 0")
+    @Test("A new engine's pads hold the default kit: a program in every set, Octave at its default")
     func defaultKit() {
         let engine = {{APP_C}}_create()!
         defer { {{APP_C}}_destroy(engine) }
@@ -278,7 +280,7 @@ struct PadTests: EngineHarness {
         for pad: Int32 in 0..<Int32({{APP_UPPER}}_NUM_PADS) {
             let program = {{APP_C}}_get_program(engine, pad + 1)
             #expect(program >= 0 && program < {{APP_C}}_num_programs(), "pad \(pad + 1)")
-            #expect({{APP_C}}_get_plain(engine, pad + 1, octave) == 0, "pad \(pad + 1)")
+            #expect({{APP_C}}_get_plain(engine, pad + 1, octave) == TestKnobs.named("octave").defaultValue, "pad \(pad + 1)")
             #expect((0...127).contains({{APP_C}}_pad_note(engine, pad)), "pad \(pad + 1)")
             #expect((0...Int32({{APP_UPPER}}_NUM_GROUPS)).contains({{APP_C}}_pad_group(engine, pad)), "pad \(pad + 1)")
         }

@@ -326,6 +326,22 @@ struct AudioUnitTests {
         #expect(peak(out[0]) > 0.01 && peak(out[1]) > 0.01)
     }
 
+    @Test("A new unit's parameters are the table's defaults, the instrument's defaults of platform knobs included, and so is its engine")
+    func freshUnitDefaults() throws {
+        let instrument = try Instrument()
+        _ = try instrument.render()
+        let engine = try instrument.engine()
+        for parameter in Parameters.all {
+            #expect(try instrument.parameter(parameter.index) == parameter.defaultValue, "\(parameter.identifier)")
+        }
+        for (identifier, want) in TestKnobs.platformDefaults {
+            let parameter = TestKnobs.named(identifier)
+            #expect(try instrument.parameter(parameter.index) == want, "\(identifier)")
+            let played = {{APP_C}}_get_plain(engine, Int32({{APP_UPPER}}_KEYBOARD_SET), Int32(parameter.index))
+            #expect(abs(played - want) <= 1e-4 * max(1, abs(want)), "\(identifier): \(played)")
+        }
+    }
+
     @Test("A parameter the host sets reaches the engine's keyboard set by the next render")
     func hostParameterReachesEngine() throws {
         let instrument = try Instrument()

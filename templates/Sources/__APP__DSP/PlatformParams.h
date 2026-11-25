@@ -171,6 +171,10 @@ struct Target { int param; float depth; };
 // One knob set to a plain value; param -1 is no override.
 struct Override { int param = -1; float value = 0.0f; };
 
+// The instrument's own default for a knob of the platform block (its playing style: Voice Mode,
+// Glide, the bend range, ...), a plain value. A table that would be empty holds { kNoTarget, 0 }.
+struct PlatformDefault { int param; float value; };
+
 // A built-in program: the defaults with a few values overridden.
 constexpr int kMaxProgramOverrides = 16;
 struct ProgramDef { const char* name; Override overrides[kMaxProgramOverrides]; };

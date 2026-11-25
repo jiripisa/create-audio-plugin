@@ -25,7 +25,8 @@
   names parameters by identifier or ID. Validate every change of the Audio Unit with
   `auval` (`development_workflow.md` §2.1).
 - **The instrument lives in a few files**: `Sources/{{APP}}DSP/Params.h` (its knobs,
-  sections, programs, kit), `Voice.h` (its voice), `Tests/{{APP}}Reference/` and the
+  its playing style as defaults of platform knobs (`kPlatformDefaults`), sections,
+  programs, kit), `Voice.h` (its voice), `Tests/{{APP}}Reference/` and the
   instrument tests (`PrototypeEquivalenceTests`, `SoundRegressionTests`,
   `InstrumentTableTests`, `ReferenceTests`), plus the panel's `Artwork.swift` and
   `SectionLayout` plans. Everything else is the platform the project was made from:

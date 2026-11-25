@@ -45,6 +45,12 @@ constexpr int kVelTargets[] = { kAttack, kDecay, kRelease, kBrightness, kVolume,
 constexpr Target kModWheelTargets[] = { { kBrightness, 0.5f } };
 constexpr Target kAftertouchTargets[] = { { kBrightness, 0.25f } };
 
+// The platform knobs whose default the instrument changes, as plain values: its playing style
+// (a flute: { { kVoiceMode, kVoiceLegato }, { kGlide, 60.0f } }; a guitar keeps Poly and Bend 2).
+// The only way an instrument changes a platform default: the table, a fresh engine, the Audio
+// Unit, the programs and the panel all take these. Tone plays as the platform does.
+constexpr PlatformDefault kPlatformDefaults[] = { { kNoTarget, 0.0f } };
+
 // The sections the instrument's knobs are shown in, in order; the platform's Master comes last.
 constexpr SectionDef kSections[] = {
     { "Tone", { kAttack, kDecay, kRelease, kBrightness } },

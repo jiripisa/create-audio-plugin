@@ -81,6 +81,14 @@ const char* {{APP_C}}_program_name(int p);
 float       {{APP_C}}_program_value(int p, int param);   // plain
 int         {{APP_C}}_program_sets(int param);           // 0 for "octave", which programs leave alone
 
+// The knobs of the platform block (volume ... velsens) whose default the instrument sets to one
+// of its own (its playing style: Voice Mode, Glide, the bend range, ...), and that plain value.
+// {{APP_C}}_param_info already reports it as the knob's default; this list says which defaults are
+// the instrument's, for tests. Entry i's knob is -1 (and its value 0) past the end.
+int         {{APP_C}}_num_platform_defaults(void);
+int         {{APP_C}}_platform_default_param(int i);
+float       {{APP_C}}_platform_default_value(int i);
+
 // ----- one engine ---------------------------------------------------------------------------
 {{APP}}Engine* {{APP_C}}_create(void);
 void          {{APP_C}}_destroy({{APP}}Engine*);
