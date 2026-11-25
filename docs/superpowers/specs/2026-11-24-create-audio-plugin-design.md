@@ -314,3 +314,40 @@ scripts/
 - The analysis tool's feature set (start from Fanfrnoch §3's description and Brumle's
   `--analyze`).
 - Wording and size of SKILL.md and the references (follow the `writing-skills` skill).
+
+## 11. Amendments after the final review (2026-11-25)
+
+Rulings of the final whole-branch review that change what the sections above say. The skill's
+files follow these; the text above is kept as it was decided on 2026-11-24.
+
+- **§3, the sandbox.** Steps the Bash sandbox breaks are not tried inside it first: window
+  captures and AX drives, the component's copy for `auval` or a host, Codex, headless Chrome, and
+  everything that reads the login Keychain or signs (`./build.sh dist` included) run with the
+  sandbox disabled from the start. Only a refusal of that request is final ("Not verified"). A
+  signing piece counts as missing only when its check fails that way.
+- **§5, pictures of the app.** Captures and AX drives are the main session's, like the Codex
+  jobs; the subagents of phases 04 and 05 hand back a capture list. A capture a locked screen
+  prevents has no way round on macOS 27 (the in-app `CGWindowListCreateImageFromArray` is gone):
+  it is queued and taken when the user is back, right before the push question. The release
+  gate checks that every file the site links exists; a figure whose picture cannot be made is
+  taken out of the English and Czech pages alike, and the push question says so.
+- **§5 step 2, the prototype plays like the platform.** The spike harness is the engine's voice
+  pool, rule for rule (a re-hit, Poly / Mono / Legato with the engine's glide, the pedal, the
+  bend, Vel Sens, stealing, pads), and the engine's reference is the prototype's voice played by
+  that harness. A voice's random numbers come from its own generator, seeded with one constant
+  at every fresh start, in both. A melodic instrument's legato, glide and re-hit are rendered at
+  the sound gate.
+- **§7, the tests' split.** The platform tests play the instrument's *test sound* (`kTestSound`
+  in `Params.h`: its own knobs turned so that the voice holds its pitch by itself and has a short
+  release), so every pitch movement and long release of a voice must be reachable by a knob. The
+  VEL tests use platform knobs (Tune, Volume).
+- **§7, the level.** `kOutputLevel` is set by the fullest gesture of the playing style (a full
+  chord or strum, one note for a mono instrument, the kit's busiest bar), which peaks just under
+  the output stage's knee, not by one note at -6 dBFS.
+- **§5 step 0.** The identity becomes permanent in the spec, not at intake: a name corrected at
+  intake or in the approval of the sound re-runs `identity.py` and the name-free check.
+  `identity.py` also takes the subtypes of the projects beside the new one as taken. The push
+  question is the one confirmation the user's global push rule asks for.
+- **§7, rendering.** `scaffold.py --templates` skips a top-level `.build`, `build`, `.swiftpm`
+  and `.git`; the change to that skill's file is kept in this repo as
+  `patches/new-macos-app-scaffold.diff`.

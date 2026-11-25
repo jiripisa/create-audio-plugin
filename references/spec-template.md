@@ -3,7 +3,8 @@
 Written right after the sound is approved, before phase 01, as
 `.planning/specs/<YYYY-MM-DD>-instrument-design.md`. Approval of the spec is delegated by the
 user's choice of this skill: nobody waits for it. It fixes, before the first build, everything
-that is permanent: the identity, the parameter identifiers and their order, the programs' order.
+that is permanent: the identity (until here a corrected name could still change it: intake, or
+the approval at gate 2), the parameter identifiers and their order, the programs' order.
 
 Markers on every decision: **[user]** decided by the user; **[ear]** approved by the user's ear
 on the prototype's renders; **[call]** a call made here, open to correction; **[builder]** left
@@ -72,6 +73,12 @@ their costs, the one chosen [ear] and the named fallback.
 The signal path as pseudo-code with the prototype's formulas, block by block, in the
 prototype's units. What start (note-on), continuing, release and finished mean for this voice.
 What velocity does inside the voice (colour, never level: the platform applies Vel Sens).
+Random numbers: which the voice draws, in which order (its own generator, seeded with
+`kVoiceSeed` at every fresh start; equal notes are equal samples).
+What the voice does to its pitch by itself (a vibrato, a pitch envelope, drift, detune) and how
+long it rings after the note-off, each with **the knob that reaches it**: every such movement and
+every release longer than 1.5 s has a knob in §6 that turns it off or down, because the
+platform's tests play the instrument's test sound (§6), and one that no knob reaches breaks them.
 
 ## 6. Parameters
 The table in its permanent order; identifiers lowercase ASCII letters and digits, unique.
@@ -86,13 +93,24 @@ The table in its permanent order; identifiers lowercase ASCII letters and digits
    Defaults are the prototype's `Params` [ear for knobs the renders exercised, call for the
    rest]. CC: the General MIDI controller for the thing where there is one, else 14-31, 85-90,
    113-119; never 5, 7, 10, 102-112 (the platform's) or a reserved one.
+   The tables' sizes are fixed by the platform (`PlatformParams.h`): a section shows at most
+   **16 knobs**, a program sets at most **16 overrides**, a pad of the default kit at most **4**
+   (the rest of a pad's sound is its program). More knobs than that: another section; a program
+   that needs more overrides: change the defaults or split the sound.
 3. LFO amounts: LFO 1 on each `kLfoTargets` knob (`lfo1<id>`), then LFO 2 (`lfo2<id>`).
    `kLfoTargets` holds volume, pan, tune and <…>.
 4. VEL amounts (`vel<id>`) on every continuous instrument knob and volume, pan, tune, lfo1rate,
    lfo2rate; never velsens. All amounts -100 … 100 %, 0.
    The default sound (program 0) carries no LFO or VEL amounts: every amount rests at 0 and
    `kPlatformDefaults` covers only knobs 0-13, so a default vibrato or anything like it that the
-   approved renders have lives in `Voice.h`.
+   approved renders have lives in `Voice.h`, behind an instrument knob of this table (its depth
+   or amount, 0 = none) whose default is the approved one.
+5. The test sound, `kTestSound`: `{ knob, plain value }` for each instrument knob that must be
+   turned so that the voice (a) sounds at the note's pitch, steadily (vibrato depth 0, pitch
+   envelope 0, drift 0), (b) sounds for at least half a second while a key is held, and (c) is
+   over within 1.5 s of its note-off (a long release turned down): <the entries, or "none: the
+   default sound is like that already">. The platform's tests play it; nothing else does. A row
+   of §5 that moves the pitch or rings long and has no entry here is a mistake in one of the two.
 Mod wheel and aftertouch: `{ knob, depth }` pairs <…>. Total: <n> parameters.
 Audio Unit IDs (`TEMPLATE_MANIFEST.md` "Stable IDs"): knob k → k; LFO l's amount on knob k →
 1000·(l + 1) + k; VEL amount on knob k → 3000 + k. After the first release knobs are only
@@ -118,12 +136,18 @@ program, the note, the group, overrides.
 In their permanent order (`kPrograms`, index kept by presets and projects): name, the overrides
 of the defaults, which render they come from. At least two; none sets Octave.
 Acceptance bar: the engine renders every prototype score with a residual below -60 dB against
-the reference copy of the prototype, at 96 kHz and through the decimator at 48 kHz; debug and
-release render the same samples; the default note at full velocity peaks near -6 dBFS.
+the reference copy of the prototype (its voice, played by its harness), at 96 kHz and through
+the decimator at 48 kHz; debug and release render the same samples.
+The level [call]: **the fullest gesture of the playing style** is <a strum of all six strings /
+a full two-hand chord of n notes / one note (a mono instrument) / the busiest bar of the default
+kit's groove>. At full velocity and Volume at its default it peaks just under the knee of the
+output stage, 0.6 (-4.4 dBFS; above it the limiter bends the peaks), on every program:
+`kOutputLevel` is set by it, not by one note. One default note then peaks at about <x> dBFS.
 
 ## 9. Architecture
 The template's targets, unchanged. The instrument's files: `Sources/<APP>DSP/Params.h`,
-`Voice.h`, `Tests/<APP>Reference/*` and the instrument tests (`PrototypeScores`,
+`Voice.h`, `Tests/<APP>Reference/*` (the prototype's voice and the spike folder's
+`spike_harness.h`) and the instrument tests (`PrototypeScores`,
 `PrototypeEquivalenceTests`, `SoundRegressionTests`, `ListeningRenders`, `Grooves`,
 `ReferenceTests`, `InstrumentTableTests`), `SectionLayout` plans, `Artwork.swift`,
 `Resources/Art/*`, `Resources/AppIcon.png`, the site's and manual's bodies. `kOutputLevel`,
@@ -156,6 +180,9 @@ The first public release is 1.0.0 [user, fixed default].
   not asked) and dates the amendment. Brumle's check found a render the knobs could not make.
 - Check every approved render can be made with §6 and §8; a render that cannot is a missing knob
   or a missing program, fixed here, not in phase 02.
+- Check §5 against §6.5: every pitch movement of the voice's own and every long release has its
+  knob and its `kTestSound` entry; and §6 against the caps (16 knobs a section, 16 overrides a
+  program, 4 a kit pad).
 - A knob or feature no approved render exercises is marked [call] and listed in the final report;
   one the user rejected at the gate is not in the table, the programs or the panel.
 - The spec is committed with the research in phase 01. Later changes are amendments with a date

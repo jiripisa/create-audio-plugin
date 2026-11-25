@@ -17,7 +17,9 @@ codex exec --skip-git-repo-check -s workspace-write \
   < /dev/null > codex.log 2>&1
 ```
 
-Run it with the Bash tool's `run_in_background`. The guards, each learned from a hang:
+Run it with the Bash tool's `run_in_background` and with the sandbox disabled from the start
+(`dangerouslyDisableSandbox`: Codex has its own sandbox, `-s workspace-write`, and needs the
+network and `~/.codex`). The guards, each learned from a hang:
 - `< /dev/null` always: without it Codex waits on stdin ("Reading additional input from
   stdin…"); a job sat like this for over an hour.
 - `--add-dir ~/.codex/generated_images`: the image tool stages every image there; without it
@@ -29,8 +31,8 @@ Run it with the Bash tool's `run_in_background`. The guards, each learned from a
   that kill, not a failure.
 - Watch `codex.log` (`tail -n 40`) when a job runs much longer than its siblings (a concepts job
   takes tens of minutes): a question, a permission prompt or a stdin wait means it is stuck.
-  Kill it, fix the prompt, run it once more. A second failure or a refused command (sandbox,
-  permission, network) is not retried: record it in `VERIFICATION.md` and use the no-Codex
+  Kill it, fix the prompt, run it once more. A second failure, or a refusal of the request to
+  run it outside the sandbox, is not retried: record it in `VERIFICATION.md` and use the no-Codex
   fallback for that job. Permission settings are never changed.
 
 After each job, look at every image yourself (Read the PNGs), check sizes and alpha with

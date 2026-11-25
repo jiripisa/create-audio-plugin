@@ -10,8 +10,10 @@ table at the end maps each item to its guard and to the file that carries it.
   at intake changes the identity only (`identity.py "<parent>/<corrected name>"`); the folder keeps
   its name until the user renames it after the run. (F7)
 - Identity and parameter table are fixed once, in the spec, after the ear and before the first
-  build. Before 1.0.0 nobody has saved a sound, so nothing is kept "compatible" before it; after
-  it, only appending (`TEMPLATE_MANIFEST.md` "Stable IDs"). (D3)
+  build: a name corrected at intake or in the approval at gate 2 re-runs `identity.py` and the
+  name-free check; from the spec on nothing of it changes. Before 1.0.0 nobody has saved a sound,
+  so nothing is kept "compatible" before it; after it, only appending (`TEMPLATE_MANIFEST.md`
+  "Stable IDs"). (D3)
 
 ## Research and prototype (steps 1–2)
 
@@ -60,11 +62,12 @@ table at the end maps each item to its guard and to the file that carries it.
   and non-JSON in presets and kits. (B7)
 - State shared between the AU's host thread and its window is locked or atomic; every AU custom
   property is a review focus; TSan. (B8)
-- Pictures come from the real window (`capture_window.swift`, or `CGWindowListCreateImageFromArray`
-  from inside the app under a locked screen), never from `ImageRenderer`. (B5)
-- A phase whose main control was never seen is not merged as done: build the AX drive in the
-  phase; if the environment refuses it, it is the first "Not verified" line and named in the
-  final report. (D10)
+- Pictures come from the real window (`capture_window.swift`, taken by the main session with the
+  sandbox disabled), never from `ImageRenderer`. A locked screen has no way round on macOS 27:
+  the capture is queued and taken when the user is back, before the push question. (B5)
+- A phase whose main control was never seen is not merged as done: the capture list names it and
+  the main session drives it through AX; if the screen or a refusal prevents that, it is the
+  first "Not verified" line, on the queue, and named in the final report. (D10)
 - Stand-ins carry the release's `LC_BUILD_VERSION` (`vtool -show-build`, `-set-build-version`,
   ad-hoc `codesign`). (D7)
 - The website's and the manual's window pictures come from the real app or from a stand-in proved
@@ -102,6 +105,28 @@ table at the end maps each item to its guard and to the file that carries it.
 
 ## Guards of the template (not from the reports)
 
+- The platform's tests play the instrument's **test sound** (`kTestSound` in `Params.h`), not its
+  default sound: whatever makes the voice move its pitch by itself (a vibrato, a pitch envelope,
+  drift) or ring longer than 1.5 s after the note-off must be reachable by a knob, so that the
+  test sound can turn it off (`spec-template.md` §5-§6; `TEMPLATE_MANIFEST.md` "What the
+  platform's tests assume"). A platform test that fails in phase 02 means the instrument breaks
+  that, never that the test is wrong.
+- The listening prototype is played by the platform's rules (`spike_harness.h`: a re-hit, Poly /
+  Mono / Legato, glide, pedal, bend, Vel Sens, stealing), and its copy is the engine's reference:
+  what the user approves is what the plug-in plays from the same notes. A voice's random numbers
+  come from its own generator, seeded with `kVoiceSeed` at every fresh start, in the prototype
+  and in the engine alike (`prototype.md`, `Voice.h`).
+- The level is set by the fullest gesture of the playing style (a full chord, a strum, the
+  kit's busiest bar), not by one note: at full velocity it peaks just under the output stage's
+  knee, 0.6 (`spec-template.md` §8).
+- Steps the sandbox breaks (captures, the component's copy and `auval`, Codex, headless Chrome,
+  the keychain and signing) run with it disabled from the start; a failure inside the sandbox is
+  not a finding (SKILL.md "Outside the sandbox").
+- No page ships with a missing picture: the release gate checks every local `src`, `href` and
+  `url()` under `docs/`; a figure whose picture is missing comes out, in EN and CS alike, and the
+  push question says so (`release.md` "Before step 1").
+- `templates/` holds nothing git does not track (`verify_template.sh` fails on an editor's
+  `.build`), and `scaffold.py --templates` skips a top-level `.build`, `build`, `.swiftpm`, `.git`.
 - A run's words file (`scripts/leftover-words.txt`) holds the source's identity and the test
   render's name, no instrument vocabulary; the source instrument's words (`drum`, `stick`, `skin`,
   …) and the siblings' are `scripts/template-words.txt`, for the template only (`phases.md`).
@@ -130,8 +155,8 @@ table at the end maps each item to its guard and to the file that carries it.
 | B2 | Codex wrapper stayed alive | wait on `last-message.txt`, kill wrapper | `codex.md` Invocation |
 | B3 | Hiss in the tails only the ear found | tails in renders, tail floor measured | `prototype.md` Measuring; `phases.md` phase 02 task 6 |
 | B4 | Plan's numeric caps wrong | measure, deviate, record | `phases.md` constraints |
-| B5 | Locked screen; `ImageRenderer` lies | real window, in-app capture fallback | `verification-kit.md` Screenshot protocol |
-| B6 | Decorative art swallowed clicks | `allowsHitTesting(false)`, AX hit test | `phases.md` phase 04; `verification-kit.md` table |
+| B5 | Locked screen; `ImageRenderer` lies | real window by the main session; a locked screen queues the capture until the user is back | `verification-kit.md` Screenshot protocol, Queued captures |
+| B6 | Decorative art swallowed clicks | `allowsHitTesting(false)`, AX hit test (main session) | `phases.md` phase 04; `verification-kit.md` table |
 | B7 | Damaged preset trapped on `Int32` | damaged/later file tests | `phases.md` phase 04 task 6 |
 | B8 | AU host thread and window shared state without lock | lock/atomic, review focus, TSan | `phases.md` phase 04 review focus |
 | B9 | Icon on a light plate | actool, opaque full bleed | `codex.md` Icon; `phases.md` phase 05 |
@@ -142,12 +167,12 @@ table at the end maps each item to its guard and to the file that carries it.
 | D2 | 1.0.0 carried an unheard sound | engine = prototype; any change "measured, not heard" before the push question | `phases.md` phase 02 task 7; `release.md` push question |
 | D3 | Compatibility kept for a 3-hour-old release | identity fixed in the spec; nothing kept before 1.0.0 | `spec-template.md` (intro, §6) |
 | D4 | Overblown note tuned three times | rejected twice → stop, reference or drop | `prototype.md` The loop |
-| D5 | Hit-testing fix exposed hidden behaviour | press the whole control again | `phases.md` phase 04 task 3 |
+| D5 | Hit-testing fix exposed hidden behaviour | press the whole control again | `phases.md` phase 04, the main session's step 2 |
 | D6 | UI built for a feature that died | no UI for unapproved sound; remove rejected | `spec-template.md` After writing; `prototype.md` The loop |
 | D7 | Stand-ins looked newer than the release | mark with `LC_BUILD_VERSION` | `verification-kit.md` Stand-ins |
 | D8 | Stand-in title bar 4 pt taller | site/manual pictures real or proved equal | `verification-kit.md` Stand-ins |
 | D9 | Real app could not be started | plan the stand-in, label pictures | `verification-kit.md` Before starting the real app |
-| D10 | Phase merged with its main control never seen | AX drive in the phase; else first "Not verified" | `phases.md` phase 04 task 3 |
+| D10 | Phase merged with its main control never seen | capture list in the phase, AX drive by the main session; else first "Not verified" and queued | `phases.md` phase 04 |
 | D11 | Debug and release differed twice | both configs every phase | `phases.md` |
 | D12 | Harmonics read at the key's pitch | pitch first (`analyze.swift`) | `prototype.md`; `research-briefs.md` recordings |
 | D13 | Helper settings files left | `defaults delete`, plist removed, compare | `verification-kit.md` Clean-up |

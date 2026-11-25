@@ -223,12 +223,16 @@ FORM, in this order:
 6. "## Playing style": melodic, rhythmic or drone; Voice Mode, Glide, bend range, sustain; re-hit
    continues or chokes; keyboard or pads first; a default kit of 16 pads (each: a program, a note
    36-51 or another, a mute group or Off); any strum or gesture the voice has to make itself (the
-   platform has no chord pads).
+   platform has no chord pads); the fullest gesture a player makes (how many notes sound at once
+   at most: all strings strummed, a two-hand chord, one note, the busiest bar of a groove), which
+   sets the instrument's level; and what the voice does to its pitch by itself (a vibrato, a
+   scoop, drift) with its depth and rate, each to be a knob.
 7. "## Where the evidence runs out".
 8. "## Questions for the user's ear": numbered, 8-16, the decisive one first ("Does it sound like
    a real <instrument>, or like a synthesizer?"). Each is answered by one group of renders: name
    the variants to render (A/B/C with their values) and the reference recording (R<n>) to compare
-   with, when there is one.
+   with, when there is one. One question is how it plays: the re-hit of a sounding note, and for
+   a melodic instrument legato against detached notes, the glide, the bend.
 9. A source ledger: who said what, how it was read (in full, abstract, snippet).
 10. A short conclusion.
 Models of form and depth, if they exist (form only, never content):

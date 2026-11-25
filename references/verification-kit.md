@@ -5,6 +5,20 @@ something that runs. Harnesses live in `<scratch>`, never in the repo; each `VER
 the ones it used. **A harness is evidence only for what it runs**: a stand-in is the app's model
 and views, not the app.
 
+## Who runs what, and where
+
+- **The main session** starts the real app, captures windows, drives the app through AX and runs
+  the scratch AU host, as it runs the Codex jobs. **A subagent does none of these**: it hands
+  back a capture list (`phases.md` "Captures are the main session's") and gets the pictures back.
+  Subagents run the tests, the hidden-window harnesses, `auval` and the site review.
+- **With the Bash sandbox disabled from the start** (`dangerouslyDisableSandbox` on the call;
+  SKILL.md "Outside the sandbox"): every capture and AX drive, the component's copy into
+  `~/Library/Audio/Plug-Ins/Components` with its `auval` or host run and its removal, `codex exec`,
+  headless Chrome, and anything that reads the login Keychain or signs. Inside the sandbox these
+  fail in ways that look like something else ("could not create image from window", no signing
+  identity found). Only a refusal of the request to disable the sandbox is final: the step is
+  "Not verified". Everything else runs in the sandbox.
+
 ## What to show, and how (Didgeridoo's kit)
 
 | What had to be shown | How |
@@ -45,7 +59,8 @@ a stand-in (no audio) and say so:
   `<scratch>/capture_window <pid> <out.png> --wait 15`. It finds the window by
   `kCGWindowOwnerPID` and runs `screencapture -x -o -l <id>`; never `screencapture` without `-l`,
   and the options always before the file name. Exit 3: no window; 4: all black (a locked screen,
-  file deleted); 5: refused (record, no retry).
+  file deleted); 5: `screencapture` gave no image (a locked screen, or it ran inside the sandbox,
+  or a refusal). After 4 or 5 the capture is queued (below); no retry, no other way round.
 - Never bring the app to the front, never send keystrokes, never click through System Events.
   AX actions only, on the own PID:
   `tell application "System Events" to tell (first process whose unix id is <pid>) to …`.
@@ -53,11 +68,29 @@ a stand-in (no audio) and say so:
   something seems to, it is "Not verified".
 - Look at every capture (Read the PNG). A full-screen or foreign capture made by mistake is
   deleted unopened and reported.
-- Locked screen (exit 4): the real window from inside the running app
-  (`CGWindowListCreateImageFromArray` of its own windows, by a scratch hook never committed:
-  `grep -rn "SCRATCH" Sources Tests` finds nothing before the merge). Never `ImageRenderer` for the
-  panel: it draws no Liquid Glass and no menus, so its pictures lie.
+- A locked screen has no way round: the window server gives no picture of a window then, and
+  the old in-app way (`CGWindowListCreateImageFromArray`) is gone from macOS 27. Never
+  `ImageRenderer` for the panel either: it draws no Liquid Glass and no menus, so its pictures
+  lie. The capture waits (below).
 - Quit: `kill <pid>`, wait up to 5 s, `kill -9` only if still alive.
+
+## Queued captures
+
+The build runs unattended, often with the screen locked. A capture that cannot be taken (exit 4
+or 5, a refused request) is **queued**, not replaced: append a line to
+`<scratch>/capture-queue.md` (the picture's file, the state it shows, the AX actions that reach
+it, the phase, why it failed), name it in that phase's `VERIFICATION.md` under "Not verified",
+and go on. The pages keep linking the file. (When only the default output stands in the way,
+the stand-in of the next section is captured instead, and labelled.)
+
+The main session empties the queue **when the user is back**: at gate 4, right before the push
+question (the user is at the Mac to answer it). With a built-in default output it starts the
+real app once (else the stand-in), takes every queued picture, looks at each, measures the
+manual's marks on the new screenshots, commits them (`docs: screenshots of the app`), cleans up.
+What still cannot be taken then (the request is refused) is handled by the release gate
+(`release.md` "Before step 1"): its figure comes out of the pages, EN and CS alike, and the push
+question says so. A release never ships a page with a broken picture, and never one drawn in
+its place (`ImageRenderer`, a mock-up).
 
 ## Stand-ins marked as the release
 
@@ -73,8 +106,8 @@ release. Mark it as the release binary is:
 
 ## Scratch AU host
 
-A Swift program in `<scratch>/auhost/`, run by path, with the component installed only for the run
-(as for `auval`):
+A Swift program in `<scratch>/auhost/`, run by path by the main session with the sandbox disabled,
+with the component installed only for the run (as for `auval`):
 - `AudioComponentFindNext` for `aumu`/`<SUB>`/`JPis`, `AudioComponentInstanceNew`,
   `AudioUnitInitialize`; play a note (`MusicDeviceMIDIEvent`) and render blocks (`AudioUnitRender`)
   to check it sounds;
@@ -85,7 +118,7 @@ A Swift program in `<scratch>/auhost/`, run by path, with the component installe
 
 ## auval
 
-Copy `build/release/<APP>.app/Contents/PlugIns/<APP>.component` to
+With the sandbox disabled: copy `build/release/<APP>.app/Contents/PlugIns/<APP>.component` to
 `~/Library/Audio/Plug-Ins/Components/` (one already there is moved to `<scratch>` first and put back
 after, its `codesign -v` checked), wait until `auval -a | grep "aumu <SUB> JPis"`, run
 `auval -v aumu <SUB> JPis` → `AU VALIDATION SUCCEEDED`, remove the copy.
@@ -117,8 +150,10 @@ after, its `codesign -v` checked), wait until `auval -a | grep "aumu <SUB> JPis"
   preset folder.
 - Sound through an audio device.
 - Safari and a phone (the site was checked in headless Chromium only).
-- Refused by the sandbox or a permission: <command> — <what it would have shown>.
-- Pictures: <which are of the real app, which of a stand-in, proved equal or not>.
+- Refused (the request to run outside the sandbox, or a permission): <command> — <what it would
+  have shown>.
+- Pictures: <which are of the real app, which of a stand-in, proved equal or not; which are
+  queued for the push question (`<scratch>/capture-queue.md`)>.
 ```
 
 The final report repeats these in plain words, so the user knows what to try.

@@ -6,10 +6,15 @@
 // --wait seconds for it to appear), then runs `screencapture -x -o -l <window id> <out.png>`.
 // It never captures without -l, so nothing but that window is ever read.
 //
+// Run it with the Bash sandbox disabled: inside the sandbox screencapture cannot reach the window
+// server and fails as it does under a locked screen.
+//
 // Exit codes: 0 captured (prints the window id, its bounds and the image size in pixels),
 //             2 usage error, 3 no window in time (no file written),
 //             4 the image is all black (locked screen; the file is deleted),
-//             5 screencapture failed (refused or no file; no retry).
+//             5 screencapture gave no image (a locked screen, the sandbox, or no Screen Recording
+//               permission). After 4 or 5 the capture is queued for when the user is back
+//               (references/verification-kit.md); there is no other way to a window's picture.
 
 import CoreGraphics
 import Foundation
@@ -65,7 +70,8 @@ capture.arguments = ["-x", "-o", "-l", String(window.id), outPath]
 do { try capture.run() } catch { fail("cannot run screencapture: \(error)", 5) }
 capture.waitUntilExit()
 guard capture.terminationStatus == 0, FileManager.default.fileExists(atPath: outPath) else {
-    fail("screencapture failed (status \(capture.terminationStatus)); permission or sandbox?", 5)
+    fail("screencapture gave no image (status \(capture.terminationStatus)): a locked screen, the Bash sandbox "
+         + "(run with it disabled) or no Screen Recording permission; queue the capture, do not retry", 5)
 }
 
 guard let source = CGImageSourceCreateWithURL(URL(fileURLWithPath: outPath) as CFURL, nil),
