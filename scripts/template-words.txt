@@ -1,0 +1,84 @@
+# Words that must not survive in the template (check_leftovers.sh, run by verify_template.sh on
+# templates/ together with leftover-words.txt). Not used by a run: a new instrument may be a
+# drum, have a skin or a stick, or creak, and its own texts would trip them.
+# One fixed string per line, matched case-sensitively anywhere in a line or a path; \bword\b
+# matches only as a whole word (see check_leftovers.sh).
+# The source's siblings:
+Brumle
+brumle
+BRUMLE
+Didgeridoo
+didgeridoo
+DIDGERIDOO
+# Content of the source instrument, a friction drum (its knobs, programs, artwork and palette).
+# Short or common words are whole words only, so that "sticky", "pottery" or "skinny" stay.
+drum
+Drum
+DRUM
+friction
+Friction
+\bstick\b
+\bStick\b
+stickvel
+horsehair
+Horsehair
+\brub\b
+\bRub\b
+rubbing
+creak
+Creak
+scrape
+Scrape
+\bskin\b
+\bSkin\b
+skinlevel
+\bpot\b
+\bPot\b
+potlevel
+brummtopf
+Brummtopf
+zambomba
+Zambomba
+cuica
+Cuica
+cuíca
+Cuíca
+putipu
+Putipu
+putipù
+Putipù
+furruco
+Furruco
+buhai
+Buhai
+Modrotisk
+modrotisk
+terracotta
+keyup
+Key Up
+alttune
+Alt Tune
+scooptime
+\bScoop\b
+\bscoop\b
+jumpratio
+Jump Ratio
+velpitch
+Vel>Pitch
+\bwobble\b
+\bWobble\b
+\bshimmer\b
+\bShimmer\b
+horse hair
+# The same in Czech (the Czech site and manual).
+buben
+bubn
+třecí
+žíně
+žíní
+\bblána\b
+\bblánu\b
+\bblány\b
+hrnec
+hrnce
+koledn

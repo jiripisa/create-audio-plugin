@@ -3,8 +3,10 @@
 #
 #   scripts/verify_template.sh [--quick] [--auval] [--capture]
 #
-#   (default)  render, swift build, swift test, swift test -c release, ./build.sh release; any
-#              `warning:` line in one of the build logs fails the run
+#   (default)  render, the leftover words (scripts/leftover-words.txt and template-words.txt on
+#              templates/, template-words.txt on the render), swift build, swift test,
+#              swift test -c release, ./build.sh release; any `warning:` line in one of the build
+#              logs fails the run
 #   --quick    render and swift build only
 #   --auval    also install the component for this run only, run `auval -v aumu Zkus JPis`,
 #              and remove the component again (also when something fails); builds the bundle
@@ -191,7 +193,14 @@ echo "$ID" | jq '. + {
 # --- Render ---
 step "render" python3 -I "$SCAFFOLD" --config "$OUT/config.json" --out "$PROJ" \
     --templates "$SKILL_DIR/templates"
-step "leftovers" "$SKILL_DIR/scripts/check_leftovers.sh" "$PROJ"
+# The template holds neither the words a run checks for (leftover-words.txt) nor the words only the
+# template is checked for (template-words.txt: the source's instrument and siblings, which a new
+# instrument may share). The render is the dummy, whose name is in the run's list.
+step "leftovers (run words, template)" "$SKILL_DIR/scripts/check_leftovers.sh" "$SKILL_DIR/templates"
+step "leftovers (template words, template)" "$SKILL_DIR/scripts/check_leftovers.sh" "$SKILL_DIR/templates" \
+    "$SKILL_DIR/scripts/template-words.txt"
+step "leftovers (template words, render)" "$SKILL_DIR/scripts/check_leftovers.sh" "$PROJ" \
+    "$SKILL_DIR/scripts/template-words.txt"
 if grep -rIn -E '\{\{[#^/]?[A-Z_]+\}\}|__APP__' "$PROJ" > "$LOGS/placeholders.log"; then
     echo "FAILED: unrendered placeholders (full list: $LOGS/placeholders.log)"
     head -n 20 "$LOGS/placeholders.log"

@@ -12,9 +12,9 @@ a check; a step is not done until its check passed.
 
 **Pushing needs the user's explicit OK** (global rule). Steps 1–5 change only
 this Mac. Before step 7 ask **one bold question** that names every outward
-action this release takes, in the order they happen, unless the user has
-already said yes to exactly that in the conversation. For the first release
-that is all of them:
+action this release takes, in the order they happen. Ask it in this run, every
+time: a yes given earlier in the conversation (to this release, an earlier one
+or a plan) never stands in for it. For the first release that is all of them:
 
 1. create the public repo `{{OWNER}}/{{APP_LOWER}}` (or make it public, if it
    exists and is private);
@@ -78,11 +78,34 @@ keeps one installed there.
 
 ## 3. Screenshot (when the UI changed)
 
-Open `build/release/{{APP}}.app` by its path, capture only its window
+The app opens an audio stream on the default output as it starts, so it is
+started only when that output is a built-in device (the Mac's own speakers or
+headphone jack), never with an audio interface or another device as the
+default:
+
+```bash
+system_profiler SPAudioDataType | awk '
+    function flush() { if (isdefault) { print name " | " transport; found = 1; exit } }
+    /^        [^ ].*:$/ { flush(); name = $0; sub(/^ +/, "", name); sub(/:$/, "", name)
+                         transport = ""; isdefault = 0 }
+    /Default Output Device: Yes/ { isdefault = 1 }
+    /^ +Transport: / { transport = $0; sub(/^ +Transport: /, "", transport) }
+    END { if (!found) flush() }'
+```
+
+It prints the default output's name and transport. Only `| Built-in`: open
+`build/release/{{APP}}.app` by its path, capture only its window
 (`screencapture -x -o -l <window id>`; the window id from
 `CGWindowListCopyWindowInfo`, filtered on the PID of the process you started),
 look at the image, then copy it to `docs/assets/{{APP_LOWER}}-window.png`. Never
 capture the whole screen or other apps' windows. Quit the app afterwards.
+
+Any other transport, or nothing printed: do not start the app, keep the
+screenshot that is there, and write in `VERIFICATION.md` under "Not verified"
+the window screenshot of this version, with the default output's name and
+transport. Never change the default output and never open a stream on another
+device to get the picture; tell the user, who can switch the output and ask for
+the screenshot again.
 
 ## 4. Commit, merge, tag
 

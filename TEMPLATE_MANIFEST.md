@@ -43,13 +43,15 @@ content with the new instrument's; the line says with what).
    was 1.0.0" → "first release is 0.1.0"; comments naming a sibling instrument (Brumle,
    Didgeridoo) rewritten without it (`Lfo.h`, `MidiQueue.h`, `__APP__Engine.cpp`).
 
-`scripts/check_leftovers.sh templates` (words: `scripts/leftover-words.txt`) finds no identity
-token; the subtype `Fanf` is matched as a whole word only, so that words such as `Fanfare` stay
-allowed. The words file also holds the friction drum's content words (drum, friction, stick, rub,
-skin, pot, the programs' instrument names, the palette's Modrotisk, …, and the Czech pages' buben,
-žíně, hrnec, …), short ones as whole words so that `sticky` or `pottery` stay allowed. They are
-gone from everything: `check_leftovers.sh templates` finds nothing, with no directory skipped, and
-`verify_template.sh` checks the whole rendered project the same way.
+`scripts/check_leftovers.sh templates` (words: `scripts/leftover-words.txt`, the list a run uses
+too) finds no identity token; the subtype `Fanf` is matched as a whole word only, so that words
+such as `Fanfare` stay allowed. That list also holds the test render's name (`Zkusebnik`,
+`Zkušebník`). The template's own list, `scripts/template-words.txt`, holds the siblings' names and
+the friction drum's content words (drum, friction, stick, rub, skin, pot, the programs' instrument
+names, the palette's Modrotisk, …, and the Czech pages' buben, žíně, hrnec, …), short ones as
+whole words so that `sticky` or `pottery` stay allowed; a run does not use it, since a new
+instrument may share them. Both find nothing in `templates/`, with no directory skipped:
+`verify_template.sh` checks the template with both and the rendered project with the second.
 
 ## What resisted a plain rename
 
@@ -523,7 +525,11 @@ the push question, and the `update-catalog` build check and push run after publi
 checks. The one bold push question names every outward action of the first release in order
 (create the public repo, push the tag, the GitHub Release with the DMG, `curl` the DMG for 200,
 push `main`, turn on Pages, push the catalog entry or, when it is unchanged, start the catalog's
-rebuild); a later release names only what is not so already. The catalog step stops and asks when
+rebuild); a later release names only what is not so already. The question is asked in the run
+itself, every time: an earlier yes in the conversation never stands in for it. Step 3 starts the
+app for its screenshot only when the default output's transport is `Built-in` (the rule of
+`scripts/verify_template.sh`); otherwise the old screenshot stays and the capture is recorded
+under "Not verified". The catalog step stops and asks when
 the repo is in the catalog's `exclude` list; publishing adds `origin` when the repo exists but the
 clone has none.
 

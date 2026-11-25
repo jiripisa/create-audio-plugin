@@ -12,8 +12,9 @@ the analysis tool.
 
 Template check: `scripts/verify_template.sh [--quick] [--auval] [--capture]` renders `templates/`
 for a dummy instrument into `$SCRATCH` (default `$TMPDIR`), builds it without warnings, runs its
-tests and ends with `TEMPLATE OK`; `scripts/check_leftovers.sh [--skip-dir NAME]... <dir>` lists
-words of `scripts/leftover-words.txt` that are still there. What each template file is:
+tests and ends with `TEMPLATE OK`; `scripts/check_leftovers.sh [--skip-dir NAME]... <dir> [words]`
+lists words of `scripts/leftover-words.txt` (a run's list) or of another words file
+(`scripts/template-words.txt`, the template's own) that are still there. What each template file is:
 `TEMPLATE_MANIFEST.md`.
 
 Listening prototype: `scripts/spike_harness.h` (header-only C++17: scores, voice pool, seeded
