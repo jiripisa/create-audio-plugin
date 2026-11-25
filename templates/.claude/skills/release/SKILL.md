@@ -70,7 +70,10 @@ written; plans and specs are not templates and are not checked);
 style the site links is in `docs/`).
 
 A page is never released with a broken picture. For each file the check lists:
-make it now if it can be made (a window picture: step 3), else take its figure
+make it now if it can be made (a window picture: step 3). A picture that waits
+for the user (a capture queued because the screen was locked or the request was
+refused) stays: it is taken when the user is back, before the push question,
+and only one that still cannot be made then is taken out. Else take its figure
 out, the same tags in `docs/` and `docs/cs/` (the `<figure>` or `<img>` and the
 sentence that points at it), until the check passes. Write every figure taken
 out into `VERIFICATION.md` under "Not verified", and name them in the push

@@ -6,7 +6,9 @@ this skill needs around it. Where the two differ, the project skill wins, **exce
 always beat it: the user's global rules (`~/.claude/CLAUDE.md`), the single bold push question
 below (asked in this run whatever "yes" came earlier in the conversation), and the capture rule of
 `verification-kit.md` (the real app starts only when the default output's transport is
-Built-in). The project skill already holds both: its step 3 starts the app only on a `Built-in`
+Built-in), and the capture queue (`verification-kit.md` "Queued captures"): a picture on the
+queue is never taken out at step 1, whatever the project skill's step 1 says; it waits for the
+push question, where the user is back to have it taken. The project skill already holds both: its step 3 starts the app only on a `Built-in`
 default output, and its header asks the question in every run, whatever yes came before. A
 project made from an older template whose skill lacks either still follows these rules: that step
 is skipped or done the safe way, and recorded in the phase's `VERIFICATION.md`.
