@@ -51,7 +51,7 @@ struct InstrumentTableTests: EngineHarness {
     @Test("The mod wheel and the aftertouch move Brightness")
     func wheels() {
         func play(_ knobs: [String: Float], wheel: Int32? = nil, pressure: Int32? = nil) -> [Float] {
-            let engine = makeEngine(knobs)
+            let engine = makeDefaultEngine(knobs)
             defer { {{APP_C}}_destroy(engine) }
             if let wheel { {{APP_C}}_midi(engine, 0xB0, 1, wheel, 0) }
             if let pressure { {{APP_C}}_midi(engine, 0xD0, pressure, 0, 0) }
@@ -100,8 +100,8 @@ struct InstrumentTableTests: EngineHarness {
         let release = TestKnobs.named("release")
         #expect(abs({{APP_C}}_tail_time() - Double(release.range.upperBound) * 100 / 60) < 1e-6)
         let rate = 48_000.0
-        let engine = makeEngine(["release": release.range.upperBound, "decay": TestKnobs.named("decay").range.upperBound,
-                                 "velsens": 0], rate: rate)
+        let engine = makeDefaultEngine(["release": release.range.upperBound, "decay": TestKnobs.named("decay").range.upperBound,
+                                        "velsens": 0], rate: rate)
         defer { {{APP_C}}_destroy(engine) }
         {{APP_C}}_midi(engine, 0x90, 60, 127, 0)
         _ = render(engine, seconds: 0.1, at: rate)
@@ -123,12 +123,30 @@ struct InstrumentTableTests: EngineHarness {
         for (id, unitID) in ids { #expect(TestKnobs.named(id).unitID == unitID, "\(id)") }
     }
 
-    @Test("The default note at full velocity peaks around -6 dBFS")
+    // The calibration (`kOutputLevel`): the fullest gesture of the playing style at full velocity,
+    // with Volume at its default, peaks under the knee of the output stage (0.6: the limiter bends
+    // what is above it), and not far under, so that no level is given away. Tone is played in
+    // chords: four keys at once.
+    @Test("The fullest gesture, a four-note chord at full velocity, peaks just under the limiter's knee")
+    func fullestGesture() {
+        var loudest: Float = 0
+        for chord: [Int32] in [[48, 55, 60, 64], [60, 64, 67, 72], [57, 60, 64, 69], [72, 76, 79, 84]] {
+            let engine = makeDefaultEngine()
+            defer { {{APP_C}}_destroy(engine) }
+            for note in chord { {{APP_C}}_midi(engine, 0x90, note, 127, 0) }
+            let peak = render(engine, seconds: 2).map(abs).max() ?? 0
+            #expect(peak < 0.6, "chord \(chord): peak \(peak)")
+            loudest = max(loudest, peak)
+        }
+        #expect(loudest > 0.4, "the loudest chord peaks at \(loudest): the level is lower than it needs to be")
+    }
+
+    @Test("One default note at full velocity peaks around -17 dBFS")
     func level() {
-        let engine = makeEngine()
+        let engine = makeDefaultEngine()
         defer { {{APP_C}}_destroy(engine) }
         {{APP_C}}_midi(engine, 0x90, 60, 127, 0)
         let peak = render(engine, seconds: 1).map(abs).max() ?? 0
-        #expect(peak > 0.45 && peak < 0.55, "peak \(peak)")
+        #expect(peak > 0.13 && peak < 0.155, "peak \(peak)")
     }
 }

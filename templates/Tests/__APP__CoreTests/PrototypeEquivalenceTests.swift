@@ -6,8 +6,10 @@ import {{APP}}Reference
 
 /// The engine against the listening prototype the author approved: the engine renders the
 /// prototype's scores, in keyboard mode and in pad mode, and must give the prototype's samples,
-/// up to one output scale. At 96 kHz the voices run at the host's rate; at 48 kHz they run at
-/// twice it, and the reference goes through the same decimator.
+/// up to one output scale. The reference is the prototype's voice played by the prototype's own
+/// harness, so this is also where the harness's rules (a re-hit, Mono and Legato, the glide, the
+/// pedal, the bend) are held to the engine's. At 96 kHz the voices run at the host's rate; at
+/// 48 kHz they run at twice it, and the reference goes through the same decimator.
 @Suite("Prototype equivalence")
 struct PrototypeEquivalenceTests: EngineHarness {
 
@@ -36,10 +38,8 @@ struct PrototypeEquivalenceTests: EngineHarness {
         while start < frames {
             let count = min(128, frames - start)
             while next < events.count && events[next].frame < start + count {
-                let e = events[next]
-                let offset = Int32(e.frame - start)
-                if e.noteOff { {{APP_C}}_midi(engine, 0x80, Int32(e.note), 0, offset) }
-                else { {{APP_C}}_midi(engine, 0x90, Int32(e.note), Int32(e.velocity), offset) }
+                let midi = events[next].midi
+                {{APP_C}}_midi(engine, Int32(midi.status), Int32(midi.data1), Int32(midi.data2), Int32(events[next].frame - start))
                 next += 1
             }
             left.withUnsafeMutableBufferPointer { l in
@@ -84,6 +84,7 @@ struct PrototypeEquivalenceTests: EngineHarness {
         let events = PrototypeScores.events(render, rate: rate) { UInt8({{APP_C}}_pad_note(probe, Int32($0))) }
         let frames = PrototypeScores.frames(render, rate: rate)
         let reference = PrototypeScores.referenceRender(events, frames: frames, params: [PrototypeScores.referenceParams(render.reference)],
+                                                        playing: PrototypeScores.referencePlaying(render.reference, pads: render.pads),
                                                         rate: rate, oversampled: rate < 88_200)
         let mode = Int32(render.pads ? {{APP_UPPER}}_MODE_PADS : {{APP_UPPER}}_MODE_KEYBOARD)
         let out = engineRender(events, frames: frames, rate: rate, mode: mode) { engine in

@@ -13,14 +13,15 @@ struct PadTests: EngineHarness {
 
     /// A fresh engine in pad mode. Every pad plays the first program with `knobs`, at note 47
     /// (B2) with its group Off; the keyboard set has the same knobs. Like the keyboard set of
-    /// `makeEngine`, the pads' sets play as the platform does on its own (`TestKnobs.platformStyle`).
+    /// `makeEngine`, the pads' sets play the plain sound (`TestKnobs.plainSound`: the platform's
+    /// own playing style and the instrument's test sound).
     private func makePads(_ knobs: [String: Float] = [:]) -> OpaquePointer {
         let sound = knobs
         let engine = makeEngine(sound)
         {{APP_C}}_set_mode(engine, Self.pads)
         for pad: Int32 in 0..<Int32({{APP_UPPER}}_NUM_PADS) {
             {{APP_C}}_set_program(engine, pad + 1, 0)
-            setKnobs(engine, TestKnobs.platformStyle, set: pad + 1)
+            setKnobs(engine, TestKnobs.plainSound, set: pad + 1)
             setKnobs(engine, sound, set: pad + 1)
             {{APP_C}}_set_pad_note(engine, pad, 47)
             {{APP_C}}_set_pad_group(engine, pad, 0)
@@ -209,31 +210,29 @@ struct PadTests: EngineHarness {
         #expect(noteOn0.releases == 1 && noteOff.releases == 1 && held.releases == 0)
     }
 
-    // The keyboard's VEL amount on the first continuous instrument knob that has one is 0, pad
-    // 4's +100 %, with Vel Sens 0 everywhere and the knob at the top of its travel: a soft hit on
-    // the pad moves the knob to the bottom, a soft key does not move it.
+    // Pad 4's set has VEL>Volume at 100 %, every other set (the keyboard's too) at 0, and Vel Sens
+    // is 0 everywhere: a soft hit on pad 4 is the same hit without the amount, scaled by its
+    // velocity; a soft key and a soft hit on another pad are as if no set had the amount. On
+    // Volume, which every instrument's velocity can move: the test needs no knob of the
+    // instrument. Volume -12 dB keeps the note under the limiter, so that the scale is exact.
     @Test("A pad hit applies its own set's VEL amounts")
-    func padVelAmounts() throws {
-        let first = TestKnobs.firstVelTarget
-        let vel = try #require(Velocity.amount(of: first))
-        func level(_ mode: Int32, velocity: Int32) -> Double {
-            let engine = makeEngine()
+    func padVelAmounts() {
+        let velocity: Int32 = 32
+        func hit(_ mode: Int32, note: Int32, amount: Float) -> [Float] {
+            let engine = makePads(["volume": -12, "velsens": 0])
             defer { {{APP_C}}_destroy(engine) }
-            for set: Int32 in 0..<Int32({{APP_UPPER}}_NUM_SETS) {
-                {{APP_C}}_set_plain(engine, set, Self.index("velsens"), 0)
-                {{APP_C}}_set_normalised(engine, set, Int32(first.index), 1)
-            }
-            {{APP_C}}_set_plain(engine, 3 + 1, Int32(vel.index), 100)
-            {{APP_C}}_set_plain(engine, Self.keyboard, Int32(vel.index), 0)
+            setKnobs(engine, ["velvolume": amount], set: 3 + 1)
             {{APP_C}}_set_mode(engine, mode)
-            {{APP_C}}_midi(engine, 0x90, mode == Self.pads ? Self.firstPadNote + 3 : 60, velocity, 0)
-            return rms(render(engine, seconds: 0.3))
+            {{APP_C}}_midi(engine, 0x90, note, velocity, 0)
+            return render(engine, seconds: 0.3)
         }
-        let keys = Int32({{APP_UPPER}}_MODE_KEYBOARD)
-        let pad = 20 * log10(level(Self.pads, velocity: 127) / level(Self.pads, velocity: 1))
-        let key = 20 * log10(level(keys, velocity: 127) / level(keys, velocity: 1))
-        #expect(abs(pad) > 6, "pad 4: hard and soft differ by \(pad) dB")
-        #expect(abs(key) < 0.1, "keyboard: hard and soft differ by \(key) dB")
+        let keys = Int32({{APP_UPPER}}_MODE_KEYBOARD), pad4 = Self.firstPadNote + 3, pad5 = Self.firstPadNote + 4
+        let plain = hit(Self.pads, note: pad4, amount: 0)
+        #expect(rms(plain) > 0.001)
+        let r = residualDb(hit(Self.pads, note: pad4, amount: 100), plain.map { $0 * Float(velocity) / 127 })
+        #expect(r < -100, "pad 4: residual \(r) dB against the hit scaled by its velocity")
+        #expect(hit(Self.pads, note: pad5, amount: 100) == hit(Self.pads, note: pad5, amount: 0), "pad 5 took pad 4's amount")
+        #expect(hit(keys, note: 60, amount: 100) == hit(keys, note: 60, amount: 0), "the keyboard took pad 4's amount")
     }
 
     // MARK: - Send to pad and the kit

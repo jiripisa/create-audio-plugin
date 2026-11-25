@@ -21,6 +21,7 @@
 ├── Resources/               # Info.plist, entitlements, AppIcon.png (1024 px master),
 │                            # AppIcon.icon (Icon Composer document), Art/
 ├── scripts/make_appcast.py  # Sparkle feed, called by build.sh dist
+├── scripts/check_site_links.sh  # every file the site links exists (before a release)
 ├── docs/                    # GitHub Pages website + manual
 ├── build.sh                 # debug | release | dist | clean
 └── run.sh                   # debug (logs in terminal) | release (open .app)

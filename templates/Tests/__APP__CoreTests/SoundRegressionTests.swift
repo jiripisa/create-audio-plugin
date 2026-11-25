@@ -56,11 +56,12 @@ struct SoundRegressionTests {
         }
     }
 
-    /// Taken on 2026-11-24 from the placeholder engine (Tone). A debug build and a release build
-    /// rendered the same samples.
+    /// Taken on 2026-11-25 from the placeholder engine (Tone), with its level set by its fullest
+    /// gesture (`kOutputLevel` 0.125: every level is that of 2026-11-24 times 0.125 / 0.44). A
+    /// debug build and a release build rendered the same samples.
     private static let references: [Reference] = [
-        Reference(score: "melody with lfo and vel", sampleRate: 48000, fingerprint: 0x4F156FAB88F89BDA, levels: [0.14761, 0.133453, 0.154648, 0.144982, 0.116357, 0.122794, 0.0, 0.0]),
-        Reference(score: "default kit groove", sampleRate: 48000, fingerprint: 0xE67DEB40FDE3E0EC, levels: [0.176936, 0.174404, 0.198691, 0.191587, 0.178548, 0.198096, 0.187217, 0.178246, 0.197017, 0.164962, 0.016888, 0.000585, 1.9e-05]),
+        Reference(score: "melody with lfo and vel", sampleRate: 48000, fingerprint: 0xBD88F5C63C5EA9AA, levels: [0.041935, 0.037913, 0.043934, 0.041188, 0.033056, 0.034885, 0.0, 0.0]),
+        Reference(score: "default kit groove", sampleRate: 48000, fingerprint: 0xB175020558379799, levels: [0.050266, 0.049547, 0.056446, 0.054428, 0.050724, 0.056277, 0.053187, 0.050638, 0.055971, 0.046864, 0.004798, 0.000166, 6e-06]),
     ]
 
     private static func render(_ score: Case, sampleRate: Double) -> [Float] {

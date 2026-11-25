@@ -25,18 +25,28 @@ extension EngineHarness {
         for (key, value) in knobs { {{APP_C}}_set_plain(engine, set, Self.index(key), value) }
     }
 
-    /// A fresh engine at `rate` in keyboard mode, with `knobs` (plain values) in the keyboard set.
-    /// The keyboard set plays as the platform does on its own: the knobs the instrument gives a
-    /// default of its own (`TestKnobs.platformDefaults`: Voice Mode, Glide, ...) are put back to
-    /// the platform's (`TestKnobs.platformOwn`) before `knobs`, so that a test of the platform
-    /// holds whatever playing style the instrument chose. A test of the instrument's defaults
-    /// makes its engine with `{{APP_C}}_create`.
+    /// A fresh engine at `rate` in keyboard mode, with `knobs` (plain values) in the keyboard set,
+    /// for a test of the platform. The keyboard set plays the plain sound (`TestKnobs.plainSound`)
+    /// under `knobs`: the knobs the instrument gives a default of its own (`kPlatformDefaults`:
+    /// Voice Mode, Glide, ...) are put back to the platform's, and the instrument's own knobs
+    /// stand as its test sound has them (`kTestSound`: no pitch movement of the voice's own, a
+    /// short release), so that the test holds whatever the instrument plays and sounds like. A
+    /// test of the instrument as it ships makes its engine with `makeDefaultEngine`.
     func makeEngine(_ knobs: [String: Float] = [:], rate: Double = Self.rate) -> OpaquePointer {
+        let engine = makeDefaultEngine(rate: rate)
+        setKnobs(engine, TestKnobs.plainSound)
+        setKnobs(engine, knobs)
+        return engine
+    }
+
+    /// A fresh engine at `rate` in keyboard mode as the instrument ships: every set on the table's
+    /// defaults (its playing style and its default sound), with `knobs` (plain values) over them
+    /// in the keyboard set. For the instrument's own tests (`InstrumentTableTests`).
+    func makeDefaultEngine(_ knobs: [String: Float] = [:], rate: Double = Self.rate) -> OpaquePointer {
         let engine = {{APP_C}}_create()!
         {{APP_C}}_prepare(engine, rate)
         {{APP_C}}_reset(engine)
         {{APP_C}}_set_mode(engine, Int32({{APP_UPPER}}_MODE_KEYBOARD))
-        setKnobs(engine, TestKnobs.platformStyle)
         setKnobs(engine, knobs)
         return engine
     }
@@ -122,7 +132,9 @@ extension EngineHarness {
 }
 
 /// The knobs the platform's tests address: the platform block by identifier, the instrument's by
-/// position, never by name, so that the tests hold for every instrument.
+/// position, never by name, so that the tests hold for every instrument. A test that measures
+/// what a VEL or an LFO amount does takes a platform knob (Volume, Tune), which every instrument
+/// has as a target; the instrument's first knob may be a switch.
 enum TestKnobs {
 
     /// The platform block, the first knobs of every instrument's table, in their permanent order.
@@ -149,6 +161,20 @@ enum TestKnobs {
         },
         uniquingKeysWith: { first, _ in first })
 
+    /// The instrument's test sound (`kTestSound` in Params.h): the knobs of its own that it sets
+    /// for the platform's tests, by identifier, as the engine lists them.
+    static let testSound: [String: Float] = Dictionary(
+        (0..<{{APP_C}}_num_test_sound()).compactMap { i -> (String, Float)? in
+            let index = Int({{APP_C}}_test_sound_param(i))
+            guard Parameters.all.indices.contains(index) else { return nil }
+            return (Parameters.all[index].identifier, {{APP_C}}_test_sound_value(i))
+        },
+        uniquingKeysWith: { first, _ in first })
+
+    /// What a set holds for a test of the platform, over the table's defaults: the platform's own
+    /// playing style and the instrument's test sound.
+    static var plainSound: [String: Float] { platformStyle.merging(testSound) { _, sound in sound } }
+
     /// A platform knob's default: the instrument's where it sets one, else the platform's own.
     static func platformDefault(_ identifier: String) -> Float? {
         platformDefaults[identifier] ?? platformOwn[identifier]
@@ -162,13 +188,6 @@ enum TestKnobs {
 
     /// The first of the instrument's knobs.
     static var first: Parameter { instrument[0] }
-
-    /// The first of the instrument's knobs that is continuous and has a VEL amount.
-    static let firstVelTarget: Parameter = {
-        guard let knob = instrument.first(where: { $0.kind == .continuous && Velocity.amount(of: $0) != nil })
-        else { preconditionFailure("the velocity moves no knob of the instrument") }
-        return knob
-    }()
 
     static func named(_ identifier: String) -> Parameter {
         guard let parameter = Parameters.named(identifier) else { preconditionFailure("unknown knob \(identifier)") }

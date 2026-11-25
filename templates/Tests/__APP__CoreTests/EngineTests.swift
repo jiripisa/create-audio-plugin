@@ -15,13 +15,16 @@ struct EngineTests: EngineHarness {
     /// Controllers no knob comes with.
     private static let free = TestKnobs.freeControllers.map(Int32.init)
 
-    @Test("The default note at full velocity stays under the limiter and well above silence")
+    // The plain sound of `makeEngine` (the instrument's test sound): the tests that add renders
+    // or scale them count on one note staying under the limiter. The default sound's level is the
+    // instrument's (`InstrumentTableTests`).
+    @Test("A full-velocity note of the test sound stays under the limiter and well above silence")
     func level() {
         let engine = makeEngine()
         defer { {{APP_C}}_destroy(engine) }
         {{APP_C}}_midi(engine, 0x90, 60, 127, 0)
         let peak = render(engine, seconds: 2).map(abs).max() ?? 0
-        #expect(peak > 0.25 && peak < 0.6, "peak \(peak)")
+        #expect(peak > 0.02 && peak < 0.6, "peak \(peak)")
     }
 
     // MARK: - Keys and voices
@@ -101,7 +104,7 @@ struct EngineTests: EngineHarness {
             defer { {{APP_C}}_destroy(engine) }
             {{APP_C}}_midi(engine, 0x90, 47, 110, 0)
             {{APP_C}}_midi(engine, 0x90, 54, 110, 0)
-            #expect((render(engine, seconds: 0.2).map(abs).max() ?? 0) > 0.05)
+            #expect((render(engine, seconds: 0.2).map(abs).max() ?? 0) > 0.01)
             {{APP_C}}_midi(engine, 0xB0, controller, 0, 0)
             _ = render(engine, seconds: 0.05)
             #expect(render(engine, seconds: 0.1).allSatisfy { $0 == 0 }, "CC \(controller): still sounding 50 ms after it")
@@ -149,7 +152,7 @@ struct EngineTests: EngineHarness {
         let engine = makeEngine()
         defer { {{APP_C}}_destroy(engine) }
         {{APP_C}}_post_midi(engine, 0x90, Self.B2, 127, 0)
-        #expect((render(engine, seconds: 0.5).map(abs).max() ?? 0) > 0.05)
+        #expect((render(engine, seconds: 0.5).map(abs).max() ?? 0) > 0.01)
         {{APP_C}}_request_reset(engine)             // what a host's AudioUnitReset does, from any thread
         #expect(render(engine, frames: 128).allSatisfy { $0 == 0 })
         #expect(render(engine, seconds: 0.5).allSatisfy { $0 == 0 })
@@ -168,7 +171,7 @@ struct EngineTests: EngineHarness {
 
         {{APP_C}}_post_midi(engine, 0x90, 36, 110, 0)
         {{APP_C}}_request_reset(engine)
-        #expect((render(engine, seconds: 0.2).map(abs).max() ?? 0) > 0.05)
+        #expect((render(engine, seconds: 0.2).map(abs).max() ?? 0) > 0.01)
         #expect({{APP_C}}_last_note(engine) == 36)
     }
 
@@ -362,8 +365,9 @@ struct EngineTests: EngineHarness {
     }
 
     // A high note (A5 tuned 40 cents down, 860 Hz) at 44.1 kHz with every instrument knob at the
-    // top of its travel: what the voices and the 2x stage leave between its harmonics stays far
-    // under the -60 dB the platform allows.
+    // top of its travel, but those the test sound sets (a vibrato's depth at its top would spread
+    // every harmonic into what this measures as aliasing): what the voices and the 2x stage leave
+    // between its harmonics stays far under the -60 dB the platform allows.
     @Test("At 44.1 kHz a high, bright note's alias products stay 60 dB down")
     func aliasing() {
         let rate = 44_100.0
@@ -373,6 +377,7 @@ struct EngineTests: EngineHarness {
         for knob in TestKnobs.instrument where knob.kind == .continuous {
             {{APP_C}}_set_normalised(engine, Self.keyboard, Int32(knob.index), 1)
         }
+        setKnobs(engine, TestKnobs.testSound)
         {{APP_C}}_midi(engine, 0x90, 81, 127, 0)
         let alias = aliasDb(render(engine, seconds: 1.2, at: rate), rate: rate, f0: f0)
         print(String(format: "aliasing at 44.1 kHz, 860 Hz, every knob at the top: %.1f dB", alias))
@@ -477,8 +482,8 @@ struct EngineTests: EngineHarness {
     // MARK: - The voice pool
 
     /// Plays `hits` (note, velocity) every `step` seconds (a 32nd note at 120 BPM unless told) for
-    /// 4 s, in `mode`, with the first program in every set and every pad on C2 with its group Off,
-    /// and checks the pool after every block.
+    /// 4 s, in `mode`, with the first program's plain sound in every set and every pad on C2 with
+    /// its group Off, and checks the pool after every block.
     private func flood(rate: Double, mode: Int32, step: Double = 60.0 / 120 / 8,
                        hits: (Int) -> [(note: Int32, velocity: Int32)]) {
         let engine = makeEngine(rate: rate)
@@ -486,8 +491,8 @@ struct EngineTests: EngineHarness {
         {{APP_C}}_set_mode(engine, mode)
         for set: Int32 in 0..<Int32({{APP_UPPER}}_NUM_SETS) {
             {{APP_C}}_set_program(engine, set, 0)
+            setKnobs(engine, TestKnobs.plainSound, set: set)    // the program brought the instrument's own defaults back
         }
-        setKnobs(engine, TestKnobs.platformStyle)       // the program brought the instrument's playing style back
         for pad: Int32 in 0..<Int32({{APP_UPPER}}_NUM_PADS) { {{APP_C}}_set_pad_group(engine, pad, 0); {{APP_C}}_set_pad_note(engine, pad, 36) }
         let total = Self.frames(4, at: rate)
         var out = [Float](repeating: 0, count: total)

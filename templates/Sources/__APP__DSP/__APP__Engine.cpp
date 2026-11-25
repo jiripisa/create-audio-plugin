@@ -988,6 +988,10 @@ int {{APP_C}}_num_platform_defaults(void) { return kNumPlatformDefaults; }
 int {{APP_C}}_platform_default_param(int i) { return platformDefault(i).param; }
 float {{APP_C}}_platform_default_value(int i) { return platformDefault(i).value; }
 
+int {{APP_C}}_num_test_sound(void) { return kNumTestSound; }
+int {{APP_C}}_test_sound_param(int i) { return testSound(i).param; }
+float {{APP_C}}_test_sound_value(int i) { return testSound(i).value; }
+
 // ---------------------------------------------------------------------------------------------
 // C interface: the engine. Every call tolerates a null engine and indices out of range.
 // ---------------------------------------------------------------------------------------------

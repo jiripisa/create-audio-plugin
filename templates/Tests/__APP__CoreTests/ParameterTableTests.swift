@@ -95,6 +95,27 @@ struct ParameterTableTests {
         #expect({{APP_C}}_platform_default_value(Int32(count)) == 0)
     }
 
+    @Test("The instrument's test sound sets knobs of its own, once each, in range")
+    func testSound() {
+        let count = Int({{APP_C}}_num_test_sound())
+        var seen: Set<Int32> = []
+        for i in 0..<Int32(count) {
+            let index = {{APP_C}}_test_sound_param(i), value = {{APP_C}}_test_sound_value(i)
+            let own = Int(index) >= TestKnobs.platform.count && Int(index) < TestKnobs.all.count
+            #expect(own, "entry \(i): parameter \(index) is no knob of the instrument's own")
+            #expect(seen.insert(index).inserted, "entry \(i): knob \(index) twice")
+            guard own else { continue }
+            let knob = Parameters.all[Int(index)]
+            #expect(knob.range.contains(value), "\(knob.identifier): \(value)")
+            if knob.kind != .continuous { #expect(value == value.rounded(), "\(knob.identifier): \(value)") }
+        }
+        #expect(TestKnobs.testSound.count == count)
+        #expect({{APP_C}}_test_sound_param(Int32(count)) == -1 && {{APP_C}}_test_sound_param(-1) == -1)
+        #expect({{APP_C}}_test_sound_value(Int32(count)) == 0)
+        // What a platform test's set holds: the platform's own style, then the test sound.
+        #expect(Set(TestKnobs.plainSound.keys) == Set(TestKnobs.platformStyle.keys).union(TestKnobs.testSound.keys))
+    }
+
     @Test("Every amount is -100 ... 100 % and 0 at rest")
     func amountsAtRest() {
         for amount in Parameters.all.dropFirst(Self.knobs.count) {

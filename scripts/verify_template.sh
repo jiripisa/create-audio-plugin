@@ -3,8 +3,11 @@
 #
 #   scripts/verify_template.sh [--quick] [--auval] [--capture]
 #
-#   (default)  render, the leftover words (scripts/leftover-words.txt and template-words.txt on
-#              templates/, template-words.txt on the render), swift build, swift test,
+#   (default)  templates/ holds nothing git does not track (ignored or untracked: the renderer
+#              would copy it into every project), render, the leftover words
+#              (scripts/leftover-words.txt and template-words.txt on templates/,
+#              template-words.txt on the render), the site's link check (only the pictures a
+#              run makes are missing), swift build, swift test,
 #              swift test -c release, ./build.sh release; any `warning:` line in one of the build
 #              logs fails the run
 #   --quick    render and swift build only
@@ -41,6 +44,22 @@ for arg in "$@"; do
         *) echo "usage: $(basename "$0") [--quick] [--auval] [--capture]" >&2; exit 2 ;;
     esac
 done
+
+# The renderer copies every file under templates/ (but a top-level .build, build, .swiftpm and
+# .git), so a file git ignores (an editor's index, a .DS_Store) or does not track yet would land
+# in every project. Changes to tracked files and staged new ones are fine: `git add` a new
+# template file before checking it.
+if git -C "$SKILL_DIR" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+    STRAY=$(git -C "$SKILL_DIR" status --ignored --porcelain -- templates | grep -E '^(!!|\?\?) ' || true)
+    if [ -n "$STRAY" ]; then
+        echo "FAILED: templates/ holds files git ignores (!!) or does not track (??):"
+        echo "$STRAY" | sed 's/^/  /'
+        echo "Remove them, or git add what belongs to the template."
+        exit 1
+    fi
+else
+    echo "note: $SKILL_DIR is no git checkout; templates/ is not checked for stray files"
+fi
 
 OUT="${SCRATCH%/}/verify-$(date +%Y%m%d-%H%M%S)"
 PROJ="$OUT/$NAME"
@@ -172,7 +191,8 @@ tests_summary() {
 echo "Rendering into $PROJ"
 
 # --- Config: identity of the directory name + fixed values ---
-ID=$(python3 -I "$SKILL_DIR/scripts/identity.py" "$PROJ" --no-auval --owner jiripisa)
+# --no-auval and no projects scanned: the dummy's subtype does not depend on what this Mac holds.
+ID=$(python3 -I "$SKILL_DIR/scripts/identity.py" "$PROJ" --no-auval --projects "" --owner jiripisa)
 if [ "$(echo "$ID" | jq -r .AU_SUBTYPE)" != "$SUBTYPE" ]; then
     echo "FAILED: identity.py gave subtype $(echo "$ID" | jq -r .AU_SUBTYPE), expected $SUBTYPE"
     exit 1
@@ -206,6 +226,28 @@ if grep -rIn -E '\{\{[#^/]?[A-Z_]+\}\}|__APP__' "$PROJ" > "$LOGS/placeholders.lo
     head -n 20 "$LOGS/placeholders.log"
     exit 1
 fi
+
+# The site's link check: in the template nothing is missing but the pictures a run makes, and
+# with those in place the check passes.
+set +e
+"$PROJ/scripts/check_site_links.sh" > "$LOGS/site-links.log" 2> /dev/null
+LINKS_STATUS=$?
+set -e
+if [ "$LINKS_STATUS" -ne 1 ] || grep -v -E ': missing (\.\./)?(assets/)?(manual/)?[a-z0-9-]+\.(png|jpg)$' "$LOGS/site-links.log" | grep -q .; then
+    echo "FAILED: check_site_links.sh on the render should list only the pictures a run makes (exit $LINKS_STATUS; $LOGS/site-links.log)"
+    head -n 20 "$LOGS/site-links.log"
+    exit 1
+fi
+cp -R "$PROJ/docs" "$OUT/docs-with-pictures"
+while IFS= read -r line; do
+    page="${line%%: missing *}"
+    link="${line#*: missing }"
+    mkdir -p "$(dirname "$OUT/docs-with-pictures/$(dirname "$page")/$link")"
+    touch "$OUT/docs-with-pictures/$(dirname "$page")/$link"
+done < "$LOGS/site-links.log"
+step "site links (with the pictures in place)" "$PROJ/scripts/check_site_links.sh" "$OUT/docs-with-pictures"
+rm -rf "$OUT/docs-with-pictures"
+echo "   $(wc -l < "$LOGS/site-links.log" | tr -d ' ') links to pictures a run makes, nothing else missing"
 
 cd "$PROJ"
 

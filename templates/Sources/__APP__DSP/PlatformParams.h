@@ -168,7 +168,8 @@ static_assert(kLfo2Rate == kLfo1Rate + 2 && kLfo2Shape == kLfo1Shape + 2, "an LF
 constexpr int kNoTarget = -1;
 struct Target { int param; float depth; };
 
-// One knob set to a plain value; param -1 is no override.
+// One knob set to a plain value; param -1 is no override. A program's and a kit pad's overrides,
+// and the entries of the instrument's test sound (kTestSound).
 struct Override { int param = -1; float value = 0.0f; };
 
 // The instrument's own default for a knob of the platform block (its playing style: Voice Mode,

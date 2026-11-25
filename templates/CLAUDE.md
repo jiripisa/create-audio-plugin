@@ -26,11 +26,17 @@
   `auval` (`development_workflow.md` §2.1).
 - **The instrument lives in a few files**: `Sources/{{APP}}DSP/Params.h` (its knobs,
   its playing style as defaults of platform knobs (`kPlatformDefaults`), sections,
-  programs, kit), `Voice.h` (its voice), `Tests/{{APP}}Reference/` and the
-  instrument tests (`PrototypeEquivalenceTests`, `SoundRegressionTests`,
-  `InstrumentTableTests`, `ReferenceTests`), plus the panel's `Artwork.swift` and
-  `SectionLayout` plans. Everything else is the platform the project was made from:
-  the platform tests must stay green without knowing the instrument's knobs.
+  programs, kit, and its test sound, `kTestSound`), `Voice.h` (its voice),
+  `Tests/{{APP}}Reference/` (the approved listening prototype: its voice and the
+  harness that played it) and the instrument tests (`PrototypeEquivalenceTests`,
+  `SoundRegressionTests`, `InstrumentTableTests`, `ReferenceTests`), plus the
+  panel's `Artwork.swift` and `SectionLayout` plans. Everything else is the
+  platform the project was made from: the platform tests must stay green without
+  knowing the instrument's knobs. They play the test sound: a knob that makes the
+  voice move its pitch by itself (a vibrato, a pitch envelope) or ring longer than
+  1.5 s after the note-off gets an entry in `kTestSound` that turns it off, and a
+  voice's random numbers come from its own generator, seeded with `kVoiceSeed` at
+  every fresh start (`Voice.h`).
 
 ## Releases
 
@@ -56,6 +62,8 @@
   templates that mark what is the instrument's with `<!-- FILL: … -->`
   comments, saying what goes there and from where. A release has none left:
   `grep -rn 'FILL:' docs .planning/ROADMAP.md .planning/STATE.md` finds nothing.
+- No page ships with a missing picture: `scripts/check_site_links.sh` prints
+  `site links ok` before every release (the release skill, step 1).
 
 ## Planning
 

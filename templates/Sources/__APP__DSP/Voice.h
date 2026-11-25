@@ -18,6 +18,13 @@
 //   * finished(): true once the voice is silent for good; the engine then frees it.
 // No allocation, no lock, no I/O in any of them: they run on the audio thread.
 //
+// Random numbers (Tone draws none): a voice that needs them owns its generator, a std::mt19937
+// member, seeds it with kVoiceSeed in every fresh start (`continuing` false) and draws through
+// uniform() and white() (VoiceRandom.h). A continuing start goes on in the same stream. Nothing
+// else is random: the engine gives a fresh voice no seed, and two equal notes must render equal
+// samples (ModulationTests.lfoHitRepeats). The listening prototype's harness seeds its voices
+// the same way with the same constant, so a prototype's voice is ported draw for draw.
+//
 // 2 to a power is std::exp2, not std::pow(2.0, x): an optimised build turns the one into the
 // other, and the two differ in a last bit now and then, so a debug build would render other
 // samples than a release build.

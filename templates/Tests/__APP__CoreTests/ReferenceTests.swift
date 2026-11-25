@@ -30,5 +30,16 @@ import {{APP}}Reference
         // The engine holds a knob as its position: a value comes back to within a rounding.
         #expect(abs(p.attack - ours.attack) < 1e-4 && abs(p.decay - ours.decay) < 1e-5 && abs(p.release - ours.release) < 1e-5)
         #expect(abs(p.brightness - ours.brightness) < 1e-6 && abs(p.velsens - ours.velsens) < 1e-6)
+        var how = {{APP}}RefPlaying()
+        {{APP_C}}_ref_default_playing(&how)
+        let style = PrototypeScores.referencePlaying([:])
+        #expect(how.mode == style.mode && how.glideMs == style.glideMs && how.bendUp == style.bendUp && how.bendDown == style.bendDown)
+        #expect(how.pads == 0)
+    }
+
+    @Test("Voice Mode, Glide and the bend range become the prototype's playing style")
+    func playingStyle() {
+        let how = PrototypeScores.referencePlaying(["voicemode": 2, "glide": 80, "bendup": 7, "benddown": 12], pads: true)
+        #expect(how.mode == 2 && abs(how.glideMs - 80) < 1e-3 && how.bendUp == 7 && how.bendDown == 12 && how.pads == 1)
     }
 }

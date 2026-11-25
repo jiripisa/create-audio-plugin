@@ -29,7 +29,19 @@ or a plan) never stands in for it. For the first release that is all of them:
 
 For a later release, leave out what is already so (step 7.0 says how to tell)
 and say that it is. The question is asked once; a yes covers exactly the
-actions it named.
+actions it named. It is the confirmation the global rule asks for before a
+push: one question for every push it names, so none of them is asked again.
+
+**Run these with the Bash sandbox disabled from the start** (Claude Code's
+`dangerouslyDisableSandbox`), because the sandbox keeps the login Keychain,
+the screen and `~/Library/Audio` away and the failure then reads as "not set
+up": `./build.sh dist` (codesign, notarytool, `sign_update`),
+`security find-identity`, `xcrun notarytool history`, `generate_keys -p`,
+`sign_update --verify`, the copy of the component for `auval`, and the window
+capture of step 3. A signing piece is missing only when its check fails with
+the sandbox disabled. If the request to disable the sandbox is refused, that
+is final for the step: record it under "Not verified" and do not try another
+way round. Never change a permission setting.
 
 ## 1. Prepare
 
@@ -53,7 +65,16 @@ Check: `swift test` green (redirect the output to a file, read the summary line)
 `grep -rn "<old version>" docs/*.html docs/cs/*.html` finds nothing;
 `grep -rn "FILL:" docs .planning/ROADMAP.md .planning/STATE.md` finds nothing
 (every template placeholder of the site, the manual and the planning files is
-written; plans and specs are not templates and are not checked).
+written; plans and specs are not templates and are not checked);
+`scripts/check_site_links.sh` prints `site links ok` (every picture, page and
+style the site links is in `docs/`).
+
+A page is never released with a broken picture. For each file the check lists:
+make it now if it can be made (a window picture: step 3), else take its figure
+out, the same tags in `docs/` and `docs/cs/` (the `<figure>` or `<img>` and the
+sentence that points at it), until the check passes. Write every figure taken
+out into `VERIFICATION.md` under "Not verified", and name them in the push
+question ("the manual ships without the pictures of …").
 
 ## 2. Build the DMG
 
@@ -93,12 +114,27 @@ system_profiler SPAudioDataType | awk '
     END { if (!found) flush() }'
 ```
 
-It prints the default output's name and transport. Only `| Built-in`: open
-`build/release/{{APP}}.app` by its path, capture only its window
-(`screencapture -x -o -l <window id>`; the window id from
-`CGWindowListCopyWindowInfo`, filtered on the PID of the process you started),
-look at the image, then copy it to `docs/assets/{{APP_LOWER}}-window.png`. Never
-capture the whole screen or other apps' windows. Quit the app afterwards.
+It prints the default output's name and transport. Only `| Built-in`, and with
+no copy of the app running (`pgrep -x {{APP}}` prints nothing): start the
+built app by the path of its binary, in the background, and keep its PID,
+
+```bash
+"$PWD/build/release/{{APP}}.app/Contents/MacOS/{{APP}}" > /dev/null 2>&1 &
+APP_PID=$!
+```
+
+never with `open` (it hands the launch to Launch Services, which may start or
+bring forward another copy and gives no PID). Capture only a window of that
+PID (`screencapture -x -o -l <window id>`, the options before the file name;
+the window id from `CGWindowListCopyWindowInfo` filtered on
+`kCGWindowOwnerPID == APP_PID`), with the sandbox disabled as said at the top.
+Look at the image, then copy it to `docs/assets/{{APP_LOWER}}-window.png`. Never
+capture the whole screen or other apps' windows, never bring the app to the
+front. Quit it afterwards: `kill "$APP_PID"`.
+
+A capture that is all black or cannot be made (the screen is locked, nobody is
+at the Mac) is not retried in other ways: keep it for the moment the user is
+back, right before the push question of step 6, and take it then.
 
 Any other transport, or nothing printed: do not start the app, keep the
 screenshot that is there, and write in `VERIFICATION.md` under "Not verified"
@@ -143,6 +179,10 @@ need the public repo, the Release and Pages. This step is its local part (its
    trailers); nothing is pushed yet.
 
 ## 6. The push question
+
+First take any capture that was waiting for the user (step 3), commit it, and
+run `scripts/check_site_links.sh` once more: `site links ok`, or the figures
+that had to be taken out are named in the question.
 
 Ask the bold question of the top of this file, naming each action and the
 release URL it leads to. Wait for the answer. Without a yes, stop here and

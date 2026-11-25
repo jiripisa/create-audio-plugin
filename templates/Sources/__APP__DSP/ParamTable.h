@@ -13,11 +13,13 @@
 //   * its defaults of platform knobs (kPlatformDefaults) name knobs of the platform block, each
 //     once, within its range, and the default kit leaves them to its pads' programs;
 //   * each instrument knob is in exactly one section;
-//   * the programs and the default kit name valid programs, notes, groups and parameters.
+//   * the programs and the default kit name valid programs, notes, groups and parameters;
+//   * its test sound (kTestSound) sets knobs of its own, each once, within its range.
 
 #pragma once
 
 #include "Params.h"
+#include "VoiceRandom.h"
 
 #include <array>
 #include <cmath>
@@ -66,6 +68,24 @@ constexpr std::array<Param, kNumPlatformKnobs> platformBlock()
     return block;
 }
 inline constexpr std::array<Param, kNumPlatformKnobs> kPlatformBlock = platformBlock();
+
+// ----- the instrument's test sound -----------------------------------------------------------
+// The entries of kTestSound that set a knob ({ kNoTarget, 0 } sets none).
+constexpr int countTestSound()
+{
+    int n = 0;
+    for (const Override& o : kTestSound) if (o.param != kNoTarget) ++n;
+    return n;
+}
+constexpr int kNumTestSound = countTestSound();
+
+// The i-th of them; { kNoTarget, 0 } past the end.
+constexpr Override testSound(int i)
+{
+    for (const Override& o : kTestSound)
+        if (o.param != kNoTarget && i-- == 0) return o;
+    return { kNoTarget, 0.0f };
+}
 
 // A knob of the table: the platform block's (with the instrument's defaults) or the instrument's.
 constexpr const Param& knob(int i) { return i < kNumPlatformKnobs ? kPlatformBlock[(size_t)i] : kInstrumentKnobs[i - kNumPlatformKnobs]; }
@@ -229,6 +249,22 @@ constexpr bool platformDefaultsAreSound()
     return true;
 }
 
+// Each entry a knob of the instrument's own, none twice, its value in the knob's range and, for a
+// switch or a whole number, a whole one.
+constexpr bool testSoundIsSound()
+{
+    for (int i = 0; i < kNumTestSound; ++i)
+    {
+        const Override o = testSound(i);
+        if (o.param < kNumPlatformKnobs || o.param >= kNumKnobs) return false;
+        const Param& p = knob(o.param);
+        if (!(o.value >= p.min && o.value <= p.max)) return false;
+        if (p.kind != {{APP_UPPER}}_KIND_FLOAT && o.value != (float)(int)o.value) return false;
+        for (int j = 0; j < i; ++j) if (testSound(j).param == o.param) return false;
+    }
+    return true;
+}
+
 constexpr bool overridesAreSound(const Override* overrides, int n)
 {
     for (int i = 0; i < n; ++i) if (overrides[i].param < -1 || overrides[i].param >= kNumKnobs + kNumLfoAmounts + kNumVelAmounts) return false;
@@ -275,6 +311,7 @@ static_assert(check::wheelTargets(kAftertouchTargets, kNumAftertouchTargets), "a
 static_assert(check::controllersAreSound(), "a knob's standard controller is missing, reserved or shared");
 static_assert(check::platformDefaultsAreSound(), "a platform default names no knob of the platform block, one twice, or a value out of its range");
 static_assert(check::kitLeavesPlatformDefaults(), "a pad of the default kit sets a knob of kPlatformDefaults: leave it to the pad's program");
+static_assert(check::testSoundIsSound(), "the test sound names no knob of the instrument's own, one twice, or a value out of its range");
 static_assert(check::sectionsAreSound(), "an instrument knob is in no section or in two, or a section holds no knob");
 static_assert(kNumPrograms >= 1 && check::programsAndKitAreSound(), "a program or a pad of the default kit is out of range");
 

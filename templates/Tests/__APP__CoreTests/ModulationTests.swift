@@ -21,10 +21,12 @@ struct ModulationTests: EngineHarness {
 
     // MARK: - Velocity
 
+    // On Tune, a knob of the platform block that every instrument's velocity can move: the
+    // instrument's own knobs may be switches, or may not change what a note sounds like.
     @Test("A VEL amount moves a soft note exactly as far as turning the knob down would")
     func velMatchesKnob() {
         let n0: Float = 0.6                                  // the knob's position at a full note
-        let knob = TestKnobs.first, index = Int32(knob.index)
+        let knob = TestKnobs.named("tune"), index = Int32(knob.index)
         let amount = "vel\(knob.identifier)"
         let moved = hit([amount: 60], velocity: 64) { {{APP_C}}_set_normalised($0, Self.keyboard, index, n0) }
         let turned = hit(velocity: 64) {

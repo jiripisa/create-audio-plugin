@@ -1,6 +1,6 @@
 // Params.h - the instrument's part of the parameter table: its knobs, what the LFOs, the velocity
-// and the wheels may move, its sections, its programs and its default kit (the shapes are in
-// PlatformParams.h, the whole table is put together in ParamTable.h).
+// and the wheels may move, its sections, its programs, its default kit and its test sound (the
+// shapes are in PlatformParams.h, the whole table is put together in ParamTable.h).
 //
 // The placeholder instrument "Tone": a sine with one harmonic (its second), an envelope of
 // Attack, Decay (while the key is held) and Release, and Brightness, the harmonic's level.
@@ -75,15 +75,34 @@ constexpr KitPad kDefaultKit[{{APP_UPPER}}_NUM_PADS] = {
 };
 
 // ---------------------------------------------------------------------------------------------
+// The test sound.
+// ---------------------------------------------------------------------------------------------
+// The instrument's own knobs as the platform's tests play it: plain values over the defaults,
+// { knob, value }. Those tests (EngineTests, VoiceModeTests, ModulationTests, PadTests, ...) know
+// no knob of the instrument: they measure pitches, compare renders and wait for silence. With
+// these values in a set the voice must
+//   * sound at Knobs::hz(note), steadily: no vibrato, pitch envelope, drift or detune. Whatever
+//     moves the pitch by itself has a knob, and that knob is turned to nothing here;
+//   * sound for at least half a second while its key is held;
+//   * be over (finished()) within 1.5 s of its note-off: a longer release is turned down here.
+// Only the instrument's own knobs (the platform's go back to the platform's own in the tests),
+// each once, in its range. { kNoTarget, 0 } when the default sound is like that already, as
+// Tone's is. ParameterTableTests.testSound checks the table; nothing but tests reads it.
+constexpr Override kTestSound[] = { { kNoTarget, 0.0f } };
+
+// ---------------------------------------------------------------------------------------------
 // How the instrument plays.
 // ---------------------------------------------------------------------------------------------
 // A note-on on a voice that sounds (the same key, or a pad of the same group): true continues it
 // (Voice::start with continuing = true), false fades it out in 3 ms and starts a fresh voice.
 constexpr bool kRehitContinues = false;
 
-// The output scale: the voice's units to the engine's. The default note at full velocity
-// (sin + 0.3 sin 2x peaks at 1.14) comes out at 0.50, -6 dBFS, under the limiter's 0.6.
-constexpr float kOutputLevel = 0.44f;
+// The output scale: the voice's units to the engine's, set so that the fullest gesture of the
+// playing style at full velocity and Volume 0 dB peaks under the knee of the output stage (0.6:
+// the limiter bends what is above). Tone is played in chords: four notes at once (each
+// sin + 0.3 sin 2x, peaking at 1.14) stay under 4 x 1.14 x 0.125 = 0.57; one note peaks at 0.14,
+// -17 dBFS. InstrumentTableTests.fullestGesture measures it.
+constexpr float kOutputLevel = 0.125f;
 
 // The longest a voice can sound once its key is let go, in seconds: the top of Release (a T60)
 // takes the tone the 100 dB down where Voice::finished says it is over in 100/60 of it. The Audio

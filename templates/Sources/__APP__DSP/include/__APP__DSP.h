@@ -89,6 +89,14 @@ int         {{APP_C}}_num_platform_defaults(void);
 int         {{APP_C}}_platform_default_param(int i);
 float       {{APP_C}}_platform_default_value(int i);
 
+// The instrument's test sound: the knobs of its own that the platform's tests set before they
+// play, and their plain values (a plain, steady sound: no pitch movement of its own, a short
+// release). For tests only: no engine, program or preset reads it. Entry i's knob is -1 (and its
+// value 0) past the end.
+int         {{APP_C}}_num_test_sound(void);
+int         {{APP_C}}_test_sound_param(int i);
+float       {{APP_C}}_test_sound_value(int i);
+
 // ----- one engine ---------------------------------------------------------------------------
 {{APP}}Engine* {{APP_C}}_create(void);
 void          {{APP_C}}_destroy({{APP}}Engine*);
